@@ -5,7 +5,7 @@ git remote, no backup. This workspace is the plan to rebuild it on a new Jetson
 Orin in about a week, and the running record of doing so.
 
 **This workspace is documentation only. No code is written here** — code lives
-in `capstone-ws` on the Jetson.
+in `cap_ws` on the Jetson.
 
 ## Start here
 
@@ -36,7 +36,7 @@ exists.
 
 | Repo | Contents | Status |
 |---|---|---|
-| `capstone-ws` | `my_bot`, `my_bot_hardware`, `semantic_objects`, `yolo_node` | to create |
+| `cap_ws` | `my_bot`, `my_bot_hardware`, `semantic_objects`, `yolo_node` | to create |
 | `esp-motor-firmware` | ESP32 base controller | **exists**, `b0b762b` |
 | `semantic-bridge` | `semantic_bridge` + `semantic_map_ui` | to create — currently only on a USB drive |
 | `capstone-docs` | this workspace | to create |

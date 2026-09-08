@@ -144,7 +144,7 @@ Four repos, each pushed empty before a line goes in:
 
 | Repo | Contents |
 |---|---|
-| `capstone-ws` | The `ws/` overlay: `my_bot`, `my_bot_hardware`, `semantic_objects`, `yolo_node` |
+| `cap_ws` | The `ws/` overlay: `my_bot`, `my_bot_hardware`, `semantic_objects`, `yolo_node` |
 | `esp-motor-firmware` | Exists. Push the pin fix from §5.3 the day you make it. |
 | `semantic-bridge` | `semantic_bridge` + `semantic_map_ui`, currently ungoverned on a USB drive |
 | `capstone-docs` | This file, the design note, calibration results, demo script |
@@ -157,7 +157,7 @@ start editing it. Read from the copy, never from the mount.
 
 **Two things also die with the board that a git remote does not cover:**
 `/etc/udev/rules.d/` and your calibration numbers. Both belong in
-`capstone-ws` as files that get *installed*, never edited in place. §5.1
+`cap_ws` as files that get *installed*, never edited in place. §5.1
 and §5.4 produce them.
 
 ---
@@ -847,7 +847,7 @@ Reconstructed from your recollection, plus the targets the week actually needs.
 Keep it at the workspace root.
 
 ```makefile
-WS  := $(HOME)/capstone-ws
+WS  := $(HOME)/cap_ws
 PKG := my_bot
 SRC := source /opt/ros/humble/setup.bash && source $(WS)/install/setup.bash
 

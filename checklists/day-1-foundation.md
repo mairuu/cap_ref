@@ -66,7 +66,7 @@ Ten minutes, and it is the whole reason this workspace exists.
       backed up too.
 - [x] `semantic-bridge` — `semantic-object/` is tracked in the same repo and
       pushed. Split it into its own remote only if it starts changing.
-- [ ] `capstone-ws` — created empty, pushed.
+- [ ] `cap_ws` — created empty, pushed.
 - [x] `esp-motor-firmware` — exists at `b0b762b`.
 - [ ] `STATE.md` "Repos pushed" table updated.
 
@@ -74,7 +74,7 @@ Ten minutes, and it is the whole reason this workspace exists.
 
 The **values** died with the board, but `scripts/setup_udev.sh` — which walks
 this whole section interactively — came back in the NVMe dump. Copy it into
-`capstone-ws/src/my_bot/scripts/` and run `make udev` rather than doing the
+`cap_ws/src/my_bot/scripts/` and run `make udev` rather than doing the
 steps below by hand; they are kept as the explanation of what it is doing.
 
 > The recovered `udev/99-my-bot-serial.rules` matched both devices by **USB
@@ -104,31 +104,44 @@ udevadm info -a -n /dev/ttyUSB0 | grep -E 'idVendor|idProduct|serial' | head -6
 
 - [ ] **Do they collide?**  yes / no  → if yes, serials are mandatory
 
-- [ ] Write `capstone-ws/src/my_bot/udev/99-capstone.rules`:
-
-```udev
-SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ATTRS{serial}=="<ESP32_SERIAL>", SYMLINK+="esp32", MODE="0666"
-SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ATTRS{serial}=="<LIDAR_SERIAL>", SYMLINK+="ydlidar", MODE="0666"
-```
-
-  **If the serials are identical or absent** (common on CP2102 clones), fall back
-  to physical USB port paths — and **label the sockets physically**, because the
-  rule becomes a promise about cabling:
+- [ ] **Be in `dialout` first.** The recovered `setup_udev.sh` writes
+      `GROUP="dialout", MODE="0660"` — **not** the `0666` this checklist used to
+      claim. On this board `mic-711` was **not** in `dialout` (checked 8 Sep).
+      Without it the symlinks appear and every open fails with permission
+      denied, which reads exactly like a dead adapter.
 
 ```bash
-udevadm info -a -n /dev/ttyUSB0 | grep -m1 KERNELS   # e.g. KERNELS=="1-2.3"
+sudo usermod -aG dialout $USER   # then LOG OUT and back in — newgrp is not enough
+                                 # for processes ROS launches
+id -nG | tr ' ' '\n' | grep -qx dialout && echo ok
 ```
 
-```udev
-SUBSYSTEM=="tty", KERNELS=="1-2.3", SYMLINK+="esp32", MODE="0666"
-SUBSYSTEM=="tty", KERNELS=="1-2.4", SYMLINK+="ydlidar", MODE="0666"
-```
-
-- [ ] Install and verify:
+- [ ] Run the recovered script, with **both devices plugged in**:
 
 ```bash
-sudo cp .../99-capstone.rules /etc/udev/rules.d/
-sudo udevadm control --reload-rules && sudo udevadm trigger
+cd ~/cap_ws && make udev
+```
+
+  It probes one adapter at a time, prefers `ATTRS{serial}` and falls back to
+  `KERNELS` when the serials collide or are absent, then installs
+  `/etc/udev/rules.d/99-my-bot-serial.rules` and leaves a checked-in copy at
+  `src/my_bot/udev/99-my-bot-serial.rules`.
+
+  The rules it writes take one of these two shapes:
+
+```udev
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ATTRS{serial}=="<ESP32_SERIAL>", SYMLINK+="esp32", GROUP="dialout", MODE="0660"
+SUBSYSTEM=="tty", SUBSYSTEMS=="usb", KERNELS=="1-2.3", SYMLINK+="esp32", GROUP="dialout", MODE="0660"
+```
+
+  **If it falls back to `KERNELS`** — which is what happened on the old board,
+  neither adapter has a serial — the rule becomes a promise about *cabling*.
+  **Label the two sockets physically before you walk away.**
+
+- [ ] Verify:
+
+```bash
+make ports          # both symlinks, and where they point
 ls -l /dev/esp32 /dev/ydlidar
 ```
 

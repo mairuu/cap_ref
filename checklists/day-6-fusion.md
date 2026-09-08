@@ -13,7 +13,7 @@
 Source: `semantic-object-ros/semantic_objects/` in this workspace.
 Full audit: `reference/recovered-facts.md`.
 
-- [ ] Copied into `capstone-ws/src/semantic_objects/` as a proper ROS 2 package
+- [ ] Copied into `cap_ws/src/semantic_objects/` as a proper ROS 2 package
 - [ ] The four `test_*.py` files came too
 - [ ] **Pushed before it is extended**
 - [ ] Unit tests run green as-is:

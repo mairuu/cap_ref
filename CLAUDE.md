@@ -118,7 +118,7 @@ semantic-object-ros/ June-era semantic_objects (reference only; does not run)
 ```
 
 **Never edit anything under `recoverable/`.** It is the only copy of the old
-board's state. Copy out of it into `capstone-ws`.
+board's state. Copy out of it into `cap_ws`.
 
 **`RECOVERY.md` is the why. The checklists are the what. `STATE.md` is the where.**
 

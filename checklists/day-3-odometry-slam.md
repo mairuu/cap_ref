@@ -79,7 +79,7 @@ git clone https://github.com/YDLIDAR/YDLidar-SDK.git && cd YDLidar-SDK
 mkdir build && cd build && cmake .. && make -j$(nproc) && sudo make install
 ```
 
-- [ ] `ydlidar_ros2_driver` into `capstone-ws/src`, `colcon build`
+- [ ] `ydlidar_ros2_driver` into `cap_ws/src`, `colcon build`
 - [ ] `config/ydlidar.yaml` per `RECOVERY.md` §6.5
 
 > **`isSingleChannel: true` and `baudrate: 115200`.** Get either wrong and the

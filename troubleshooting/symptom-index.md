@@ -36,6 +36,11 @@ udevadm info -a -n /dev/ttyUSB0 | head -40             # matchable attributes
 Rules install as `GROUP="dialout", MODE="0660"`.
 `id -nG | grep dialout` — if missing, `sudo usermod -aG dialout $USER`, then log
 out and back in.
+> **Confirmed missing on the rebuilt board, 8 Sep** — `mic-711` is in `sudo`,
+> `video`, `plugdev` and others but **not `dialout`**. Do this before `make
+> udev`, not after: the symlinks appear either way, so the failure looks like a
+> dead adapter rather than a permission problem. A re-login is required —
+> `newgrp` does not reach processes ROS launches.
 
 ### ESP32 will not flash — pyserial disconnect error
 Something holds the port. Looks like permissions; is not.

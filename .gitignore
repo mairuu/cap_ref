@@ -6,7 +6,7 @@
 .pytest_cache/
 .ruff_cache/
 
-# Build outputs (if this workspace ever sits next to capstone-ws)
+# Build outputs (if this workspace ever sits next to cap_ws)
 build/
 install/
 log/

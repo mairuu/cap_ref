@@ -14,7 +14,7 @@
 
 Build fresh. **Do not fork `articubot_one`** — it is Jazzy-era.
 
-- [ ] Layout created in `capstone-ws/src/`:
+- [ ] Layout created in `cap_ws/src/`:
 
 ```
 my_bot/

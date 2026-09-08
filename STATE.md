@@ -4,29 +4,46 @@
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
 **Last updated:** 8 Sep 2026 — new board confirmed, Day 1 begun
-**Current day:** Day 1 — new Jetson confirmed (Ubuntu 22.04, L4T R36.4), ROS install in progress
-**Blocked on:** three things needing the user's hands, none of them hard.
+**Current day:** Day 1 — **§2 done, ROS 2 Humble up and verified.** §3 deferred; §4 next
+**Blocked on:** two things needing the user's hands.
 
 1. **Hardware is not plugged in.** No `/dev/ttyUSB*`, no `/dev/video*`. §4
    (udev) and §5 (firmware) cannot start until the ESP32, the lidar and the
    camera are connected.
-2. **This board cannot push.** `git push` → *"could not read Username for
-   https://github.com"*. No credential helper, no SSH key, `gh` not installed.
-   Commits are landing locally only. **This is hard constraint 4 failing
-   silently** — fix it before more code accumulates.
-3. **sudo needs a password interactively**, so the ROS install has to be
-   launched by hand: `sudo ./scripts/bootstrap-ros-humble.sh`.
+2. **`mic-711` is not in `dialout`.** The recovered `setup_udev.sh` writes
+   `GROUP="dialout", MODE="0660"`, so without this the symlinks appear and every
+   open fails — which reads as a dead adapter, not a permission bug. Fix
+   *before* `make udev`, and **log out and back in** afterwards:
+   `sudo usermod -aG dialout $USER`.
+
+**Deferred by the user, not blocked:** §3 repos / git credentials. This board
+cannot `git push` (*"could not read Username for https://github.com"* — no
+credential helper, no SSH key, no `gh`) and `cap_ws` has no remote at all.
+Hard constraint 4 is not being met; commits are landing locally only. Revisit
+before Day 2 puts real code in `cap_ws`.
 
 ---
 
 ## Right now
 
-**Next action:** run `sudo ./scripts/bootstrap-ros-humble.sh`, then verify
-`ros2 pkg list | grep nav2_bringup`. After that, plug in the ESP32 + lidar and
-run `make udev` from `~/capstone-ws`.
+**Next action:** `checklists/day-1-foundation.md` §4 — `sudo usermod -aG dialout
+$USER`, re-login, plug in both adapters, then `cd ~/cap_ws && make udev`.
 
 Machine confirmed 8 Sep: Ubuntu 22.04.5, L4T R36.4.0 (= JetPack 6.1, matches),
-7.4 GB RAM, 101 GB free on nvme0n1p1. **No `/opt/ros` yet.**
+7.4 GB RAM, 101 GB free on nvme0n1p1.
+
+**§2 verified 8 Sep**, not just assumed. `/opt/ros/humble` present; `colcon` and
+`rosdep` 0.26.0 on PATH, rosdep cache populated. All fifteen packages the
+recovered launch files reference resolve: `nav2_bringup`, `nav2_map_server`,
+`slam_toolbox`, `twist_mux`, `image_tools`, `camera_calibration`,
+`vision_msgs`, `teleop_twist_keyboard`, `xacro`, `robot_state_publisher`,
+`controller_manager`, `diff_drive_controller`, `joint_state_broadcaster`,
+`rviz2`, `tf2_tools`.
+
+> **The Nav2 apt failure did not recur.** 30 `ros-humble-nav2-*` debs installed
+> cleanly from `packages.ros.org`, first try, no snapshot repo and no local
+> debs. See `records/issues.md` — the entry stays as history, but the risk it
+> described is retired for this build.
 
 **Notes for the next session:**
 
@@ -64,7 +81,7 @@ failed gate.
 
 | Day | Gate | Passed |
 |---|---|---|
-| 1 | `e` returns changing counts by hand; `m 20 20` spins both wheels forward and auto-stops after 2 s | [ ] |
+| 1 | `e` returns changing counts by hand; `m 20 20` spins both wheels forward and auto-stops after 2 s | [ ] §2 done, §4–§5 pending hardware |
 | 2 | `make teleop` drives the robot; `/odom` changes sanely; TF tree has no gaps | [ ] |
 | 3 | A driven loop closes without a visible double wall | [ ] |
 | 4 | RViz goal → robot arrives; recovery behaviours fire when blocked | [ ] |
@@ -138,13 +155,13 @@ against a day if odometry is quietly wrong.
 |---|---|---|
 | `capstone-docs` (this workspace) | [x] `mairuu/cap_ref` | [x] `18d29d8` — **includes `recoverable/`**. ⚠ `70e38c4` is ahead, unpushed: no git creds on this board |
 | `semantic-bridge` | [x] tracked inside `cap_ref` | [x] — split out only if it starts changing |
-| `capstone-ws` | [ ] ⚠ **no remote** | local only — `40f8d6a` at `~/capstone-ws` |
+| `cap_ws` | [ ] ⚠ **no remote** | local only — `~/cap_ws`, renamed from `capstone-ws` 8 Sep |
 | `esp-motor-firmware` | [x] | [x] — `b0b762b` |
 
 > ~~The recovered tree is not backed up.~~ **Resolved** — `recoverable/` is
 > tracked in `cap_ref` and pushed at `18d29d8`.
 >
-> ⚠ **`capstone-ws` has a local commit and no remote.** That breaks hard
+> ⚠ **`cap_ws` has a local commit and no remote.** That breaks hard
 > constraint 4. `gh` is not installed on this board. Create the remote before
 > any more code goes in.
 
@@ -158,4 +175,5 @@ report's methodology section.
 | Date | Deviation | Why |
 |---|---|---|
 | 8 Sep | Day-1 §2 apt block replaced by `scripts/bootstrap-ros-humble.sh` | The block predates the NVMe dump: it installed `usb_cam` (wrong — the camera is `cam2image`) and installed Nav2 fatally inline. `.bash_history` shows Nav2 apt-failing ~12× on the old board; the script isolates it so we learn on Day 1, not Day 4. See `records/issues.md`. |
-| 8 Sep | `capstone-ws` created with only `Makefile` + `setup_udev.sh` | Day 1 needs no more than that. The rest of `my_bot` crosses over file by file on Day 2, re-verifying measured numbers as it goes (D-13). The recovered `99-my-bot-serial.rules` was **not** copied — its `KERNELS` paths are devkit-specific. |
+| 8 Sep | Workspace named `cap_ws`, not `capstone-ws` | User's call, and it restores the old board's own name — `.bash_history` is full of `cd cap_ws/` and the recovered `Makefile` comment reads *"cap_ws is sourced after it and wins"*. All docs updated; `recoverable/` untouched. |
+| 8 Sep | `cap_ws` created with only `Makefile` + `setup_udev.sh` | Day 1 needs no more than that. The rest of `my_bot` crosses over file by file on Day 2, re-verifying measured numbers as it goes (D-13). The recovered `99-my-bot-serial.rules` was **not** copied — its `KERNELS` paths are devkit-specific. |
