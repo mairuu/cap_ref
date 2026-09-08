@@ -175,6 +175,34 @@ porting Jazzy-era `articubot_one`. Constraint 2's objection does not apply to
 the recovered tree — copy freely from it, but copy *knowingly*, file by file,
 and re-verify anything measured.
 
+## D-14 · §5.8's real power cycles are cut; the EN-reset evidence stands in
+**Date:** 8 Sep 2026 · **Status:** adopted (user decision)
+
+Day 1 §5.8 asks for five power cycles of the actual supply. **Cut** — the user
+reports power-cycling this robot is not reliable to perform. The step is closed
+on the automated evidence instead: `boot_check.py`, **50/50 clean EN resets**.
+
+**Why it is defensible.** GPIO12 (MTDI) is latched on *chip reset*, and the
+strapping pins are re-sampled on an EN reset exactly as on power-on — the ESP32
+cannot tell the two apart, which is why the banner reads `reset=1` either way.
+The thing §5.8 exists to catch is therefore tested, ten times over.
+
+**Limitation to report:** an EN reset does not re-run the supply ramp. Nothing
+here rules out a brown-out as the motor rail comes up, or a regulator that only
+misbehaves from cold. That gap is **not closed and will not be**.
+
+**Cost, and it is not zero.** "Power-cycling is unreliable" is itself a finding,
+and it points at the same rail GPIO12 shares a pin with. An unreliable power
+path does not stay confined to a bring-up checkbox — under load it looks like a
+robot that randomly stops, resets or drops its encoder counts mid-run, and on
+Day 3+ that presents as bad odometry or a SLAM failure rather than as an
+electrical fault.
+
+**So: first suspect.** If the board misbehaves intermittently on any later day,
+check the supply before debugging software. A reset mid-run is visible for free
+— the boot banner starts with `#`, and both `encoder_report.py` and
+`motor_check.py` already print a warning when one goes past. Believe it.
+
 ---
 
 ## Template

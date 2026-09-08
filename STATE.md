@@ -3,35 +3,39 @@
 > **Update this at the end of every session and whenever a gate passes.**
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
-**Last updated:** 8 Sep 2026 — Day 1 §4 and §5 passed on the hardware
-**Current day:** Day 1 — **§2, §4, §5 done except 5.8.** §3 still deferred
-**Blocked on:** one hardware step and one credential problem.
+**Last updated:** 8 Sep 2026 — **Day 1 gate passed**; `gh` authenticated
+**Current day:** Day 1 **done**. Day 2 next
+**Blocked on:** nothing. One item is waiting on the user, not blocking.
 
-1. **§5.8 — a couple of *real* power cycles.** The strapping half is done:
-   `boot_check.py` ran **50 EN resets, 50/50 clean**, and an EN reset
-   re-latches GPIO12 exactly as a power-on does. What it cannot exercise is the
-   supply ramp — a brown-out as the motor rail comes up, or a regulator that
-   only misbehaves from cold. Two or three cycles of the actual power switch,
-   `serial_probe.py -v e` after each, closes the Day 1 gate.
-2. **No git credentials on this board**, unchanged. Three repos now hold
-   unpushed work. See "Repos pushed" below.
+- **`cap_ws` has no remote yet** — the user is creating it. Everything else is
+  pushed. `gh` is authenticated on this board as `mairuu` as of 8 Sep, which
+  retires the long-standing credentials problem.
 
-~~Hardware is not plugged in~~ and ~~log out and back in~~ are both resolved:
-`id -nG` lists `dialout`, both adapters enumerate, and every port opens.
+~~Hardware is not plugged in~~, ~~log out and back in~~, and ~~this board
+cannot git push~~ are all resolved.
 
-**Deferred by the user, not blocked:** §3 repos / git credentials. This board
-cannot `git push` (*"could not read Username for https://github.com"* — no
-credential helper, no SSH key, no `gh`) and `cap_ws` has no remote at all.
-Hard constraint 4 is not being met; commits are landing locally only. Revisit
-before Day 2 puts real code in `cap_ws`.
+**§5.8's real power cycles were cut** (**D-14**) — unreliable to perform on this
+robot. Closed on 50/50 clean EN resets instead, which re-latch GPIO12 exactly as
+a power-on does. **The supply-ramp gap is accepted, not closed**, and it is a
+reported limitation rather than a passed test — see the warning below.
 
 ---
 
 ## Right now
 
-**Next action:** two or three **real** power cycles, `serial_probe.py -v e`
-after each. Everything else on the Day 1 gate has passed. Then Day 2 starts —
-but see the credentials problem first.
+**Next action:** **Day 2** — `checklists/day-2-drive.md`. The Day 1 gate is
+passed and `cap_ws` starts taking real code, so create its remote first
+(the user is doing this).
+
+> ⚠ **First suspect for any later flakiness: the power path.** The user reports
+> power-cycling this robot is not reliable, which is why D-14 cut §5.8's manual
+> cycles — but that is itself a finding, and it points at the same rail GPIO12
+> shares a pin with. An unreliable supply does not stay confined to a bring-up
+> checkbox: under load it looks like a robot that randomly stops, resets, or
+> drops its encoder counts mid-run, and from Day 3 that presents as bad odometry
+> or a SLAM failure rather than as an electrical fault. A reset mid-run is
+> visible for free — the banner starts with `#`, and both `encoder_report.py`
+> and `motor_check.py` warn when one goes past. **Believe the warning.**
 
 **§5 passed 8 Sep, robot on blocks.** The firmware drives wheels under closed
 loop: `o 50 50` turns both forward, auto-stop fires at 2.0 s, and `m 20 20`
@@ -102,7 +106,7 @@ failed gate.
 
 | Day | Gate | Passed |
 |---|---|---|
-| 1 | `e` returns changing counts by hand; `m 20 20` spins both wheels forward and auto-stops after 2 s | **[~]** §4 and §5.1–5.7 passed 8 Sep; §5.8 50/50 on EN resets, **real power cycles owed** |
+| 1 | `e` returns changing counts by hand; `m 20 20` spins both wheels forward and auto-stops after 2 s | **[x] PASSED 8 Sep.** §5.8 closed on 50/50 EN resets; manual cycles cut, D-14 |
 | 2 | `make teleop` drives the robot; `/odom` changes sanely; TF tree has no gaps | [ ] |
 | 3 | A driven loop closes without a visible double wall | [ ] |
 | 4 | RViz goal → robot arrives; recovery behaviours fire when blocked | [ ] |
@@ -114,7 +118,7 @@ failed gate.
 
 | Track | Scope | Where |
 |---|---|---|
-| **A** — needs the robot | foundation → drive → odometry → SLAM → Nav2 | **Day 1 all but §5.8** |
+| **A** — needs the robot | foundation → drive → odometry → SLAM → Nav2 | **Day 1 done**, Day 2 next |
 | **B** — needs only Jetson + camera | uv env → calibration → detector | not started |
 
 Track B runs in the gaps of Track A. Start it Day 2, not Day 5 — it is the
@@ -202,22 +206,22 @@ against a day if odometry is quietly wrong.
 
 | Repo | Remote created | Initial commit pushed |
 |---|---|---|
-| `capstone-docs` (this workspace) | [x] `mairuu/cap_ref` | [x] `18d29d8` — **includes `recoverable/`**. ⚠ `70e38c4` is ahead, unpushed: no git creds on this board |
+| `capstone-docs` (this workspace) | [x] `mairuu/cap_ref` | [x] **`eb4e9b3`, pushed 8 Sep** — includes `recoverable/` |
 | `semantic-bridge` | [x] tracked inside `cap_ref` | [x] — split out only if it starts changing |
-| `cap_ws` | [ ] ⚠ **no remote** | local only — `~/cap_ws`, renamed from `capstone-ws` 8 Sep |
-| `esp-motor-firmware` | [x] | [x] — `b0b762b`. ⚠ `52cf077` ahead, **unpushed** |
+| `cap_ws` | [~] user is creating it | committed through `4a26a9c`, **awaiting remote** — `~/cap_ws`, renamed from `capstone-ws` 8 Sep. Local branch is `master`; the other two use `main` |
+| `esp-motor-firmware` | [x] | [x] **`52cf077`, pushed 8 Sep** — the encoder fixes |
 
 > ~~The recovered tree is not backed up.~~ **Resolved** — `recoverable/` is
 > tracked in `cap_ref` and pushed at `18d29d8`.
 >
-> ⚠ **`cap_ws` has local commits and no remote** (`c7da2b1`, `6e91aec`,
-> `d056229`). That breaks hard constraint 4. `gh` is not installed on this
-> board. Create the remote before any more code goes in.
+> ✅ **The credentials problem is over.** `gh` is authenticated as `mairuu`,
+> and the whole backlog went out on 8 Sep: `cap_ref` `18d29d8..eb4e9b3`,
+> `esp-motor-firmware` `b0b762b..52cf077`. Hard constraint 4 is met again.
 >
-> ⚠ **Three repos now hold unpushed work**, not one: `cap_ref` (`70e38c4`
-> onward), `cap_ws` (all of it), `esp-motor-firmware` (`52cf077`). The Day 1
-> checklist asks for `config.h` to be *pushed the same day* and that cannot be
-> met. **Sort credentials before Day 2** — the risk compounds with every commit.
+> ⚠ **`cap_ws` is the exception** and still exists only on this board —
+> `c7da2b1`, `6e91aec`, `d056229`, `4a26a9c`, which is every diagnostic script
+> written today. The user is creating the remote. **Push it before Day 2 puts
+> real code in it.**
 
 ---
 

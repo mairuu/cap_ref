@@ -66,7 +66,8 @@ Ten minutes, and it is the whole reason this workspace exists.
       backed up too.
 - [x] `semantic-bridge` — `semantic-object/` is tracked in the same repo and
       pushed. Split it into its own remote only if it starts changing.
-- [ ] `cap_ws` — created empty, pushed.
+- [~] `cap_ws` — **local only**; the user is creating the remote. `gh` is
+      authenticated on this board as of 8 Sep.
 - [x] `esp-motor-firmware` — exists at `b0b762b`.
 - [ ] `STATE.md` "Repos pushed" table updated.
 
@@ -200,7 +201,7 @@ Then, **in order, do not skip ahead**:
 | 5.5 | `o 50 50` | `OK`, both wheels turn **forward** | **[x]** 8 Sep, watched | swap that motor's FORWARD/BACKWARD pins |
 | 5.6 | *wait 2 s* | motors stop by themselves | **[x]** 8 Sep — **2.0 s** | auto-stop broken — **do not proceed** |
 | 5.7 | `m 20 20` | `OK`, wheels settle at a steady speed | **[x]** 8 Sep — both near **600 ticks/s**, no wind-up | **see below** |
-| 5.8 | power-cycle 5× | boots every time | **[~]** 50/50 EN resets clean, 8 Sep; **real power cycles still owed** | GPIO12 strapping issue |
+| 5.8 | power-cycle 5× | boots every time | **[x]** 8 Sep — **50/50 EN resets**; real power cycles **cut**, see D-14 | GPIO12 strapping issue |
 
 > **5.3–5.7 were done by driving, not by hand-spinning**, with
 > `cap_ws/src/my_bot/scripts/motor_check.py`. Hand-spinning tests the encoder
@@ -232,8 +233,8 @@ Then, **in order, do not skip ahead**:
 
 - [x] Both files made to agree — `ARCHITECTURE.md` corrected,
       `esp-motor-firmware` `52cf077`
-- [x] `config.h` committed — `52cf077`. **Not pushed:** this board has no git
-      credentials (see `STATE.md`). Hard constraint 4 is still unmet.
+- [x] `config.h` committed **and pushed the same day** — `52cf077`. `gh` was
+      authenticated late on 8 Sep and the backlog went out.
 
 ---
 
@@ -246,8 +247,9 @@ Into `records/calibration.md`, with today's date:
 - [x] Whether the VID:PID collide — **yes**, both `10c4:ea60`, both serial `0001`
 - [x] Final `LEFT_ENC_INVERT` / `RIGHT_ENC_INVERT` — **false / false**
 - [x] Which encoder pin set is correct — **23/22**
-- [~] GPIO12 boot reliability result — 50/50 EN resets clean; **real power
-      cycles still owed**, since only those exercise the supply ramp
+- [x] GPIO12 boot reliability result — **50/50 EN resets clean**. Real power
+      cycles cut (**D-14**): unreliable to perform on this robot. The strapping
+      latch is tested; the supply ramp is not, and will not be.
 
 ---
 
@@ -259,11 +261,12 @@ Into `records/calibration.md`, with today's date:
       in the same direction the motor is driven
 - [x] `m 20 20` spins both wheels **forward**, **steadily** (~600 ticks/s each),
       and **stops on its own** after 2.0 seconds
-- [~] The board boots reliably across 5 power cycles — 50/50 EN resets clean
+- [x] The board boots reliably across 5 power cycles — **50/50 EN resets**
       (`boot_check.py`), which re-latches GPIO12 exactly as a power-on does.
-      ← **a couple of real power cycles are the only thing left**
-- [ ] Everything above is committed and pushed — committed (`cap_ws` `d056229`,
-      `esp-motor-firmware` `52cf077`); **pushed: no**, no credentials on this
-      board
+      Real power cycles cut, **D-14**; the supply-ramp gap is accepted and
+      reported, not closed.
+- [~] Everything above is committed and pushed. `cap_ref` (`eb4e9b3`) and
+      `esp-motor-firmware` (`52cf077`) **pushed 8 Sep**. `cap_ws` is committed
+      through `4a26a9c` and waiting on its remote.
 
 **Then update `STATE.md`:** day, gate ticked, devices, next action.
