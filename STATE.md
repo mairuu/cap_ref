@@ -4,17 +4,17 @@
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
 **Last updated:** 8 Sep 2026 — new board confirmed, Day 1 begun
-**Current day:** Day 1 — **§2 done, ROS 2 Humble up and verified.** §3 deferred; §4 next
+**Current day:** Day 1 — **§2 and §4 done.** §3 deferred. §5 (firmware) next, on a re-login
 **Blocked on:** two things needing the user's hands.
 
 1. **Hardware is not plugged in.** No `/dev/ttyUSB*`, no `/dev/video*`. §4
    (udev) and §5 (firmware) cannot start until the ESP32, the lidar and the
    camera are connected.
-2. **`mic-711` is not in `dialout`.** The recovered `setup_udev.sh` writes
-   `GROUP="dialout", MODE="0660"`, so without this the symlinks appear and every
-   open fails — which reads as a dead adapter, not a permission bug. Fix
-   *before* `make udev`, and **log out and back in** afterwards:
-   `sudo usermod -aG dialout $USER`.
+2. **Log out and back in.** `usermod -aG dialout` has been run — `/etc/group`
+   lists `dialout:x:20:mic-711` — but **the running session predates it**, so
+   `id -nG` still omits `dialout` and opening either port returns
+   `PermissionError: Permission denied` (verified 8 Sep). Nothing else is
+   wrong; the symlinks and rules are correct. A re-login is the whole fix.
 
 **Deferred by the user, not blocked:** §3 repos / git credentials. This board
 cannot `git push` (*"could not read Username for https://github.com"* — no
@@ -26,8 +26,10 @@ before Day 2 puts real code in `cap_ws`.
 
 ## Right now
 
-**Next action:** `checklists/day-1-foundation.md` §4 — `sudo usermod -aG dialout
-$USER`, re-login, plug in both adapters, then `cd ~/cap_ws && make udev`.
+**Next action:** **log out and back in**, confirm with
+`id -nG | grep dialout`, then `checklists/day-1-foundation.md` §5 — firmware
+validation, **robot on blocks**. §4 is done: both adapters plugged in, `make
+udev` run, both symlinks correct.
 
 Machine confirmed 8 Sep: Ubuntu 22.04.5, L4T R36.4.0 (= JetPack 6.1, matches),
 7.4 GB RAM, 101 GB free on nvme0n1p1.
@@ -111,8 +113,19 @@ topology, so **the recovered paths will not transfer. Re-run `make udev`.**
 
 | Symlink | Old `KERNELS` | New `KERNELS` | Confirmed |
 |---|---|---|---|
-| `/dev/esp32` | `1-2.1` | | [ ] |
-| `/dev/ydlidar` | `1-2.2.4` | | [ ] |
+| `/dev/esp32` | `1-2.1` | **`1-2.2.4`** | [x] symlink, 8 Sep → `ttyUSB0` |
+| `/dev/ydlidar` | `1-2.2.4` | **`1-2.2.1`** | [x] symlink, 8 Sep → `ttyUSB1` |
+
+Both are `10c4:ea60` CP210x with **no serial** — the predicted collision, and
+the fallback to port path, both confirmed. **Sockets are now load-bearing:
+label them.**
+
+> ⚠ **`1-2.2.4` means different hardware on the two boards** — lidar then,
+> ESP32 now. The recovered rules file would cross-wire them *silently*. Only
+> the `make udev`-generated copy in `cap_ws/src/my_bot/udev/` is installable.
+
+Camera: **Logitech HD Webcam C615** (`046d:082c`) on `/dev/video0`, no rule
+needed. Driven by `cam2image`, not `usb_cam`.
 
 `scripts/setup_udev.sh` is recovered and does this interactively.
 

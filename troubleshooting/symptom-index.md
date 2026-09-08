@@ -19,6 +19,14 @@ it pushes. **Cut power now.** Flip that wheel's `LEFT_ENC_INVERT` /
 `RIGHT_ENC_INVERT` in `config.h`, reflash, retest on blocks.
 → `checklists/day-1-foundation.md` §5.7
 
+### `/dev/ydlidar` is the ESP32 — after copying a rules file from somewhere
+You installed the **recovered** `udev/99-my-bot-serial.rules` instead of the one
+`make udev` generated. `KERNELS=="1-2.2.4"` was the **lidar** on the old board
+and is the **ESP32** on this one, so the old file cross-wires them *silently* —
+both symlinks appear, both point at a real adapter, and the wrong one answers.
+Regenerate with `make udev`. The file under `recoverable/` is never installable.
+→ `records/calibration.md` "Devices"
+
 ### `/dev/esp32` sometimes points at the lidar (or vice versa)
 **Neither adapter has a unique serial** — confirmed. The rules match by USB
 **port path**, so a device moved to another socket loses its name.

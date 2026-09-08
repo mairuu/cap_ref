@@ -10,21 +10,56 @@
 
 ## Devices — `make udev`
 
-**RECOVERED from the old board (2026-09-04), and NOT reusable as-is.** Neither
-adapter has a unique serial, so both were matched by **USB port path**. The new
-Advantech carrier board has different USB topology — **re-run `make udev`.**
+**MEASURED on the rebuilt board 2026-09-08.** Supersedes the recovered values
+below. Both adapters are `10c4:ea60` Silicon Labs CP210x — **the predicted
+VID:PID collision is confirmed** — and **neither reports a serial**, so
+`setup_udev.sh` fell back to USB port path on both, exactly as it did before.
 
 | | ESP32 | Lidar |
 |---|---|---|
-| Symlink | `/dev/esp32` | **`/dev/ydlidar`** |
+| Symlink | `/dev/esp32` | `/dev/ydlidar` |
 | Baud | 57600 | 115200 |
-| Old `KERNELS` | `1-2.1` | `1-2.2.4` |
+| VID:PID | `10c4:ea60` | `10c4:ea60` — **collides** |
 | Unique serial? | **no** | **no** |
-| New `KERNELS` | | |
-| Confirmed on new board | [ ] | [ ] |
+| Old `KERNELS` (2026-09-04) | `1-2.1` | `1-2.2.4` |
+| **New `KERNELS` (2026-09-08)** | **`1-2.2.4`** | **`1-2.2.1`** |
+| Resolved to, first boot | `/dev/ttyUSB0` | `/dev/ttyUSB1` |
+| Confirmed on new board | [x] symlink | [x] symlink |
+| Confirmed as the right *device* | [ ] — §5.1 boot banner | [ ] — §5 lidar spin-up |
 
-**Method:** `scripts/setup_udev.sh` (recovered — interactive, run with both
-plugged in). Access is `GROUP="dialout", MODE="0660"` — be in `dialout`.
+> ⚠ **`1-2.2.4` changed meaning between boards.** It was the **lidar** on the
+> old board and it is the **ESP32** on this one. Copying the recovered
+> `udev/99-my-bot-serial.rules` across would therefore not fail loudly — it
+> would silently name the ESP32 `/dev/ydlidar`. The rules file in
+> `cap_ws/src/my_bot/udev/` is the newly generated one; the recovered copy under
+> `recoverable/` must never be installed.
+
+> The symlinks prove the *rules* are right. They do not prove the ESP32 is on
+> the port the script thinks — the script probes one adapter at a time, so it
+> should be, but the first real confirmation is §5.1's `# boot reset=1
+> encoders=ok` banner arriving on `/dev/esp32`. Tick the second row then.
+
+**Method:** `cd ~/cap_ws && make udev` → `scripts/setup_udev.sh` (recovered,
+interactive, both devices plugged in). Installs
+`/etc/udev/rules.d/99-my-bot-serial.rules`, keeps a copy at
+`src/my_bot/udev/99-my-bot-serial.rules`. Access is `GROUP="dialout",
+MODE="0660"`.
+
+**Physical sockets are now load-bearing.** Both rules match on port path, so
+moving either adapter to another USB socket silently breaks its name. Label the
+two sockets.
+
+### Camera — 2026-09-08
+
+| | |
+|---|---|
+| Model | **Logitech HD Webcam C615** (`046d:082c`) |
+| Node | `/dev/video0` (`/dev/video1` is the same device's metadata node) |
+| Group/mode | `video`, `0660` — `mic-711` **is** in `video` |
+| Driver | `cam2image` (`ros-humble-image-tools`), publishes `/image`, **RELIABLE** QoS |
+
+No udev rule needed — it is the only video device. Intrinsics are still lost;
+see "Camera intrinsics" below.
 
 ## Firmware — `RECOVERY.md` §5.2, §5.3
 
