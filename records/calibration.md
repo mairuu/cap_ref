@@ -27,7 +27,8 @@ correctly fell back to USB port path on both, exactly as it did before.
 | VID:PID | `10c4:ea60` | `10c4:ea60` — **collides** |
 | Unique serial? | **no** — reports `0001` | **no** — reports `0001` |
 | Old `KERNELS` (2026-09-04) | `1-2.1` | `1-2.2.4` |
-| **New `KERNELS` (2026-09-08)** | **`1-2.2.1`** | **`1-2.2.4`** |
+| `KERNELS` (2026-09-08, 16:06) | `1-2.2.1` | `1-2.2.4` |
+| **Current `KERNELS` (2026-09-08, 19:12)** | **`1-2.2.3`** | **`1-2.2.4`** |
 | Resolved to, first boot | `/dev/ttyUSB1` | `/dev/ttyUSB0` |
 | Resolved to, **after replug** | **`/dev/ttyUSB0`** | **`/dev/ttyUSB1`** |
 | Rules file corrected | [x] repo copy | [x] repo copy |
@@ -72,6 +73,14 @@ MODE="0660"`.
 **Physical sockets are now load-bearing.** Both rules match on port path, so
 moving either adapter to another USB socket silently breaks its name. Label the
 two sockets.
+
+> **And it happened the same day.** The ESP32 moved socket between 16:06 and
+> 19:12 — `1-2.2.1` → `1-2.2.3` — so `make udev` had to be re-run. Verified on
+> the wire afterwards: `/dev/esp32` answers `e` → `0 0`, `/dev/ydlidar` streams
+> `0xAA55` unprompted. **Any `KERNELS` value written down here is only true
+> until someone moves a cable.** Re-derive rather than trusting this table, with
+> `make udev` (which now checks answers against the wire) or
+> `motor_check.py --seconds 2.5`.
 
 ### Camera — 2026-09-08
 

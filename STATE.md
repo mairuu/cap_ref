@@ -138,10 +138,16 @@ topology, so **the recovered paths will not transfer. Re-run `make udev`.**
 > same crossing that `make udev` installed. Corrected below **from the wire**:
 > the ESP32 is the adapter that answers `e`, the lidar is the one that streams.
 
-| Symlink | Old `KERNELS` | New `KERNELS` | Confirmed |
+| Symlink | Old `KERNELS` | **Current `KERNELS`** | Confirmed |
 |---|---|---|---|
-| `/dev/esp32` | `1-2.1` | **`1-2.2.1`** | [x] answers `e`; survives a replug |
-| `/dev/ydlidar` | `1-2.2.4` | **`1-2.2.4`** | [x] streams `0xAA55`; survives a replug |
+| `/dev/esp32` | `1-2.1` | **`1-2.2.3`** | [x] answers `e` → `0 0`, 8 Sep 19:12 |
+| `/dev/ydlidar` | `1-2.2.4` | **`1-2.2.4`** | [x] streams `0xAA55`, 8 Sep 19:12 |
+
+> ⚠ **The ESP32 was on `1-2.2.1` earlier the same day.** It moved socket, so
+> `make udev` was re-run at 19:12 and the rules regenerated. This is the
+> load-bearing-socket hazard arriving in practice, hours after being written
+> down as a risk. **Treat any `KERNELS` value in this table as true only until
+> a cable moves** — re-derive it, do not cite it.
 
 **Do not read `ttyUSB` numbers as identity.** They have already swapped once:
 first boot gave esp32 → `ttyUSB1`, after the replug esp32 → `ttyUSB0`. That the
