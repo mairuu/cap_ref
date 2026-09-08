@@ -3,18 +3,21 @@
 > **Update this at the end of every session and whenever a gate passes.**
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
-**Last updated:** 8 Sep 2026 — new board confirmed, Day 1 begun
-**Current day:** Day 1 — **§2 and §4 done.** §3 deferred. §5 (firmware) next, on a re-login
-**Blocked on:** two things needing the user's hands.
+**Last updated:** 8 Sep 2026 — Day 1 §4 and §5 passed on the hardware
+**Current day:** Day 1 — **§2, §4, §5 done except 5.8.** §3 still deferred
+**Blocked on:** one hardware step and one credential problem.
 
-1. **Hardware is not plugged in.** No `/dev/ttyUSB*`, no `/dev/video*`. §4
-   (udev) and §5 (firmware) cannot start until the ESP32, the lidar and the
-   camera are connected.
-2. **Log out and back in.** `usermod -aG dialout` has been run — `/etc/group`
-   lists `dialout:x:20:mic-711` — but **the running session predates it**, so
-   `id -nG` still omits `dialout` and opening either port returns
-   `PermissionError: Permission denied` (verified 8 Sep). Nothing else is
-   wrong; the symlinks and rules are correct. A re-login is the whole fix.
+1. **§5.8 — power-cycle the board five times**, confirming it boots every
+   time. Watching for GPIO12, the MTDI strapping pin, which selects flash
+   voltage at reset *and* is wired to `RIGHT_MOTOR_BACKWARD`. It presents as
+   an intermittently dead board, not a motor fault. `serial_probe.py -v e`
+   after each cycle is the whole test. **This is the last item on the Day 1
+   gate.**
+2. **No git credentials on this board**, unchanged. Three repos now hold
+   unpushed work. See "Repos pushed" below.
+
+~~Hardware is not plugged in~~ and ~~log out and back in~~ are both resolved:
+`id -nG` lists `dialout`, both adapters enumerate, and every port opens.
 
 **Deferred by the user, not blocked:** §3 repos / git credentials. This board
 cannot `git push` (*"could not read Username for https://github.com"* — no
@@ -26,10 +29,26 @@ before Day 2 puts real code in `cap_ws`.
 
 ## Right now
 
-**Next action:** **log out and back in**, confirm with
-`id -nG | grep dialout`, then `checklists/day-1-foundation.md` §5 — firmware
-validation, **robot on blocks**. §4 is done: both adapters plugged in, `make
-udev` run, both symlinks correct.
+**Next action:** `checklists/day-1-foundation.md` **§5.8** — five power
+cycles, `serial_probe.py -v e` after each. Then the Day 1 gate closes and
+Day 2 starts.
+
+**§5 passed 8 Sep, robot on blocks.** The firmware drives wheels under closed
+loop: `o 50 50` turns both forward, auto-stop fires at 2.0 s, and `m 20 20`
+settles both sides near the commanded 600 ticks/s with no wind-up. Measured
+with `cap_ws/src/my_bot/scripts/motor_check.py` (`d056229`).
+
+> ⚠ **`RIGHT_ENC_INVERT` was `true` and `true` was wrong** — the right encoder
+> counted backwards against its own motor, which is the PID runaway condition.
+> `false` now, reflashed and verified. `reference/firmware-protocol.md` and
+> firmware commit `8b745d3` both argued for `true`; the robot disagreed.
+> Also settled: the right encoder is on **23/22**, so `ARCHITECTURE.md`'s 32/33
+> was stale and has been corrected (`esp-motor-firmware` `52cf077`).
+
+**§4 fully passed**, including the replug test that had been outstanding. The
+adapters were returned in the opposite order, re-enumerated the other way round
+(`ttyUSB0` ↔ `ttyUSB1` swapped their port paths), and the stable names did not
+follow the numbers. The corrected rules are installed in `/etc/udev/rules.d/`.
 
 Machine confirmed 8 Sep: Ubuntu 22.04.5, L4T R36.4.0 (= JetPack 6.1, matches),
 7.4 GB RAM, 101 GB free on nvme0n1p1.
@@ -83,7 +102,7 @@ failed gate.
 
 | Day | Gate | Passed |
 |---|---|---|
-| 1 | `e` returns changing counts by hand; `m 20 20` spins both wheels forward and auto-stops after 2 s | [ ] §2 done, §4–§5 pending hardware |
+| 1 | `e` returns changing counts by hand; `m 20 20` spins both wheels forward and auto-stops after 2 s | **[~]** §4 and §5.1–5.7 passed 8 Sep; **§5.8 (5 power cycles) is the only item left** |
 | 2 | `make teleop` drives the robot; `/odom` changes sanely; TF tree has no gaps | [ ] |
 | 3 | A driven loop closes without a visible double wall | [ ] |
 | 4 | RViz goal → robot arrives; recovery behaviours fire when blocked | [ ] |
@@ -95,7 +114,7 @@ failed gate.
 
 | Track | Scope | Where |
 |---|---|---|
-| **A** — needs the robot | foundation → drive → odometry → SLAM → Nav2 | not started |
+| **A** — needs the robot | foundation → drive → odometry → SLAM → Nav2 | **Day 1 all but §5.8** |
 | **B** — needs only Jetson + camera | uv env → calibration → detector | not started |
 
 Track B runs in the gaps of Track A. Start it Day 2, not Day 5 — it is the
@@ -111,18 +130,35 @@ Fill in as soon as §5.1 is done. These die with the board every time.
 Both were matched by USB port path. The Advantech carrier has different USB
 topology, so **the recovered paths will not transfer. Re-run `make udev`.**
 
+> ⚠ **This table listed the two paths the wrong way round until 8 Sep** — the
+> same crossing that `make udev` installed. Corrected below **from the wire**:
+> the ESP32 is the adapter that answers `e`, the lidar is the one that streams.
+
 | Symlink | Old `KERNELS` | New `KERNELS` | Confirmed |
 |---|---|---|---|
-| `/dev/esp32` | `1-2.1` | **`1-2.2.4`** | [x] symlink, 8 Sep → `ttyUSB0` |
-| `/dev/ydlidar` | `1-2.2.4` | **`1-2.2.1`** | [x] symlink, 8 Sep → `ttyUSB1` |
+| `/dev/esp32` | `1-2.1` | **`1-2.2.1`** | [x] answers `e`; survives a replug |
+| `/dev/ydlidar` | `1-2.2.4` | **`1-2.2.4`** | [x] streams `0xAA55`; survives a replug |
+
+**Do not read `ttyUSB` numbers as identity.** They have already swapped once:
+first boot gave esp32 → `ttyUSB1`, after the replug esp32 → `ttyUSB0`. That the
+names held across the swap is the proof the rules work.
 
 Both are `10c4:ea60` CP210x with **no serial** — the predicted collision, and
 the fallback to port path, both confirmed. **Sockets are now load-bearing:
 label them.**
 
-> ⚠ **`1-2.2.4` means different hardware on the two boards** — lidar then,
-> ESP32 now. The recovered rules file would cross-wire them *silently*. Only
-> the `make udev`-generated copy in `cap_ws/src/my_bot/udev/` is installable.
+> ~~**`1-2.2.4` means different hardware on the two boards** — lidar then,
+> ESP32 now.~~ **Wrong, and it was wrong because this table was crossed.**
+> `1-2.2.4` is the **lidar on both boards**; only the ESP32 moved, `1-2.1` →
+> `1-2.2.1`.
+>
+> So installing the recovered rules file would have failed *loudly*, not
+> silently: `1-2.1` does not exist on this carrier, so `/dev/esp32` would simply
+> never appear while `/dev/ydlidar` came up correct. The silent cross-wiring
+> risk was real, but it came from **answering `make udev` with the adapters
+> swapped**, which is what actually happened — not from the recovered file.
+> Still install only the `make udev`-generated copy in
+> `cap_ws/src/my_bot/udev/`.
 
 Camera: **Logitech HD Webcam C615** (`046d:082c`) on `/dev/video0`, no rule
 needed. Driven by `cam2image`, not `usb_cam`.
@@ -169,14 +205,19 @@ against a day if odometry is quietly wrong.
 | `capstone-docs` (this workspace) | [x] `mairuu/cap_ref` | [x] `18d29d8` — **includes `recoverable/`**. ⚠ `70e38c4` is ahead, unpushed: no git creds on this board |
 | `semantic-bridge` | [x] tracked inside `cap_ref` | [x] — split out only if it starts changing |
 | `cap_ws` | [ ] ⚠ **no remote** | local only — `~/cap_ws`, renamed from `capstone-ws` 8 Sep |
-| `esp-motor-firmware` | [x] | [x] — `b0b762b` |
+| `esp-motor-firmware` | [x] | [x] — `b0b762b`. ⚠ `52cf077` ahead, **unpushed** |
 
 > ~~The recovered tree is not backed up.~~ **Resolved** — `recoverable/` is
 > tracked in `cap_ref` and pushed at `18d29d8`.
 >
-> ⚠ **`cap_ws` has a local commit and no remote.** That breaks hard
-> constraint 4. `gh` is not installed on this board. Create the remote before
-> any more code goes in.
+> ⚠ **`cap_ws` has local commits and no remote** (`c7da2b1`, `6e91aec`,
+> `d056229`). That breaks hard constraint 4. `gh` is not installed on this
+> board. Create the remote before any more code goes in.
+>
+> ⚠ **Three repos now hold unpushed work**, not one: `cap_ref` (`70e38c4`
+> onward), `cap_ws` (all of it), `esp-motor-firmware` (`52cf077`). The Day 1
+> checklist asks for `config.h` to be *pushed the same day* and that cannot be
+> met. **Sort credentials before Day 2** — the risk compounds with every commit.
 
 ---
 

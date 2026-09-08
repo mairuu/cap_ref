@@ -72,21 +72,32 @@ the 2 s window.
 
 ## Pins — and the conflict
 
-`ARCHITECTURE.md` and `config.h` **disagree about the right encoder.** The robot
-survived, so the physical wiring is ground truth. Resolve on hardware
-(`checklists/day-1-foundation.md`, step 5), then make both files agree and push.
+> ✅ **RESOLVED 2026-09-08 — the right encoder is on 23 / 22.** Driven under
+> `o` with the robot on blocks, the right encoder returns changing counts with
+> `config.h`'s 23/22 flashed, so `config.h` was right and `ARCHITECTURE.md`'s
+> "as wired" heading was not. `ARCHITECTURE.md` has been corrected in
+> `esp-motor-firmware` `52cf077`; the two files now agree. The table below is
+> kept as the record of what the conflict was.
 
-| Signal | `config.h` (compiles) | `ARCHITECTURE.md` (claims "as wired") |
+`ARCHITECTURE.md` and `config.h` **disagreed about the right encoder.** The
+robot survived, so the physical wiring was ground truth.
+
+| Signal | `config.h` (compiles) | `ARCHITECTURE.md` (claimed "as wired") |
 |---|---|---|
 | `LEFT_ENC_PIN_A` / `B` | 34 / 35 | 34 / 35 — agree |
-| `RIGHT_ENC_PIN_A` / `B` | **23 / 22** | **32 / 33** — conflict |
+| `RIGHT_ENC_PIN_A` / `B` | **23 / 22 — correct** | 32 / 33 — **stale, corrected** |
 | `RIGHT_MOTOR_FORWARD` / `BACKWARD` / `ENABLE` | 14 / 12 / 13 | same |
 | `LEFT_MOTOR_FORWARD` / `BACKWARD` / `ENABLE` | 25 / 26 / 27 | same |
 
 Notes carried from the firmware repo:
 
 - **GPIO 34/35 are input-only** with no internal pull-ups — the encoder must
-  drive them actively. True of typical hall-effect motor encoders.
+  drive them actively. True of typical hall-effect motor encoders. This is also
+  why every boot prints **four** `gpio_pullup_en(85): GPIO number error` lines
+  before the banner: 4x quadrature gives the left encoder two PCNT channels,
+  each pulling up a pulse pin and a control pin. Expected, not a fault — the
+  banner still reads `encoders=ok`. A **fifth** would mean something moved onto
+  an input-only pad.
 - **GPIO12 is the MTDI strapping pin** (selects flash voltage at reset) and is
   wired to `RIGHT_MOTOR_BACKWARD`. Unverified in practice. Test by
   power-cycling five times, not by driving.
@@ -97,28 +108,46 @@ Notes carried from the firmware repo:
 
 ```c
 static const bool LEFT_ENC_INVERT  = false;
-static const bool RIGHT_ENC_INVERT = true;
+static const bool RIGHT_ENC_INVERT = false;   /* was true -- see below */
 ```
 
+> ⚠ **`RIGHT_ENC_INVERT` was `true` here, and `true` was wrong.** Measured
+> 2026-09-08: with `true` flashed, the right encoder counted **backwards
+> against its own motor** — precisely the runaway condition. `false`,
+> reflashed, both sides agree and both wheels turn forward. The firmware's own
+> history argues for the old value (`8b745d3`, *"Invert RIGHT_ENC_INVERT to
+> true"*), so `config.h` now carries a dated comment saying not to restore it.
+> **Two documents and a commit message said `true`; the robot said `false`.**
+
 **If a wheel's count runs backwards relative to the direction it is driven, the
-PID sees the error growing as it pushes and runs away to full PWM.** Verify by
-hand-rotating each wheel *before* the first `m` command, with the robot on
-blocks. This is the highest-consequence check in the whole build.
+PID sees the error growing as it pushes and runs away to full PWM.** This is the
+highest-consequence check in the whole build.
+
+**Verify by driving, not by hand-rotating.** Hand-spinning tests the encoder
+against your arm; what actually destroys the robot is the encoder disagreeing
+with its own *motor*. `o` bypasses the PID, so driving under it measures that
+directly and cannot run away while doing so — which makes it safe to do
+*before* the first `m`, not after. `cap_ws/src/my_bot/scripts/motor_check.py`
+does this and refuses to reach `m` until it passes on both sides. The one thing
+it cannot see is whether "forward" is forward: two backwards wheels still agree,
+and that needs eyes and a motor-pin swap, not an invert flip.
 
 ---
 
-## Validation status — incomplete
+## Validation status — 2026-09-08
 
-`ROADMAP.md` step 5 is checked only through `e` and `r`. **The firmware has
-never turned a motor.** Outstanding:
+~~**The firmware has never turned a motor.**~~ It has now. Robot on blocks,
+`motor_check.py`:
 
-- [ ] `o 50 50` → motors spin (on blocks)
-- [ ] `m 20 20` → closed-loop PID engages
-- [ ] auto-stop after ~2 s
-- [ ] wheels move forward on positive speed
-- [ ] encoder counts increase when wheels move forward
-- [ ] encoder sign agrees with motor sign
-- [ ] boots reliably across several power cycles (GPIO12)
+- [x] `o 50 50` → motors spin (on blocks)
+- [x] `m 20 20` → closed-loop PID engages, both sides settle near the
+      commanded **600 ticks/s** (20 ticks per 1/30 s frame)
+- [x] auto-stop **at 2.0 s**, matching `AUTO_STOP_MS`
+- [x] wheels move forward on positive speed — watched, not inferred
+- [x] encoder counts increase when wheels move forward
+- [x] encoder sign agrees with motor sign — **after** flipping
+      `RIGHT_ENC_INVERT` to `false`
+- [ ] boots reliably across several power cycles (GPIO12) — **still open**
 
 Trust the protocol. Do not trust the tuning.
 

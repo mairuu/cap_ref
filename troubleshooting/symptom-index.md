@@ -27,6 +27,63 @@ both symlinks appear, both point at a real adapter, and the wrong one answers.
 Regenerate with `make udev`. The file under `recoverable/` is never installable.
 → `records/calibration.md` "Devices"
 
+### Reading `/dev/esp32` hangs, or floods unreadable binary
+**It is the lidar on the ESP32's name.** Happened for real on 8 Sep: `make udev`
+was answered with the two adapters swapped, and a port-path rule cannot tell you
+it is on the wrong port. The firmware is **silent until spoken to**, so anything
+arriving unprompted is not it.
+
+Identify them without guessing — one at a time, sending nothing:
+
+```bash
+timeout 2 cat /dev/ttyUSB0 | wc -c      # thousands of bytes -> the lidar
+./src/my_bot/scripts/serial_probe.py --port /dev/ttyUSB1 -v e   # "0 0" -> the ESP32
+```
+
+`encoder_report.py` and `serial_probe.py` both refuse a streaming port and say
+so. Then swap the two `KERNELS` values in `src/my_bot/udev/99-my-bot-serial.rules`
+(or re-run `make udev`, which now checks your answers against the wire).
+→ `records/issues.md` "`/dev/esp32` and `/dev/ydlidar` were crossed"
+
+### No boot banner when I open the port — is the board dead?
+**Not necessarily, and a missing banner proves nothing.** Whether opening the
+tty reboots the ESP32 depends on the DTR/RTS state the previous close left
+behind (`hupcl`); clearing them in pyserial before `open()` only stops pyserial
+driving the lines, not the kernel. Measured both ways in one sitting on 8 Sep:
+three pyserial opens each produced a ~506-byte burst and the banner, while a
+`bash` redirect after `stty -hupcl` produced nothing at all.
+
+Ask instead of waiting: `serial_probe.py e` must answer two integers. And do not
+assume encoder counts carry across two invocations of anything — hold one
+connection open (`encoder_report.py`) for that.
+
+### A wheel accelerates to full speed under `m` and stays there
+**Cut power now.** That wheel's encoder sign disagrees with its motor sign, so
+the PID reads the error as *growing* while it pushes and winds to full PWM. On
+blocks it is noise; on the ground it is a wall.
+
+Flip that side's `LEFT_ENC_INVERT` / `RIGHT_ENC_INVERT` in the firmware's
+`config.h`, reflash, and retest from `o` before `m`. Do not "try it on the
+ground to see".
+
+**This is not hypothetical here — `RIGHT_ENC_INVERT` shipped wrong.** It was
+`true` in `config.h` (commit `8b745d3`) and `true` in
+`reference/firmware-protocol.md`; the robot needed `false`. Caught 8 Sep under
+`o`, before the first `m`.
+
+Check it *before* ever sending `m`, by driving rather than hand-spinning:
+
+```bash
+./src/my_bot/scripts/motor_check.py        # robot on blocks
+```
+
+`o` bypasses the PID, so this cannot run away while it measures. The script
+refuses to reach `m` until both sides agree, and cuts PWM itself at 3x the
+commanded rate. It cannot tell forward from backward, though — two backwards
+wheels still "agree", and that fix is swapping the motor's FORWARD/BACKWARD
+pins, not touching the inverts. Watch the wheels.
+→ `records/issues.md` "`RIGHT_ENC_INVERT` was documented wrong"
+
 ### `/dev/esp32` sometimes points at the lidar (or vice versa)
 **Neither adapter has a unique serial** — confirmed. The rules match by USB
 **port path**, so a device moved to another socket loses its name.

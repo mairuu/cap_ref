@@ -16,6 +16,10 @@ log/
 *.mcap
 *.pgm
 
+# arduino-cli, fetched by hand to build the ESP32 firmware. 34 MB static
+# binary, not source, and not this repo's subject.
+bin/
+
 # Editor
 .DS_Store
 *.swp

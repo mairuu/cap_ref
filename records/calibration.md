@@ -12,20 +12,35 @@
 
 **MEASURED on the rebuilt board 2026-09-08.** Supersedes the recovered values
 below. Both adapters are `10c4:ea60` Silicon Labs CP210x — **the predicted
-VID:PID collision is confirmed** — and **neither reports a serial**, so
-`setup_udev.sh` fell back to USB port path on both, exactly as it did before.
+VID:PID collision is confirmed** — and both report the **same** serial, `0001`,
+which is worse than none: `ATTRS{serial}` matches both, so `setup_udev.sh`
+correctly fell back to USB port path on both, exactly as it did before.
+
+> ⚠ **The first version of these rules had the two devices backwards** — the
+> port paths below are the corrected ones, established on the wire and not from
+> the `make udev` session. Full account in `records/issues.md`.
 
 | | ESP32 | Lidar |
 |---|---|---|
 | Symlink | `/dev/esp32` | `/dev/ydlidar` |
 | Baud | 57600 | 115200 |
 | VID:PID | `10c4:ea60` | `10c4:ea60` — **collides** |
-| Unique serial? | **no** | **no** |
+| Unique serial? | **no** — reports `0001` | **no** — reports `0001` |
 | Old `KERNELS` (2026-09-04) | `1-2.1` | `1-2.2.4` |
-| **New `KERNELS` (2026-09-08)** | **`1-2.2.4`** | **`1-2.2.1`** |
-| Resolved to, first boot | `/dev/ttyUSB0` | `/dev/ttyUSB1` |
-| Confirmed on new board | [x] symlink | [x] symlink |
-| Confirmed as the right *device* | [ ] — §5.1 boot banner | [ ] — §5 lidar spin-up |
+| **New `KERNELS` (2026-09-08)** | **`1-2.2.1`** | **`1-2.2.4`** |
+| Resolved to, first boot | `/dev/ttyUSB1` | `/dev/ttyUSB0` |
+| Resolved to, **after replug** | **`/dev/ttyUSB0`** | **`/dev/ttyUSB1`** |
+| Rules file corrected | [x] repo copy | [x] repo copy |
+| Rules file installed | **[x]** 2026-09-08 | **[x]** 2026-09-08 |
+| **Survives a replug** | **[x]** 2026-09-08 | **[x]** 2026-09-08 |
+| **Confirmed as the right *device*** | **[x]** `# boot reset=1 encoders=ok` at 57600, `e` → `0 0`, `r` → `OK` | **[x]** 18432 bytes / 2 s at 115200, 236 × `0xAA55`, unprompted |
+
+**How to re-confirm in ten seconds**, since the rules match on port path and a
+replug into the wrong socket is silent:
+
+```bash
+scripts/encoder_report.py --seconds 2     # refuses a port that streams
+```
 
 > ⚠ **`1-2.2.4` changed meaning between boards.** It was the **lidar** on the
 > old board and it is the **ESP32** on this one. Copying the recovered
@@ -33,6 +48,15 @@ VID:PID collision is confirmed** — and **neither reports a serial**, so
 > would silently name the ESP32 `/dev/ydlidar`. The rules file in
 > `cap_ws/src/my_bot/udev/` is the newly generated one; the recovered copy under
 > `recoverable/` must never be installed.
+
+**The replug test passed, and it is the one that mattered.** Both adapters
+were unplugged and returned in the opposite order on 2026-09-08 17:37. They
+re-enumerated the other way round — `ttyUSB0` became `1-2.2.1` and `ttyUSB1`
+became `1-2.2.4`, the reverse of the first boot — and **the names did not
+follow the numbers**: `/dev/esp32` stayed on `1-2.2.1` and `/dev/ydlidar` on
+`1-2.2.4`. That is exactly what a `KERNELS` rule is supposed to do, and until a
+replug reverses the enumeration it is untested, because a rule matched on
+anything else looks identical while the order happens to hold.
 
 > The symlinks prove the *rules* are right. They do not prove the ESP32 is on
 > the port the script thinks — the script probes one adapter at a time, so it
@@ -65,11 +89,74 @@ see "Camera intrinsics" below.
 
 | | Value | Date |
 |---|---|---|
-| `LEFT_ENC_INVERT` | | |
-| `RIGHT_ENC_INVERT` | | |
-| Correct right-encoder pins | 23/22 or 32/33 | |
-| GPIO12 boot reliability (5 cycles) | | |
-| Firmware commit after fixes | | |
+| `LEFT_ENC_INVERT` | **false** | 2026-09-08 |
+| `RIGHT_ENC_INVERT` | **false** — was `true`, and `true` was wrong | 2026-09-08 |
+| Correct right-encoder pins | **23/22** (`config.h`) | 2026-09-08 |
+| GPIO12 boot reliability (5 cycles) | *pending* | |
+| Firmware commit after fixes | `52cf077` — **not pushed**, no creds | 2026-09-08 |
+
+**`RIGHT_ENC_INVERT` is the one to be careful about.** It was `true` in the
+firmware (commit `8b745d3`, *"Invert RIGHT_ENC_INVERT to true"*), and
+`reference/firmware-protocol.md` recorded `true` as well. With `true` flashed,
+the right count ran **backwards against its own motor** — the runaway
+condition. `false`, reflashed, both sides agree. Two documents and a commit
+message all say `true`; the robot says `false`. `config.h` now carries a dated
+comment saying not to restore it on that evidence.
+
+### What the board says on boot — 2026-09-08
+
+Day 1 §5.1 and §5.2 pass. Verbatim, on `/dev/ttyUSB1` at 57600 (the port the
+corrected rules name `/dev/esp32`):
+
+```
+ets Jul 29 2019 12:21:46
+rst:0x1 (POWERON_RES...
+E (12) gpio: gpio_pullup_en(85): GPIO number error (input-only pad has no internal PU)
+E (12) gpio: gpio_pullup_en(85): GPIO number error (input-only pad has no internal PU)
+E (20) gpio: gpio_pullup_en(85): GPIO number error (input-only pad has no internal PU)
+E (36) gpio: gpio_pullup_en(85): GPIO number error (input-only pad has no internal PU)
+# boot reset=1 encoders=ok
+```
+
+- **`encoders=ok`** — the PCNT units configured. §5.9's "right encoder reads
+  zero" branch is not in play before it is tested.
+- `e` → `0 0`, `r` → `OK`. §5.2 done.
+- **The four `gpio_pullup_en` errors are expected and harmless.** `(85)` is a
+  line number in the IDF's `gpio.c`, not a pin. GPIO 34–39 are input-only pads
+  with no internal pull-up, and the firmware asks for one anyway; the call fails
+  and the PCNT setup continues. `LEFT_ENC_PIN_A/B` are 34/35 — two pins, two
+  calls each (pulse and control), four errors.
+- The four errors were **weak early evidence for `config.h`'s 23/22** over
+  `ARCHITECTURE.md`'s 32/33, all of them attributable to the left pair while
+  ordinary pads like 32/33 would have accepted a pull-up silently. **Now
+  confirmed the hard way** — see §5.9 below. `ARCHITECTURE.md` has been
+  corrected and the two files agree.
+
+### Motors and encoder signs — 2026-09-08, §5.3–5.7
+
+Robot on blocks. Measured with `cap_ws/src/my_bot/scripts/motor_check.py`,
+which drives under `o` (raw PWM, PID bypassed, so it cannot run away) and
+watches each side's own count.
+
+| Step | Result |
+|---|---|
+| 5.3 / 5.4 — encoder vs motor sign | **AGREE both sides**, and both wheels physically forward |
+| 5.5 — `o 50 50` | **pass** — both wheels turn forward |
+| 5.6 — auto-stop | **pass at 2.0 s**, matching `AUTO_STOP_MS = 2000` |
+| 5.7 — `m 20 20` | **pass** — both sides settle near **600 ticks/s**, the commanded rate, no wind-up |
+| 5.9 — right encoder pins | **23/22** — returns changing counts as flashed |
+
+`m 20 20` = 20 ticks per 1/30 s frame = 600 ticks/s commanded, so settling
+*near* 600 means the PID is closing the loop rather than merely not exploding.
+
+> **Why driving beats hand-spinning here.** The checklist reaches 5.3/5.4 by
+> turning each wheel by hand, which tests the encoder against your arm. The
+> condition that destroys the robot is the encoder disagreeing with its own
+> *motor*. Driving under `o` measures that directly, and cannot run away while
+> doing it. What it cannot see is whether "forward" is forward — two backwards
+> wheels still agree — so the operator watched the wheels.
+
+**Still untested:** §5.8, GPIO12 boot reliability across five power cycles.
 
 ## Odometry — `RECOVERY.md` §5.4
 
