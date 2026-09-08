@@ -1,0 +1,21 @@
+# Prior-art baggage — the source matters, the installed trees do not
+**/node_modules/
+**/.venv/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Build outputs (if this workspace ever sits next to capstone-ws)
+build/
+install/
+log/
+
+# Bags and maps are big and regenerable — keep them out of the docs repo
+*.db3
+*.mcap
+*.pgm
+
+# Editor
+.DS_Store
+*.swp
