@@ -67,3 +67,39 @@ voltage if pulled high at reset. Never confirmed harmless in practice.
 
 **Test:** five power cycles, not a drive test. If it glitches, move the signal to
 a free non-strapping GPIO and reflash.
+
+### Nav2 would not install from `packages.ros.org` — *unresolved, will recur*
+
+*Found 8 Sep 2026 by reading `recoverable/mount/.bash_history`, not by
+experiencing it. Recorded here so Day 4 does not rediscover it under pressure.*
+
+**Symptom:** on the old board, `sudo apt install -y ros-humble-navigation2
+ros-humble-nav2-bringup ros-humble-twist-mux` failed repeatedly — history lines
+1391–1431 show it retried ~12 times over what looks like an hour, with
+`apt update`, `apt-get update`, `apt list --upgradable` and dropping packages
+from the command line one at a time in between. The exact apt error is **not**
+in the history (only the commands survive, not their output).
+
+**Escalation path taken, in order:**
+1. Retry with/without `twist_mux`, with/without `nav2-bringup` — no.
+2. Install a **ros2-snapshot** apt source (`/etc/apt/sources.list.d/ros2-snapshot.sources`,
+   staged from a Claude scratchpad) — no; **removed again** along with
+   `ros2-snapshot-keyring.gpg` a few lines later. It did not work; do not retry it first.
+3. `sudo apt install /home/jetson/nav2_debs/*.deb` — this is the one that stuck.
+   `--fix-missing` appears on its own on the next lines, so it was not clean even then.
+
+**Actual cause:** unknown. Most likely a `packages.ros.org` arm64 dependency
+skew at that date (Humble sync mid-flight), not something about this robot.
+
+**Consequence for the rebuild:** `~/nav2_debs/` died with the board — it is not
+in the NVMe dump. If apt fails again there is no cached fallback, and rebuilding
+one means finding the same debs from a working mirror or a snapshot date.
+
+**Prevented by:** installing Nav2 on **Day 1**, not Day 4. That is why
+`scripts/bootstrap-ros-humble.sh` installs it in its own non-fatal step and
+shouts if it fails — three days of slack instead of none.
+
+**If it fails now:** capture the verbatim apt error into this file first. Then
+try, in this order: `apt-cache policy ros-humble-navigation2`; installing
+`ros-humble-nav2-*` component packages individually to find which dependency is
+unsatisfiable; only then a dated snapshot mirror. Log whatever works.

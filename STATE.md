@@ -3,16 +3,22 @@
 > **Update this at the end of every session and whenever a gate passes.**
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
-**Last updated:** 8 Sep 2026 — NVMe recovery audited
-**Current day:** Day 0 — Jetson flashed with **JetPack 6.1 (Advantech)**, nothing else begun
-**Blocked on:** nothing
+**Last updated:** 8 Sep 2026 — new board confirmed, Day 1 begun
+**Current day:** Day 1 — new Jetson confirmed (Ubuntu 22.04, L4T R36.4), ROS install in progress
+**Blocked on:** nothing software-side. **Hardware is not plugged in** — no
+`/dev/ttyUSB*`, no `/dev/video*`. §4 and §5 cannot start until the ESP32,
+the lidar and the camera are connected.
 
 ---
 
 ## Right now
 
-**Next action:** `checklists/day-1-foundation.md`, step 2 — ROS 2 Humble install.
-Step 1 (flash) is done.
+**Next action:** run `sudo ./scripts/bootstrap-ros-humble.sh`, then verify
+`ros2 pkg list | grep nav2_bringup`. After that, plug in the ESP32 + lidar and
+run `make udev` from `~/capstone-ws`.
+
+Machine confirmed 8 Sep: Ubuntu 22.04.5, L4T R36.4.0 (= JetPack 6.1, matches),
+7.4 GB RAM, 101 GB free on nvme0n1p1. **No `/opt/ros` yet.**
 
 **Notes for the next session:**
 
@@ -122,13 +128,17 @@ against a day if odometry is quietly wrong.
 
 | Repo | Remote created | Initial commit pushed |
 |---|---|---|
-| `capstone-docs` (this workspace) | [ ] | [ ] |
-| `semantic-bridge` | [ ] | [ ] |
-| `capstone-ws` | [ ] | [ ] |
+| `capstone-docs` (this workspace) | [x] `mairuu/cap_ref` | [x] `18d29d8` — **includes `recoverable/`** |
+| `semantic-bridge` | [x] tracked inside `cap_ref` | [x] — split out only if it starts changing |
+| `capstone-ws` | [ ] ⚠ **no remote** | local only — `40f8d6a` at `~/capstone-ws` |
 | `esp-motor-firmware` | [x] | [x] — `b0b762b` |
 
-> **The recovered tree is not backed up either.** `recoverable/mount/` exists
-> only on this machine. Push it with the docs repo today.
+> ~~The recovered tree is not backed up.~~ **Resolved** — `recoverable/` is
+> tracked in `cap_ref` and pushed at `18d29d8`.
+>
+> ⚠ **`capstone-ws` has a local commit and no remote.** That breaks hard
+> constraint 4. `gh` is not installed on this board. Create the remote before
+> any more code goes in.
 
 ---
 
@@ -139,4 +149,5 @@ report's methodology section.
 
 | Date | Deviation | Why |
 |---|---|---|
-| | | |
+| 8 Sep | Day-1 §2 apt block replaced by `scripts/bootstrap-ros-humble.sh` | The block predates the NVMe dump: it installed `usb_cam` (wrong — the camera is `cam2image`) and installed Nav2 fatally inline. `.bash_history` shows Nav2 apt-failing ~12× on the old board; the script isolates it so we learn on Day 1, not Day 4. See `records/issues.md`. |
+| 8 Sep | `capstone-ws` created with only `Makefile` + `setup_udev.sh` | Day 1 needs no more than that. The rest of `my_bot` crosses over file by file on Day 2, re-verifying measured numbers as it goes (D-13). The recovered `99-my-bot-serial.rules` was **not** copied — its `KERNELS` paths are devkit-specific. |

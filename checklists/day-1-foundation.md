@@ -32,49 +32,57 @@ sudo nvpmodel -m 0 && sudo jetson_clocks
 
 ## 2 · ROS 2 Humble
 
-- [ ] Repository added:
+> **Superseded by a script.** The apt blocks that were here were written before
+> the NVMe dump and installed `ros-humble-usb-cam` — the camera that actually
+> ran is `cam2image` from `ros-humble-image-tools`. Nav2 also needs its own
+> non-fatal step; see `records/issues.md`, "Nav2 would not install".
 
 ```bash
-sudo apt update && sudo apt install -y software-properties-common curl
-sudo add-apt-repository universe
-sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
-  -o /usr/share/keyrings/ros-archive-keyring.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] \
-http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" \
-  | sudo tee /etc/apt/sources.list.d/ros2.list
-sudo apt update && sudo apt install -y ros-humble-desktop ros-dev-tools
+sudo ./scripts/bootstrap-ros-humble.sh
 ```
 
-- [ ] Week's package set installed:
-
-```bash
-sudo apt install -y \
-  ros-humble-ros2-control ros-humble-ros2-controllers \
-  ros-humble-slam-toolbox ros-humble-navigation2 ros-humble-nav2-bringup \
-  ros-humble-usb-cam ros-humble-camera-calibration \
-  ros-humble-compressed-image-transport ros-humble-image-transport-plugins \
-  ros-humble-vision-msgs ros-humble-teleop-twist-keyboard \
-  ros-humble-twist-mux ros-humble-xacro ros-humble-joint-state-publisher-gui \
-  ros-humble-tf2-tools ros-humble-rqt-tf-tree
-```
-
+- [ ] Script ran; its final "Result" block reports no failures
 - [ ] `ros2 topic list` runs after `source /opt/ros/humble/setup.bash`
+- [ ] **Nav2 specifically** — `ros2 pkg list | grep nav2_bringup` returns a hit.
+      If it does not, stop and log the verbatim apt error in `records/issues.md`
+      before doing anything else. Three days of slack now, none on Day 4.
+
+Deliberately **not** installed by the script — all source builds, done on the
+day they are needed:
+
+| Package | When | Note |
+|---|---|---|
+| `ydlidar_ros2_driver` + YDLidar-SDK | Day 1/2 | needs the lidar present |
+| `explore_lite` (`m-explore-ros2`) | Day 3 | `make explore` only |
+| `yolo_ros` | Day 5 | gated on decision **D-11** |
+| `ros_gz_sim`, `gz_ros2_control` | optional | sim is not on the demo path |
 
 ## 3 · Repos — before any code exists
 
 Ten minutes, and it is the whole reason this workspace exists.
 
-- [ ] `capstone-docs` — this workspace. Remote created, initial commit pushed.
-- [ ] `semantic-bridge` — push `semantic-object/` **now**; it is currently
-      one drive failure from gone.
+- [x] `capstone-docs` — this workspace. Pushed to `github.com/mairuu/cap_ref`
+      at `18d29d8`. **`recoverable/` is tracked in it**, so the NVMe dump is
+      backed up too.
+- [x] `semantic-bridge` — `semantic-object/` is tracked in the same repo and
+      pushed. Split it into its own remote only if it starts changing.
 - [ ] `capstone-ws` — created empty, pushed.
 - [x] `esp-motor-firmware` — exists at `b0b762b`.
 - [ ] `STATE.md` "Repos pushed" table updated.
 
 ## 4 · udev rules — re-derive from the hardware
 
-The rules died with the board and the VID/PID/serial values are not recoverable
-from anything we have. Full rationale: `RECOVERY.md` §5.1.
+The **values** died with the board, but `scripts/setup_udev.sh` — which walks
+this whole section interactively — came back in the NVMe dump. Copy it into
+`capstone-ws/src/my_bot/scripts/` and run `make udev` rather than doing the
+steps below by hand; they are kept as the explanation of what it is doing.
+
+> The recovered `udev/99-my-bot-serial.rules` matched both devices by **USB
+> port path** (`KERNELS=="1-2.1"` esp32, `"1-2.2.4"` lidar) because neither
+> adapter has a serial. The Advantech carrier has different USB topology, so
+> **those paths will not transfer — re-derive them, do not copy the file.**
+
+Full rationale: `RECOVERY.md` §5.1, `reference/nvme-recovery-audit.md`.
 
 > **Assume the ESP32 and the lidar collide on `10c4:ea60`.** Both are likely
 > CP210x. A vendor/product rule would match whichever enumerated first.
@@ -100,7 +108,7 @@ udevadm info -a -n /dev/ttyUSB0 | grep -E 'idVendor|idProduct|serial' | head -6
 
 ```udev
 SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ATTRS{serial}=="<ESP32_SERIAL>", SYMLINK+="esp32", MODE="0666"
-SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ATTRS{serial}=="<LIDAR_SERIAL>", SYMLINK+="lidar", MODE="0666"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ATTRS{serial}=="<LIDAR_SERIAL>", SYMLINK+="ydlidar", MODE="0666"
 ```
 
   **If the serials are identical or absent** (common on CP2102 clones), fall back
@@ -113,7 +121,7 @@ udevadm info -a -n /dev/ttyUSB0 | grep -m1 KERNELS   # e.g. KERNELS=="1-2.3"
 
 ```udev
 SUBSYSTEM=="tty", KERNELS=="1-2.3", SYMLINK+="esp32", MODE="0666"
-SUBSYSTEM=="tty", KERNELS=="1-2.4", SYMLINK+="lidar", MODE="0666"
+SUBSYSTEM=="tty", KERNELS=="1-2.4", SYMLINK+="ydlidar", MODE="0666"
 ```
 
 - [ ] Install and verify:
@@ -121,7 +129,7 @@ SUBSYSTEM=="tty", KERNELS=="1-2.4", SYMLINK+="lidar", MODE="0666"
 ```bash
 sudo cp .../99-capstone.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules && sudo udevadm trigger
-ls -l /dev/esp32 /dev/lidar
+ls -l /dev/esp32 /dev/ydlidar
 ```
 
 - [ ] Both plugged in together, both symlinks correct
@@ -190,7 +198,7 @@ Into `records/calibration.md`, with today's date:
 
 ## GATE — do not start Day 2 until all of these hold
 
-- [ ] `ls -l /dev/esp32 /dev/lidar` shows both, correctly, after a replug
+- [ ] `ls -l /dev/esp32 /dev/ydlidar` shows both, correctly, after a replug
 - [ ] `e` returns counts that **change** when a wheel is spun by hand
 - [ ] `m 20 20` spins both wheels **forward**, **steadily**, and **stops on its
       own** after ~2 seconds
