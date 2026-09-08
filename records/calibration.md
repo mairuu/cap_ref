@@ -92,7 +92,7 @@ see "Camera intrinsics" below.
 | `LEFT_ENC_INVERT` | **false** | 2026-09-08 |
 | `RIGHT_ENC_INVERT` | **false** — was `true`, and `true` was wrong | 2026-09-08 |
 | Correct right-encoder pins | **23/22** (`config.h`) | 2026-09-08 |
-| GPIO12 boot reliability (5 cycles) | *pending* | |
+| GPIO12 boot reliability | **50/50 EN resets clean**; real power cycles still owed | 2026-09-08 |
 | Firmware commit after fixes | `52cf077` — **not pushed**, no creds | 2026-09-08 |
 
 **`RIGHT_ENC_INVERT` is the one to be careful about.** It was `true` in the
@@ -156,7 +156,22 @@ watches each side's own count.
 > doing it. What it cannot see is whether "forward" is forward — two backwards
 > wheels still agree — so the operator watched the wheels.
 
-**Still untested:** §5.8, GPIO12 boot reliability across five power cycles.
+### GPIO12 boot reliability — 2026-09-08, §5.8 (partial)
+
+`cap_ws/src/my_bot/scripts/boot_check.py`, 50 EN resets: **50/50 clean**. Every
+cycle gave the banner with `encoders=ok`, exactly four `gpio_pullup_en` errors,
+`e` → `0 0`, `r` → `OK`, and a boot time of **0.55 s to the centisecond**.
+
+**Why an EN reset is the right test here.** GPIO12 (MTDI) is latched on *chip
+reset*, and the strapping pins are re-sampled on an EN reset exactly as on
+power-on — the ESP32 cannot distinguish the two, which is why the banner reads
+`reset=1` either way. So for the strapping question this is the same test, run
+ten times more often than anyone would by hand.
+
+> ⚠ **§5.8 is not closed.** An EN reset does not re-run the supply ramp, so it
+> cannot see a brown-out as the motor rail comes up or a regulator that only
+> misbehaves from cold. **A couple of real power cycles are still owed.** The
+> automation replaces the tedium, not the last word.
 
 ## Odometry — `RECOVERY.md` §5.4
 

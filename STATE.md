@@ -7,12 +7,12 @@
 **Current day:** Day 1 — **§2, §4, §5 done except 5.8.** §3 still deferred
 **Blocked on:** one hardware step and one credential problem.
 
-1. **§5.8 — power-cycle the board five times**, confirming it boots every
-   time. Watching for GPIO12, the MTDI strapping pin, which selects flash
-   voltage at reset *and* is wired to `RIGHT_MOTOR_BACKWARD`. It presents as
-   an intermittently dead board, not a motor fault. `serial_probe.py -v e`
-   after each cycle is the whole test. **This is the last item on the Day 1
-   gate.**
+1. **§5.8 — a couple of *real* power cycles.** The strapping half is done:
+   `boot_check.py` ran **50 EN resets, 50/50 clean**, and an EN reset
+   re-latches GPIO12 exactly as a power-on does. What it cannot exercise is the
+   supply ramp — a brown-out as the motor rail comes up, or a regulator that
+   only misbehaves from cold. Two or three cycles of the actual power switch,
+   `serial_probe.py -v e` after each, closes the Day 1 gate.
 2. **No git credentials on this board**, unchanged. Three repos now hold
    unpushed work. See "Repos pushed" below.
 
@@ -29,9 +29,9 @@ before Day 2 puts real code in `cap_ws`.
 
 ## Right now
 
-**Next action:** `checklists/day-1-foundation.md` **§5.8** — five power
-cycles, `serial_probe.py -v e` after each. Then the Day 1 gate closes and
-Day 2 starts.
+**Next action:** two or three **real** power cycles, `serial_probe.py -v e`
+after each. Everything else on the Day 1 gate has passed. Then Day 2 starts —
+but see the credentials problem first.
 
 **§5 passed 8 Sep, robot on blocks.** The firmware drives wheels under closed
 loop: `o 50 50` turns both forward, auto-stop fires at 2.0 s, and `m 20 20`
@@ -102,7 +102,7 @@ failed gate.
 
 | Day | Gate | Passed |
 |---|---|---|
-| 1 | `e` returns changing counts by hand; `m 20 20` spins both wheels forward and auto-stops after 2 s | **[~]** §4 and §5.1–5.7 passed 8 Sep; **§5.8 (5 power cycles) is the only item left** |
+| 1 | `e` returns changing counts by hand; `m 20 20` spins both wheels forward and auto-stops after 2 s | **[~]** §4 and §5.1–5.7 passed 8 Sep; §5.8 50/50 on EN resets, **real power cycles owed** |
 | 2 | `make teleop` drives the robot; `/odom` changes sanely; TF tree has no gaps | [ ] |
 | 3 | A driven loop closes without a visible double wall | [ ] |
 | 4 | RViz goal → robot arrives; recovery behaviours fire when blocked | [ ] |
