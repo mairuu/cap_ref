@@ -5,9 +5,17 @@
 
 **Last updated:** 8 Sep 2026 — new board confirmed, Day 1 begun
 **Current day:** Day 1 — new Jetson confirmed (Ubuntu 22.04, L4T R36.4), ROS install in progress
-**Blocked on:** nothing software-side. **Hardware is not plugged in** — no
-`/dev/ttyUSB*`, no `/dev/video*`. §4 and §5 cannot start until the ESP32,
-the lidar and the camera are connected.
+**Blocked on:** three things needing the user's hands, none of them hard.
+
+1. **Hardware is not plugged in.** No `/dev/ttyUSB*`, no `/dev/video*`. §4
+   (udev) and §5 (firmware) cannot start until the ESP32, the lidar and the
+   camera are connected.
+2. **This board cannot push.** `git push` → *"could not read Username for
+   https://github.com"*. No credential helper, no SSH key, `gh` not installed.
+   Commits are landing locally only. **This is hard constraint 4 failing
+   silently** — fix it before more code accumulates.
+3. **sudo needs a password interactively**, so the ROS install has to be
+   launched by hand: `sudo ./scripts/bootstrap-ros-humble.sh`.
 
 ---
 
@@ -128,7 +136,7 @@ against a day if odometry is quietly wrong.
 
 | Repo | Remote created | Initial commit pushed |
 |---|---|---|
-| `capstone-docs` (this workspace) | [x] `mairuu/cap_ref` | [x] `18d29d8` — **includes `recoverable/`** |
+| `capstone-docs` (this workspace) | [x] `mairuu/cap_ref` | [x] `18d29d8` — **includes `recoverable/`**. ⚠ `70e38c4` is ahead, unpushed: no git creds on this board |
 | `semantic-bridge` | [x] tracked inside `cap_ref` | [x] — split out only if it starts changing |
 | `capstone-ws` | [ ] ⚠ **no remote** | local only — `40f8d6a` at `~/capstone-ws` |
 | `esp-motor-firmware` | [x] | [x] — `b0b762b` |
