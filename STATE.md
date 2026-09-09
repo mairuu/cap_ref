@@ -118,9 +118,15 @@ right** of the line. The loop steers on odom, so that gap is pure odometry bias:
 `left_wheel_radius_multiplier: 1.002982` / `right_wheel_radius_multiplier:
 0.997018`, built and loaded.
 
-**Verification owed:** re-run `calibrate_straight.py --distance 3.0`. Floor
-lateral should collapse from 10.9 cm to **under 1 cm**. Until that run the
-correction is applied but unconfirmed.
+**✅ Verified same day.** Re-run landed at **~0.1° of heading change** against a
+predicted **−0.090°** — the yaw bias is corrected. The run also finished 8 cm
+*left* of the line, but that is **not curvature**: an arc reaching 8 cm over 3 m
+needs 3.06° of heading change and the run shows ~0.1°. A 1.53° error in the
+lateral reference produces exactly 8 cm with zero heading change, and the setup
+aligned the *wheel axis* to a grout line — which fixes heading but not the
+centreline reference. **Multipliers left as installed**; the residual is inside
+what `slam_toolbox` absorbs. **Odometry is good enough for the gate — go drive
+the loop.**
 
 `wheel_radius` was **deliberately left at 0.0327**. The same run suggests
 0.03264, but that correction is 5.2 mm over 3 m and the distance was *counted as

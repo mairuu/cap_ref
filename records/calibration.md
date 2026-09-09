@@ -718,9 +718,53 @@ split. **One or the other, never both.** `diff_drive_controller` applies the
 multipliers to the wheel **commands** as well as to odometry, so the robot
 physically drives straighter rather than merely reporting better.
 
-> **Verification still owed:** re-run the 3 m closed loop. Floor lateral should
-> collapse from 10.9 cm to under 1 cm. Until that run, this correction is
-> applied but unconfirmed.
+### Verification run — 2026-09-09, same day
+
+Re-ran the 3 m closed loop with the multipliers installed. **Result: heading
+bias gone, a lateral offset that is not curvature.**
+
+| | run 1 (before) | run 2 (after) |
+|---|---|---|
+| floor lateral | −0.109 m (right) | **+0.08 m (left)** |
+| heading change | turned right, same way as the offset | **~0.1°** |
+
+**The heading is the number that matters, and it landed on the prediction.**
+Applying `k_r - k_l = -0.005964` buys `D·δ/L` = **4.073°** of heading change, so
+run 1's −4.163° should become **−0.090°**. Measured: **~0.1°**. The bias is
+corrected.
+
+**The 8 cm is not curvature.** A constant-curvature arc reaching 8 cm over 3 m
+*requires* a **3.06°** heading change, and run 2 shows nothing like 3°. What
+does produce exactly that offset is a **1.53° error in the lateral reference** —
+and 1.53° over 3 m is 8 cm with **zero** heading change.
+
+**Setup used:** the robot's *wheel axis* was aligned on a transverse grout line.
+That is a sound **heading** reference — heading comes out perpendicular to the
+line. It fixes nothing about where the robot's **centreline** sat relative to
+the longitudinal line that drift was then measured against, nor which point on
+the robot was read at the end. That is the weak link, and at ±1.5° it is the
+same size as the effect being measured.
+
+> **Multipliers left as installed** (1.002982 / 0.997018). The back-off the
+> arc-reading would suggest (1.000738 / 0.999248) rests on an inference that the
+> measured heading contradicts, and the residual is now inside what
+> `slam_toolbox` absorbs by scan matching — the script itself stops recommending
+> action below 1°. **Applying a correction on an ambiguous measurement is how a
+> good number gets made worse.**
+
+> ⚠ **Run 1's magnitude carried more uncertainty than it was given.** If hand
+> parking is good to ±1.5°, that is ±8 cm over 3 m — comparable to the 10.9 cm
+> the correction was built from. Run 1 still reads as a genuine curve (its
+> heading turned the same way as the offset, which an arc does and a parking
+> error does not), but treat 4.07° as approximate.
+
+**If this ever needs re-deriving properly, measure the heading change, not the
+lateral offset.** `calibrate_correct.py --floor-heading` takes it directly and
+prefers it. A parking error produces **zero** heading change while curvature
+produces heading change proportional to distance, so heading is the observable
+that separates them. Lay a straightedge along the chassis at the end and read
+its offset from a grout line at two points a metre apart: ±2 mm then gives
+±0.11°, against ±1.5° for eyeballing a lateral offset.
 
 > The figure was quoted as both 10.9 cm and 10 cm. It barely matters: 10.0 cm
 > gives multipliers 1.002731 / 0.997269, a difference of 0.025 %. The 10.9 was
