@@ -181,6 +181,40 @@ against **the scan message's own `range_min`**.
 
 ---
 
+## URDF and TF
+
+### `xacro` dies with "XML parsing error: not well-formed (invalid token)"
+Check the comment on the reported line for a **double hyphen**. `--` is illegal
+inside an XML comment, and a prose dash is the usual culprit. None of the
+recovered xacro files contain one, which is not an accident. Use a comma.
+
+### Landmarks land 90° from where the object is
+The wrong camera frame was looked up. **`camera_link`** is the mount (x-forward,
+REP-103 body convention); **`camera_optical_link`** is z-forward / x-right /
+y-down and is the frame image geometry is expressed in. The projection must use
+the **optical** one.
+
+Both frames exist and both resolve, so TF reports no gap and `view_frames` looks
+perfect — the only symptom is a clean right-angle rotation of every bearing.
+Check this before re-measuring anything. → `description/camera.xacro`, D-10
+
+### Every landmark is offset a few cm to one side, consistently
+Suspect the **sign** of `camera_offset_y` in `description/camera.xacro` before
+suspecting the calibration. The magnitude was measured 9 Sep; the side was
+assumed **left**. A flipped sign puts everything 6 cm out — small, constant, and
+easy to mistake for slop.
+
+### The whole launch dies and the base never comes up
+If the error names `ydlidar_ros2_driver_node`, that driver is not installed —
+it builds from source against the YDLidar SDK and is **not** an apt package. A
+missing executable takes down every node in the launch, not just itself:
+
+```bash
+make real USE_LIDAR=false     # drive and odometry, no /scan
+```
+
+SLAM and Nav2 need it back on.
+
 ## Odometry and SLAM
 
 ### Map shows double walls when the loop closes
@@ -272,6 +306,23 @@ accept it as a documented limitation.
 ---
 
 ## YOLO / Jetson
+
+### `import tensorrt` fails on `libnvdla_compiler.so`
+```
+ImportError: libnvdla_compiler.so: cannot open shared object file
+```
+TensorRT's **Python binding links the DLA compiler** even though nothing here
+uses the DLA. Two steps, and the first alone is not enough:
+
+```bash
+sudo apt install nvidia-l4t-dla-compiler=36.4.0-20240912212859
+sudo ldconfig          # <- the file lands in /usr/lib/aarch64-linux-gnu/nvidia/
+```
+
+Without `ldconfig` the library is on disk and still not found, which looks
+exactly like the install having failed. **Pin 36.4.0** to match
+`nvidia-l4t-core`; the repo default is 36.4.7, a newer BSP than the running
+kernel. → D-15
 
 ### `torch.cuda.is_available()` is False and there was never a `uv sync`
 Before blaming the lock file, check whether **CUDA is installed at all**:

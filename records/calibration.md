@@ -326,18 +326,61 @@ as `/tmp/calib-0.4`, suggesting 0.4 px was the error being chased.
 
 **Saved to:** `my_bot/config/c615_640x480.yaml`
 
-## Camera extrinsics — `RECOVERY.md` §5.8
+## Camera extrinsics — **MEASURED 2026-09-09**
 
-Measured from `base_link` to the camera's optical centre.
+**Single source:** the URDF `camera_link` joint origin, in
+`description/camera.xacro`. The node reads TF (**D-10**), so there is no second
+copy to drift against. Nothing here came from the lost `robot_params.yaml`.
 
-| | Value | Date |
-|---|---|---|
-| `dx` (forward) | | |
-| `dy` (left) | | |
-| `dz` (up) | | |
-| `yaw` | | |
+**Method:** tape measure on the real robot, 9 Sep 2026. Recorded in the terms
+actually measured — height above the **floor**, distance from the drive
+**axle** — because the chassis box those would otherwise be expressed against
+still has an unverified `chassis_length`.
 
-**Single source:** the URDF `camera_link` joint origin. The node reads TF.
+| As measured | Value |
+|---|---|
+| Lens centre above floor | **0.20 m** |
+| Forward of the drive axle | **0.05 m** |
+| Off the centreline | **0.03 m** |
+| Mount tilt | **~3° UP** |
+
+**Resulting frame** — `camera_link` in `base_link`, derived by xacro and
+checked against the same arithmetic that reproduces `laser_frame`'s recorded
+`(−0.034, 0, 0.186)`:
+
+| | Value |
+|---|---|
+| `dx` (forward) | **+0.050 m** |
+| `dy` (left) | **+0.030 m** ⚠ side assumed, see below |
+| `dz` (up) | **+0.167 m** (= 0.20 above the floor) |
+| pitch | **−0.0524 rad** (3° up; negative because +pitch is nose-down) |
+| `yaw` | 0 |
+
+**Relative to the lidar:** the camera is **8.4 cm in front** of `laser_frame`
+and **2 cm below** it. That gap is not bookkeeping — the semantic layer takes
+its *range* from the lidar's scan plane at 0.22 m while taking its *bearing*
+from a camera at 0.20 m, so an object the camera sees high in frame may sit
+above the plane that measures it.
+
+> ⚠ **`dy`'s magnitude is measured; its sign is assumed.** 3 cm was measured
+> off the centreline, but not which side. `+0.03` here means **left**
+> (REP-103). If the camera is right of centre this must become `−0.03`.
+>
+> This will not present as a bug. Every landmark lands 6 cm to one side,
+> constant and small, which reads as calibration slop rather than a sign error.
+> **Confirm by eye before Day 6**, and fix it in `camera.xacro`, never
+> downstream.
+
+**Two frames, and the difference matters.** `camera_link` is the mount
+(x-forward, REP-103 body convention); `camera_optical_link` is z-forward,
+x-right, y-down, and is the one image geometry lives in. The semantic
+projection must look up **`camera_optical_link`**. Both exist, both resolve,
+TF reports no gap either way — picking the wrong one is a silent 90° rotation
+of every bearing.
+
+**Still lost:** the camera **intrinsics** (`fx`, `fy`, `cx`, `cy`, distortion).
+Extrinsics are now measured; intrinsics remain a Day 4 calibration against the
+**9×6, 20 mm** checkerboard.
 
 ## YOLO environment — `RECOVERY.md` §5.6
 
@@ -373,22 +416,51 @@ Measured from `base_link` to the camera's optical centre.
 | `numpy` | **1.21.5** | system; already < 2, so the `numpy<2` pin costs nothing |
 | `torch` | not installed | **blocked — see below** |
 
-> ⚠⚠ **The JetPack CUDA userspace is not installed on this board.**
-> `jetson_release` reports **CUDA: Not installed, cuDNN: Not installed,
-> TensorRT: Not installed, OpenCV 4.5.4 with CUDA: NO.** `find /usr -name
-> 'libnvinfer*'` and `-name 'libcudnn*'` both return nothing; there is no
-> `nvcc`. Only a partial CUDA 12.6 runtime tree survives under
-> `/usr/local/cuda-12.6` (`libcudart.so.12.6.68` and little else).
+> ⚠ **RESOLVED the same day.** The JetPack CUDA userspace was **not installed
+> at all**: `jetson_release` read CUDA / cuDNN / TensorRT all *Not installed*,
+> `find /usr -name 'libnvinfer*'` and `-name 'libcudnn*'` returned nothing, and
+> there was no `nvcc` — only a partial CUDA 12.6 runtime under
+> `/usr/local/cuda-12.6`.
 >
-> **Cause:** every line in `/etc/apt/sources.list.d/nvidia-l4t-apt-source.list`
-> is **commented out**, so `nvidia-jetpack` is not even a known package
-> (`apt-cache policy nvidia-jetpack` returns nothing). The 6.2 → 6.1 rollback
-> evidently did not restore the repo.
+> **Cause:** every line of `/etc/apt/sources.list.d/nvidia-l4t-apt-source.list`
+> was commented out, so `nvidia-jetpack` was not a package apt had heard of.
+> The re-flash never restored the userspace. Re-enabled the three `r36.4`
+> lines (backup at `.bak-20260909`) and installed a targeted set rather than
+> the metapackage — **D-15** has the reasoning.
+
+**Installed 2026-09-09, and verified:**
+
+| Library | Version | Note |
+|---|---|---|
+| CUDA | **12.6.68** | `nvcc` present, `cuda-toolkit-12-6` |
+| cuDNN | **9.3.0.75** | |
+| TensorRT | **10.3.0.30** | `import tensorrt` works in **both** system python and the venv |
+| `nvidia-l4t-dla-compiler` | **36.4.0-20240912212859** | matches `nvidia-l4t-core` exactly |
+| OpenCV | 4.5.4, **no CUDA** | `nvidia-opencv` deliberately not installed, D-15 |
+
+> **The one that will cost someone an hour:** `import tensorrt` fails with
+> `ImportError: libnvdla_compiler.so: cannot open shared object file` until
+> **`nvidia-l4t-dla-compiler`** is installed — the TensorRT Python binding
+> links it even though nothing here uses the DLA. Installing it is not enough
+> on its own: the file lands in `/usr/lib/aarch64-linux-gnu/nvidia/` and the
+> loader cache is stale, so **`sudo ldconfig`** is also required. Both steps,
+> then it imports.
 >
-> **Consequence:** the JetPack torch wheel cannot give
-> `torch.cuda.is_available() == True` without cuDNN, and **D-11 Option A is not
-> merely awkward, it is impossible until TensorRT exists.** Finding this on
-> Day 2 rather than Day 5 is exactly what Track B is for.
+> Pin it to **36.4.0**, not the repo default 36.4.7 — a 36.4.7 BSP component on
+> a 36.4.0 kernel is what the `nvidia-jetpack` metapackage would have forced.
+
+**Torch, confirmed against the wheel index rather than assumed.** The audit said
+to verify the recovered pair rather than trust it. Index
+`https://pypi.jetson-ai-lab.io/jp6/cu126/` (note `.io`; the `.dev` host does not
+resolve) publishes exactly **`torch-2.11.0-cp310`** and
+**`torchvision-0.26.0-cp310`** for aarch64 — **the recovered figures are
+correct.** That much is verified.
+
+**Install in flight at time of writing** (started 9 Sep ~15:00), by direct wheel
+URL so no generic PyPI wheel can substitute itself. The link is slow — measured
+**~210 KB/s** — and the index sends no `content-length`, so the finish time is
+not predictable. ⚠ **Not yet verified:** `torch.cuda.is_available()`. Fill in
+below the moment it passes, and do not treat the pair as working until it does.
 
 Also noted: `jetson_release` calls this an **Orin NX Engineering Reference
 Developer Kit**, not an Advantech carrier. Probably an unchanged device-tree
