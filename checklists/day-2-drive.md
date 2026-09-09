@@ -102,16 +102,35 @@ make teleop
 ## Checks before the gate
 
 ```bash
-ros2 topic echo /odom                    # position changes, sane direction
-ros2 run tf2_tools view_frames           # no gaps in the tree
+ros2 run my_bot tf_check.py --no-map     # the seven edges, with ages
+ros2 run my_bot odom_check.py            # then push the robot by hand
 ros2 control list_hardware_interfaces    # all claimed
-ros2 topic hz /joint_states
+ros2 control list_controllers            # diff_cont + joint_broad active
+ros2 topic hz /joint_states              # 30 Hz, capped by update_rate
 ```
 
-- [ ] Push forward 1 m by hand → `/odom` x increases by roughly 1 m
-- [ ] Rotate 90° by hand → `/odom` yaw changes by roughly π/2
+> ⚠ **Two corrections, both found the hard way on 9 Sep.**
+>
+> **The topic is `/diff_cont/odom`, not `/odom`.** `diff_cont` has
+> `use_stamped_vel: false` and publishes on its own namespace. `ros2 topic echo
+> /odom` prints nothing at all and looks exactly like a dead controller.
+>
+> **"x increases by 1 m" is only true if the robot starts aligned with odom's
+> x-axis**, and after any teleop it will not be. Ours sat 26.7° off, so a 1 m
+> push raised x by 0.875 and y by 0.441. **Check the straight-line distance** —
+> `odom_check.py` reports it, along with the yaw change.
+
+- [ ] Push forward 1 m by hand → straight-line distance ≈ 1 m, **yaw ≈ 0**
+- [ ] Rotate 90° by hand → yaw ≈ π/2, **translation ≈ 0**
 
   *(Rough is fine today. Day 3 makes it true.)*
+
+  **The decoupling matters more than the percentages.** Distance with no yaw and
+  yaw with no distance is what proves the encoder signs and the kinematics. A
+  push that generates yaw, or a turn that walks the robot sideways, is a swapped
+  or inverted encoder — stop and fix that before Day 3.
+
+  Measured 9 Sep: **0.980 m** with −0.1° yaw; **−83.7°** with 0.9 cm drift.
 
 ---
 

@@ -326,6 +326,46 @@ as `/tmp/calib-0.4`, suggesting 0.4 px was the error being chased.
 
 **Saved to:** `my_bot/config/c615_640x480.yaml`
 
+## Odometry sanity — Day 2 gate, 2026-09-09
+
+**Method:** `scripts/odom_check.py`, robot pushed **by hand** on the floor.
+The script commands nothing, so an encoder-sign fault cannot be masked by a PID
+correcting for it. Not a calibration — Day 3's `calibrate_straight.py` /
+`calibrate_spin.py` do that.
+
+| Move | Odom reported | vs nominal |
+|---|---|---|
+| Pushed straight ~1 m | **0.980 m** straight-line, yaw change **−0.1°** | **−2.0 %** |
+| Turned ~90° in place | **−83.7°**, translation drift **0.9 cm** | **−7.0 %** |
+
+**The important result is the decoupling, not the percentages.** Pushing
+produced distance with no yaw; turning produced yaw with no distance. That is
+what proves both encoder signs are correct and the differential kinematics are
+not scrambled — a swapped or inverted encoder shows up here as a push that
+generates yaw, or a turn that walks the robot across the floor.
+
+> **`dy` was +0.441 m during the push, and that is NOT drift.** The odom frame
+> was fixed when the controller started, *after* teleop had already turned the
+> robot, so the robot's heading sat **26.7°** off odom's x-axis
+> (`atan2(0.441, 0.875)`). Yaw stayed flat through the whole push, so it
+> travelled straight in its own frame; the motion simply resolves onto both odom
+> axes.
+>
+> ⚠ **The Day 2 checklist is wrong on this point.** It says "push forward 1 m →
+> `/odom` x increases by roughly 1 m". That only holds if the robot happens to
+> start aligned with odom's x-axis, which it generally will not. **Check the
+> straight-line distance**, which is what `odom_check.py` reports.
+
+**Prediction to test on Day 3, not a number to use.** If that hand-turn really
+was 90°, yaw under-reads by 7 %, which implies `wheel_separation` ≈ **0.2325 m**
+rather than the recorded 0.25. Odom yaw is `(right_arc − left_arc) /
+wheel_separation`, so under-reporting means the separation is too *large*. But
+the 90° was eyeballed, so this is weak evidence and **must not** be written into
+`my_controllers.yaml`. `calibrate_spin.py --turns 10` both ways settles it; if
+that comes back near 0.2325 the two agree and the number changes then.
+
+Distance scale at −2 % needs nothing: `wheel_radius` 0.0327 is carrying it well.
+
 ## Camera extrinsics — **MEASURED 2026-09-09**
 
 **Single source:** the URDF `camera_link` joint origin, in

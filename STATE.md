@@ -3,10 +3,10 @@
 > **Update this at the end of every session and whenever a gate passes.**
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
-**Last updated:** 9 Sep 2026 — Day 2 in progress
-**Current day:** **Day 2.** Package ported and building; gate not yet passed
-**Blocked on:** nothing. The Day 2 gate needs the robot **on blocks** and a
-human at the keyboard — that is the only thing left in the day.
+**Last updated:** 9 Sep 2026 — **Day 2 gate PASSED**
+**Current day:** Day 2 **done**. Day 3 next
+**Blocked on:** nothing. **Day 3's first task is building `ydlidar_ros2_driver`
+from source** — it is not an apt package and is not on this board.
 
 - ~~**`cap_ws` has no remote yet**~~ **Resolved 9 Sep.** `mairuu/cap_ws` exists,
   branch is **`main`** (not `master` as recorded earlier), and everything is
@@ -25,22 +25,48 @@ reported limitation rather than a passed test — see the warning below.
 
 ## Right now
 
-**Next action:** **finish the Day 2 gate.** Everything that does not need the
-robot is done. Put the robot **on blocks**, then:
+**Next action:** **Day 3** — `checklists/day-3-slam.md`. But it cannot start on
+the checklist's first line:
 
-```bash
-cd ~/cap_ws && make real USE_LIDAR=false     # terminal 1
-make teleop                                   # terminal 2
-```
+> ⚠ **Build `ydlidar_ros2_driver` first.** It is **not** an apt package — it
+> builds from source against the YDLidar SDK, and neither is on this board.
+> Until it exists there is no `/scan`, so `slam_toolbox` has nothing to match
+> and Day 3 cannot begin. `make real` defaults to `use_lidar:=true` and will
+> fail until then; `USE_LIDAR=false` is the Day 2 workaround, not a Day 3 one.
+>
+> When it does come up, the **two flags in `config/ydlidar.yaml` are already
+> right and must stay `true`** — `reversion` and `inverted`. The audit calls
+> them the most expensive thing in the dump. Verify with
+> `check_scan_world_fixed.py`, and read the failure modes before touching
+> either: one of them cannot be caught by that script at all.
 
-then `ros2 control list_hardware_interfaces`, `ros2 topic echo /odom`,
-`ros2 run tf2_tools view_frames`. Wheels the right way on `i` before the robot
-goes on the ground.
+**Day 2 gate passed 9 Sep.** `make teleop` drives the robot and `i` is forward.
+Both controllers active, both command interfaces claimed, `/joint_states` and
+`/diff_cont/odom` each at exactly 30.0 Hz, all seven TF edges resolving.
 
-> **Day 3's first task is not Day 3 work.** `ydlidar_ros2_driver` is **not
-> installed and not an apt package** — it builds from source against the YDLidar
-> SDK. Nothing on Day 2 needs it (hence `USE_LIDAR=false`), but SLAM cannot start
-> without it. Budget for it before the Day 3 checklist, not during.
+Hand-push odometry, via `odom_check.py`:
+
+| Move | Odom said | vs nominal |
+|---|---|---|
+| ~1 m straight | **0.980 m**, yaw change −0.1° | −2.0 % |
+| ~90° in place | **−83.7°**, drift 0.9 cm | −7.0 % |
+
+**The decoupling is the real result** — distance with no yaw, yaw with no
+distance. That is what proves the encoder signs and the kinematics, and it is
+the thing a swapped encoder would break loudly.
+
+> **A prediction for Day 3, not a number to use.** That 7 % yaw shortfall
+> implies `wheel_separation` ≈ **0.2325** rather than 0.25 — but the 90° was
+> eyeballed. **Do not edit `my_controllers.yaml` on this.**
+> `calibrate_spin.py --turns 10` both ways settles it; if it lands near 0.2325,
+> the two agree and the number changes then.
+>
+> ⚠ **The Day 2 checklist's odom test is wrong as written.** "Push 1 m → `/odom`
+> x increases by 1 m" only holds if the robot starts aligned with odom's x-axis.
+> Ours sat 26.7° off it, so x rose 0.875 and y rose 0.441 — **straight-line
+> distance is the check**. Also: the topic is **`/diff_cont/odom`**, not
+> `/odom`; echoing `/odom` shows nothing and looks exactly like a dead
+> controller.
 
 > ⚠ **First suspect for any later flakiness: the power path.** The user reports
 > power-cycling this robot is not reliable, which is why D-14 cut §5.8's manual
@@ -178,7 +204,7 @@ failed gate.
 | Day | Gate | Passed |
 |---|---|---|
 | 1 | `e` returns changing counts by hand; `m 20 20` spins both wheels forward and auto-stops after 2 s | **[x] PASSED 8 Sep.** §5.8 closed on 50/50 EN resets; manual cycles cut, D-14 |
-| 2 | `make teleop` drives the robot; `/odom` changes sanely; TF tree has no gaps | **[~] partial.** Package ported, built and pushed; TF tree structurally complete (9 links, no orphans); Track B well past its checkbox. **Awaiting the on-blocks teleop + `/odom` run** |
+| 2 | `make teleop` drives the robot; `/odom` changes sanely; TF tree has no gaps | **[x] PASSED 9 Sep.** Teleop drives, `i` is forward; 1 m push → 0.980 m; 90° turn → −83.7°; 7 TF edges resolve; 30.0 Hz. Track B finished `day-5-yolo.md` §1 as well |
 | 3 | A driven loop closes without a visible double wall | [ ] |
 | 4 | RViz goal → robot arrives; recovery behaviours fire when blocked | [ ] |
 | 5 | `/detections` stable; track IDs persist; no thermal throttle | [ ] |
@@ -189,7 +215,7 @@ failed gate.
 
 | Track | Scope | Where |
 |---|---|---|
-| **A** — needs the robot | foundation → drive → odometry → SLAM → Nav2 | Day 1 done. **Day 2 built and pushed; gate awaits the robot on blocks** |
+| **A** — needs the robot | foundation → drive → odometry → SLAM → Nav2 | Day 1 done, **Day 2 done**. Day 3 next, **blocked on building `ydlidar_ros2_driver` from source** |
 | **B** — needs only Jetson + camera | uv env → calibration → detector | **`day-5-yolo.md` §1 is DONE, on Day 2.** Venv built and verified end to end; CUDA/cuDNN/TensorRT installed after finding them absent entirely. Next: camera **intrinsics** (Day 4 work, needs no robot) and **D-11** |
 
 Track B runs in the gaps of Track A. Start it Day 2, not Day 5 — it is the

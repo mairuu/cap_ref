@@ -234,6 +234,22 @@ This exact failure cost 62 cm over 3 m on the old board. → `calibrate_correct.
 `config/my_controllers.yaml` (the copy `diff_cont` actually reads) and
 `description/robot_core.xacro`. → `calibrate_straight.py`
 
+### `ros2 topic echo /odom` prints nothing
+Wrong topic. `diff_cont` publishes on **`/diff_cont/odom`**. `/odom` does not
+exist, and its silence looks exactly like a controller that never spawned —
+check `ros2 control list_controllers` before believing that.
+
+### A 1 m hand push raises odom x by much less than 1 m
+Probably not an error. The odom frame is fixed where the controller started, so
+unless the robot was aligned with odom's x-axis the motion lands on **both**
+axes. Check the **straight-line** distance (`odom_check.py` reports it) and
+confirm yaw stayed flat through the push.
+
+### A hand push generates yaw, or a turn walks the robot sideways
+**Stop.** That is an encoder sign fault, not a calibration error, and it is the
+PID runaway condition once the motors are driving.
+→ `checklists/day-1-foundation.md` §5.7
+
 ### Robot drives backward overall
 Flip `motors_reversed` on the ROS side. **Do not rewire.**
 
