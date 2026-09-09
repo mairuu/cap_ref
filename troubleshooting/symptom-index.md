@@ -409,6 +409,33 @@ Check `cmd_vel` is going to the topic the controller actually subscribes to.
 
 ## Nav2
 
+### `make teleop-nav` does nothing — no keypress moves the robot
+**`twist_mux` is not running, and as of 9 Sep nothing in `cap_ws` can start
+it.** `navigation.launch.py` is the launch file that brings it up and it has
+**not been ported yet** — Day 2 brought across `controller.launch.py`,
+`real_robot.launch.py`, `rsp.launch.py` and `slam.launch.py` only. The config
+(`config/twist_mux.yaml`) and the `package.xml` dependency are both there, which
+makes the gap easy to miss.
+
+So `/cmd_vel_teleop` currently has **no subscriber**. `make teleop-nav`
+publishes into nothing.
+
+> ⚠ **This inverts the standing safety rule until Day 4.** `make teleop-nav` is
+> the e-stop *once `make nav` is running*. With only `make real` up it is a
+> no-op, and the things that actually stop the robot are:
+>
+> - **Ctrl-C in the terminal driving it** — `calibrate_straight.py`,
+>   `calibrate_spin.py` and `motor_check.py` all publish a zero `Twist` on the
+>   way out and have a `finally` that runs it.
+> - **`make teleop`**, which publishes to `/diff_cont/cmd_vel_unstamped`, the
+>   same topic the calibration scripts use. It fights rather than overrides, so
+>   the robot stutters toward a stop rather than stopping cleanly.
+> - Cutting power.
+>
+> Re-read this the moment `navigation.launch.py` lands: from then on
+> `make teleop-nav` **is** the e-stop and `make teleop` is the dangerous one.
+
+
 ### Robot refuses doorways it physically fits through
 Someone replaced `footprint` with `robot_radius`. A circle enclosing this robot
 needs **r = 0.265** because `base_link` sits on the axle, not the centre. Use

@@ -99,6 +99,16 @@ measurement and the run only gives it once.
 > it; separation is a yaw term. Its direction/turns/residual are still needed
 > before it can go in `records/calibration.md`.
 
+> ⚠ **`make teleop-nav` is NOT an e-stop yet — found 9 Sep.**
+> `navigation.launch.py` has not been ported (Day 4 work), so **nothing in
+> `cap_ws` starts `twist_mux`** and `/cmd_vel_teleop` has no subscriber.
+> `config/twist_mux.yaml` and the `package.xml` dependency are both present,
+> which makes the gap invisible. Until Nav2 lands, the only things that stop a
+> driving robot are **Ctrl-C in the terminal running the script** (every
+> calibration script publishes a zero `Twist` in a `finally`), `make teleop`
+> fighting on the same topic, or power. Re-read this when
+> `navigation.launch.py` arrives — the rule flips back then.
+
 Worth doing in the same session, both quick:
 `check_scan_world_fixed.py` (turns ~90° in place, needs clear space), and
 re-run `scan_dropout_report.py` **in the room the map is made in**.
