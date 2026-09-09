@@ -394,12 +394,11 @@ robot's only velocity limit and they are not running during manual driving. So
 hand-driving happens at nine times the speed the mapping stack is configured
 for, and no warning is emitted.
 
-> ⚠ **This is a measurement, not a diagnosis.** It is *predicted* to explain
-> the map smearing on translation while staying clean on rotation, reported
-> 9 Sep — but that has not been confirmed by a run, and `reversion` produces the
-> same asymmetry. The discriminating test is in the symptom index under "The map
-> smears when driving forward". Do not record a cause here until a 0.10 m/s run
-> settles it.
+> ✅ **CONFIRMED 9 Sep.** The 0.10 m/s `calibrate_straight.py` run mapped
+> **clean** over the same floor that smeared at teleop speed. The cause was
+> motion shear; `reversion` is exonerated for this symptom and stays `true`.
+> **Map at Nav2 speeds, or slow teleop down** — there is nothing to calibrate
+> for it.
 
 **`/scan` is BEST_EFFORT, and a RELIABLE subscriber receives nothing.** Not an
 error — rclpy logs `New publisher discovered ... offering incompatible QoS. No
@@ -682,6 +681,87 @@ re-derived from the wire on Day 1 rather than inherited — but do not cite
 | Model | |
 | Detection rate | ______ Hz |
 | Temp after 5 min | ______ °C |
+
+## Wheel asymmetry — **MEASURED 2026-09-09**
+
+**Method.** `calibrate_straight.py --distance 3.0` (closed loop, 0.10 m/s),
+robot parked on a floor-tile line, start and end marked by sighting straight
+down through the lidar puck centre. Distance read as **5 tiles at a nominal
+600 mm = 3.00 m**. Analysis by `calibrate_correct.py --floor-lateral`.
+
+| | Odom said | Floor said |
+|---|---|---|
+| straight-line chord | 3.0059 m | 3.00 m (5 tiles) |
+| path length walked | 3.0011 m | — |
+| lateral drift | **+0.0009 m** (left) | **−0.109 m** (right) |
+| yaw drift | −0.09° | **−4.163°** (inferred from lateral) |
+
+**The gap between those two lateral figures is the whole measurement.** The
+closed loop steers on *odom* lateral offset and *odom* yaw, so it drives odom's
+**estimate** of the path straight. Odom held 0.9 mm; the robot finished 10.9 cm
+right. That difference cannot be anything but odometry bias.
+
+**Result: 4.07° of uncorrected yaw bias over 3 m**, `k_r - k_l = -0.005964`,
+a **0.60 % wheel asymmetry**.
+
+**APPLIED** to `config/my_controllers.yaml`:
+
+```yaml
+left_wheel_radius_multiplier:  1.002982
+right_wheel_radius_multiplier: 0.997018
+```
+
+Not to `enc_counts_per_rev_*`. Counts per rev is a property of the encoder disc
+and the gearbox and both sides are the same parts — only tyre diameter can
+differ between wheels. Same reasoning that rejected the old `l:2473 r:2556`
+split. **One or the other, never both.** `diff_drive_controller` applies the
+multipliers to the wheel **commands** as well as to odometry, so the robot
+physically drives straighter rather than merely reporting better.
+
+> **Verification still owed:** re-run the 3 m closed loop. Floor lateral should
+> collapse from 10.9 cm to under 1 cm. Until that run, this correction is
+> applied but unconfirmed.
+
+> The figure was quoted as both 10.9 cm and 10 cm. It barely matters: 10.0 cm
+> gives multipliers 1.002731 / 0.997269, a difference of 0.025 %. The 10.9 was
+> used.
+
+### `wheel_radius` — deliberately NOT changed
+
+The same run says odom over-reports distance by **+0.17 %** (3.0059 m against
+3.0007 m of rolled arc), which would give `wheel_radius` 0.03264.
+
+**Not applied, and the reason matters more than the number.** That correction is
+**5.2 mm over 3 m**, and the distance was *counted as five floor tiles* at a
+nominal 600 mm — not taped. Real tile pitch including grout varies by several mm
+per tile, so a 1 mm/tile error is 5 mm over the run: **the uncertainty in the
+measurement is larger than the correction it suggests.** Applying it would be
+recording noise as a calibration. `wheel_radius` stays **0.0327**; re-derive
+over a longer *taped* run if map scale ever looks wrong.
+
+### What this run does NOT measure: `wheel_separation`
+
+**A straight run cannot test separation, and a spin cannot test this
+asymmetry.** In a spin the wheels counter-rotate, so a per-wheel radius error
+enters yaw with the *same* sign on both sides and cancels — only the mean radius
+and the separation survive, and a radius asymmetry shows up as the robot's
+centre *translating* during the spin rather than as residual heading. Driving
+straight the wheels co-rotate, so the *difference* shows in yaw and the mean
+cancels.
+
+> ⚠ **This contradicts the decision rule recorded in `STATE.md`**, which expects
+> a reverse-direction spin to separate the two by sign. If the reasoning above
+> holds, a radius asymmetry does **not** flip sign with spin direction, and the
+> reverse run should return ≈0.61 % again rather than discriminating. **Check
+> the reasoning before spending a driving session on it.** The clean
+> decomposition is: straight run → asymmetry (lateral) and mean radius (tape);
+> spin → mean radius × separation.
+
+> ⚠ **`wheel_separation` 0.25168 remains unprovenanced.** Applied by hand 9 Sep,
+> not the 0.25154 the one logged spin run implies, and that run's direction was
+> never noted.
+
+---
 
 ## Network link — **MEASURED 2026-09-09**
 

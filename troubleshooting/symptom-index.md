@@ -192,8 +192,9 @@ Confirm with `check_scan_world_fixed.py`: `~-2×` the turn means mirrored.
 **Two causes make this exact shape, and they need opposite fixes. Check the
 speed first — it is free and it is the more likely one.**
 
-**1 · You are driving far too fast to map.** ⚠ **Predicted 9 Sep from live
-measurements, not yet confirmed by a run.** `make teleop` runs
+**1 · You are driving far too fast to map.** ✅ **CONFIRMED 9 Sep** — the same
+floor that smeared at teleop speed mapped clean at 0.10 m/s. Check this first;
+in the one case on record it was the whole answer. `make teleop` runs
 `teleop_twist_keyboard`, whose `speed` parameter defaults to **0.5 m/s**
 (`teleop_twist_keyboard.py:145`), and **nothing clamps it** — teleop publishes
 straight at the controller, and the only velocity limits in this stack live in
@@ -213,7 +214,9 @@ origin*, and `slam_toolbox` searches ±20° of yaw
 stays self-consistent. Translation smears it into a **shear along the direction
 of travel**, which no rigid transform can absorb, so walls double.
 
-**2 · `reversion` got flipped to false** — the puck's 0° points at the robot's
+**2 · `reversion` got flipped to false.** ⚠ Still a real failure mode, but it
+was **exonerated for the 9 Sep case** — the map came clean at 0.10 m/s with the
+flag untouched, so speed alone explained it. The puck's 0° points at the robot's
 back, so the whole scan is rotated by π. That error is a reflection through the
 lidar centre, and the centre moves with the robot, so it breaks on
 **translation**. `check_scan_world_fixed.py` **cannot catch this** — it only

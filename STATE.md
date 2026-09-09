@@ -66,9 +66,11 @@ rviz2 -d ~/cap_view/nav.rviz
 > a container, `env -i` — will land on domain 0 and see nothing. This is the
 > first thing to check if a node that used to work goes silent.
 
-**A prediction, written down as one (9 Sep, evening).** The map smears when
-driven forward and stays clean when spun in place. **Predicted cause: drive
-speed, not calibration.** `make teleop` starts at **0.5 m/s** and nothing clamps
+**✅ The speed prediction held (9 Sep, evening).** The map smeared when driven
+forward at teleop's 0.5 m/s and came out **clean at 0.10 m/s** over the same
+floor. It was motion shear; `reversion` is exonerated and stays `true`. Nothing
+to calibrate for it — **map at Nav2 speeds or slow teleop down.** The original
+reasoning, kept because it is the diagnostic: `make teleop` starts at **0.5 m/s** and nothing clamps
 it — the `nav2_params.yaml` limits are the robot's only velocity limit and they
 are not running during manual driving. Measured on the live stack: 86 ms sweep,
 `header.stamp` already 88 ms old at receipt, so **8.7 cm of shear per scan at
@@ -108,6 +110,33 @@ measurement and the run only gives it once.
 > calibration script publishes a zero `Twist` in a `finally`), `make teleop`
 > fighting on the same topic, or power. Re-read this when
 > `navigation.launch.py` arrives — the rule flips back then.
+
+**That run also found a real wheel asymmetry, and it is APPLIED (9 Sep).**
+Odom reported 0.9 mm of lateral drift over 3 m; the robot finished **10.9 cm
+right** of the line. The loop steers on odom, so that gap is pure odometry bias:
+**4.07° over 3 m, a 0.60 % asymmetry.** Now in `config/my_controllers.yaml` as
+`left_wheel_radius_multiplier: 1.002982` / `right_wheel_radius_multiplier:
+0.997018`, built and loaded.
+
+**Verification owed:** re-run `calibrate_straight.py --distance 3.0`. Floor
+lateral should collapse from 10.9 cm to **under 1 cm**. Until that run the
+correction is applied but unconfirmed.
+
+`wheel_radius` was **deliberately left at 0.0327**. The same run suggests
+0.03264, but that correction is 5.2 mm over 3 m and the distance was *counted as
+five 600 mm floor tiles*, not taped — grout makes tile pitch vary by more than
+the correction. Re-derive over a longer taped run if map scale ever looks wrong.
+
+> ⚠ **The Day 3 decision rule for `wheel_separation` looks wrong, and it is
+> about to cost a driving session.** It expects a reverse-direction spin to
+> separate a separation error from a wheel asymmetry by sign. But in a spin the
+> wheels counter-rotate, so a per-wheel radius error enters yaw with the same
+> sign on both sides and **cancels** — it surfaces as the robot's centre
+> translating, not as residual heading. A radius asymmetry should therefore
+> **not** flip sign with spin direction, and the reverse run should return
+> ≈0.61 % again rather than discriminating. **Check this reasoning before
+> driving it.** Clean decomposition: straight run → asymmetry (from lateral)
+> and mean radius (from tape); spin → mean radius × separation.
 
 Worth doing in the same session, both quick:
 `check_scan_world_fixed.py` (turns ~90° in place, needs clear space), and
