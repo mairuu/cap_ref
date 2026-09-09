@@ -66,6 +66,39 @@ rviz2 -d ~/cap_view/nav.rviz
 > a container, `env -i` — will land on domain 0 and see nothing. This is the
 > first thing to check if a node that used to work goes silent.
 
+**A prediction, written down as one (9 Sep, evening).** The map smears when
+driven forward and stays clean when spun in place. **Predicted cause: drive
+speed, not calibration.** `make teleop` starts at **0.5 m/s** and nothing clamps
+it — the `nav2_params.yaml` limits are the robot's only velocity limit and they
+are not running during manual driving. Measured on the live stack: 86 ms sweep,
+`header.stamp` already 88 ms old at receipt, so **8.7 cm of shear per scan at
+teleop speed** against 1.0 cm at Nav2's 0.055 m/s. A spin smears about the
+sensor origin and `slam_toolbox` absorbs it into its ±20° yaw search;
+translation shears along the path and no rigid transform can absorb it.
+
+**`reversion` produces the same asymmetry and is the other suspect.** It reads
+`true` in the config and on the live node — but `true` came from the **old
+board's mounting** and has never been verified on this one.
+
+**The test settles both**, and it is the run that was wanted anyway:
+
+```bash
+ros2 run my_bot calibrate_straight.py --distance 3.0   # drives at 0.10 m/s
+```
+
+Watch RViz during it. **Clean at 0.10 m/s → speed, nothing to calibrate.**
+Still smeared → `reversion` next, then real odometry curvature. Mark the floor
+as well as the distance: the offset off the chalk line is the encoder-split
+measurement and the run only gives it once.
+
+> The map built at 0.5 m/s is not evidence. Discard it.
+
+> ⚠ **`wheel_separation` 0.25168 is live in the controller with no recorded
+> provenance** — applied in the working tree, not committed, and not the
+> 0.25154 the one recorded spin run implies. A straight-line run will not test
+> it; separation is a yaw term. Its direction/turns/residual are still needed
+> before it can go in `records/calibration.md`.
+
 Worth doing in the same session, both quick:
 `check_scan_world_fixed.py` (turns ~90° in place, needs clear space), and
 re-run `scan_dropout_report.py` **in the room the map is made in**.

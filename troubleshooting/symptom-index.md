@@ -189,10 +189,60 @@ Confirm with `check_scan_world_fixed.py`: `~-2×` the turn means mirrored.
 **Gazebo never shows this** — `gpu_lidar` is counter-clockwise natively.
 
 ### The map smears when driving forward, but turning in place looks fine
-**`reversion` got flipped to false** — the puck's 0° points at the robot's back,
-so the whole scan is rotated by π. That error is a reflection through the lidar
-centre, and the centre moves with the robot, so it breaks on **translation**.
-`check_scan_world_fixed.py` **cannot catch this** — it only tests rotation.
+**Two causes make this exact shape, and they need opposite fixes. Check the
+speed first — it is free and it is the more likely one.**
+
+**1 · You are driving far too fast to map.** ⚠ **Predicted 9 Sep from live
+measurements, not yet confirmed by a run.** `make teleop` runs
+`teleop_twist_keyboard`, whose `speed` parameter defaults to **0.5 m/s**
+(`teleop_twist_keyboard.py:145`), and **nothing clamps it** — teleop publishes
+straight at the controller, and the only velocity limits in this stack live in
+`nav2_params.yaml`, which is not running when you drive by hand. Measured on the
+live stack: the sweep takes **86 ms** and `header.stamp` is already **88 ms**
+old on arrival, so every scan is a smear attributed to a single pose:
+
+| speed | shear per scan |
+|---|---|
+| teleop default **0.5 m/s** | **8.7 cm** |
+| `calibrate_straight.py` 0.10 m/s | 1.7 cm |
+| Nav2 `max_vel_x` 0.055 m/s | 1.0 cm |
+
+Rotation survives it because a pure spin smears the cloud *about the sensor
+origin*, and `slam_toolbox` searches ±20° of yaw
+(`coarse_search_angle_offset` 0.349) — it absorbs that into the pose and the map
+stays self-consistent. Translation smears it into a **shear along the direction
+of travel**, which no rigid transform can absorb, so walls double.
+
+**2 · `reversion` got flipped to false** — the puck's 0° points at the robot's
+back, so the whole scan is rotated by π. That error is a reflection through the
+lidar centre, and the centre moves with the robot, so it breaks on
+**translation**. `check_scan_world_fixed.py` **cannot catch this** — it only
+tests rotation.
+
+> The flag being `true` is not the same as the flag being *right*. It reads
+> `true` in `config/ydlidar.yaml` and on the live node (confirmed 9 Sep), but
+> `true` was **recovered from the old board's physical mounting** and has never
+> been verified against this one.
+
+**Separating them.** Drive the same path at 0.10 m/s and watch RViz:
+
+```bash
+ros2 run my_bot calibrate_straight.py --distance 3.0
+```
+
+- **Clean at 0.10 m/s** → it was speed. Nothing to calibrate; map at Nav2 speeds
+  or slow teleop down (`x` lowers linear speed only).
+- **Still smeared at 0.10 m/s** → not speed. `reversion` next, then genuine
+  odometry curvature — which the same run has already measured, if you marked
+  the floor as well as the distance.
+
+**Ruling out `reversion` needs five seconds and no driving**, with the stack up:
+note where the open floor in the room actually is, then compare it against the
+scan. If the scan puts the open space behind the robot while the room has it in
+front, the flag is inverted.
+
+> A map built at 0.5 m/s is not evidence of anything. Discard it rather than
+> reasoning from it.
 
 ### Tempted to fix a scan orientation by yawing `laser_joint`
 **Don't.** `description/lidar.xacro` is shared with simulation; yawing it fixes

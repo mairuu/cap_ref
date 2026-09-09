@@ -363,6 +363,53 @@ apart from one in the message.
 `min_returns: 3` clears 3 m here. At the recovered 50 % it would not have, which
 is exactly the trade the Day 3 checklist says to make knowingly.
 
+## Scan timing and drive speed — **MEASURED 2026-09-09**
+
+Taken off the live stack (`make real` + `make slam` running), by subscribing to
+`/scan` and timing 12 consecutive messages.
+
+| Quantity | Measured | Note |
+|---|---|---|
+| Sweep period | **86.2 ms** → **11.61 Hz** | confirms the 11.57 Hz of earlier that day |
+| `header.stamp` age at receipt | **88 ms** | ≈ one full sweep — the stamp is a sweep old before any consumer sees it |
+| Rays per scan | **350** | confirms |
+| Dropout | **28.3 %** | confirms 27.9 %, same corner of the same room |
+| `/scan` QoS | **BEST_EFFORT** (sensor data) | see below |
+| `teleop_twist_keyboard` `speed` default | **0.5 m/s** | `teleop_twist_keyboard.py:145` |
+| `teleop_twist_keyboard` `turn` default | **1.0 rad/s** | `:146` |
+
+**Derived — motion shear per scan**, being how far the robot travels within one
+sweep plus how far it travels during the stamp lag, all of it attributed to a
+single pose:
+
+| Speed | Source | Within sweep | Stamp lag | Total |
+|---|---|---|---|---|
+| **0.5 m/s** | teleop default | 4.31 cm | 4.40 cm | **8.71 cm** |
+| 0.10 m/s | `calibrate_straight.py` default | 0.86 cm | 0.88 cm | 1.74 cm |
+| 0.055 m/s | Nav2 `max_vel_x` | 0.47 cm | 0.48 cm | 0.96 cm |
+
+**The 9× gap is the finding.** `make teleop` publishes straight at the
+controller and **nothing clamps it** — the limits in `nav2_params.yaml` are the
+robot's only velocity limit and they are not running during manual driving. So
+hand-driving happens at nine times the speed the mapping stack is configured
+for, and no warning is emitted.
+
+> ⚠ **This is a measurement, not a diagnosis.** It is *predicted* to explain
+> the map smearing on translation while staying clean on rotation, reported
+> 9 Sep — but that has not been confirmed by a run, and `reversion` produces the
+> same asymmetry. The discriminating test is in the symptom index under "The map
+> smears when driving forward". Do not record a cause here until a 0.10 m/s run
+> settles it.
+
+**`/scan` is BEST_EFFORT, and a RELIABLE subscriber receives nothing.** Not an
+error — rclpy logs `New publisher discovered ... offering incompatible QoS. No
+messages will be received` once, then goes quiet forever, which reads exactly
+like a dead topic. Any script reading `/scan` must use
+`rclpy.qos.qos_profile_sensor_data`. The scripts in `my_bot/scripts/` already
+do; ad-hoc `rclpy` snippets are where this bites.
+
+---
+
 ## Camera intrinsics — ⚠ **STILL LOST, must redo**
 
 `robot_params.yaml` and `camera_info.yaml` were in `semantic_objects/config/`,
