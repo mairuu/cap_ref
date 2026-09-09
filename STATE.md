@@ -311,9 +311,16 @@ SSH is key-based Jetson → laptop, no password.
 
 > ⚠ **These are DHCP addresses on a phone hotspot, and the DDS peer list is
 > literal.** Nothing detects a change; discovery just stops. After any
-> reconnection: `ip -4 addr` on both, then `make net PEERS=<jetson>,<laptop>`
-> on **both** machines if either moved. This is the network equivalent of the
-> `ttyUSB` swaps below — do not cite an address, re-derive it.
+> reconnection: `ip -4 addr` on both, then, if either moved, re-run on **both**
+> — `make net PEERS=<jetson>,<laptop>` on the Jetson and
+> `~/cap_view/setup_ros2_network.sh --peers <jetson>,<laptop>` on the laptop.
+> This is the network equivalent of the `ttyUSB` swaps below — do not cite an
+> address, re-derive it.
+
+> **`make net` is Jetson-only.** The laptop has no `cap_ws` and no Makefile, by
+> design — it needs nothing built. `make viewer-sync` pushes `nav.rviz`,
+> `setup_ros2_network.sh` and `check_ros2_link.py` into `~/cap_view/` on it;
+> those are copies, so re-run it after editing any of the three.
 
 Measured 9 Sep with `check_ros2_link.py`, Jetson → laptop over 15.1 s:
 **String 10.07 Hz of 10** and **40 kB OccupancyGrid 1.99 Hz of 2**, no loss —

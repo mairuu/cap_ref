@@ -505,15 +505,21 @@ Thermal throttling. `tegrastats`. Check cooling, `nvpmodel -m 0`,
 forwards unicast between clients and drops client-to-client multicast. Fast DDS
 discovers over `239.255.0.1` by default, so a link with 0.08 ms ping carries
 **zero** discovery. Firewall, domain and `ROS_LOCALHOST_ONLY` all look guilty
-and are all innocent. Fix: `make net` on **both** machines — it adds each
-address as a unicast initial peer.
+and are all innocent. Fix: run the setup on **both** machines — it adds each
+address as a unicast initial peer. `make net` in `~/cap_ws` on the Jetson;
+`~/cap_view/setup_ros2_network.sh` on the laptop, which has no Makefile.
 → `reference/ros2-network.md`, D-16
 
 ### It worked yesterday and today neither machine sees the other
 **Check the addresses first, before anything else.** The peer list in
 `~/.ros2/fastdds_hotspot.xml` is literal, and the hotspot hands out DHCP. A
-reconnection can move either machine. `ip -4 addr` on both, then
-`make net PEERS=<jetson>,<laptop>` on **both** if either changed.
+reconnection can move either machine. `ip -4 addr` on both, then, if either
+changed, re-run on **both** with the new pair:
+
+```bash
+make net PEERS=<jetson>,<laptop>                              # Jetson
+~/cap_view/setup_ros2_network.sh --peers <jetson>,<laptop>    # laptop
+```
 
 ### Strange nodes in `ros2 topic list`, or `/tf` looks corrupted with the robot idle
 **Someone else is on `ROS_DOMAIN_ID` 0.** We are on **42** for exactly this
@@ -530,8 +536,8 @@ talker/listener test passes straight through this. Diagnose with the two-stream
 check — small arriving while large does not is the signature:
 
 ```bash
-make net-check                          # on the Jetson
-./check_ros2_link.py --sub              # on the laptop
+make net-check                            # on the Jetson
+~/cap_view/check_ros2_link.py --sub       # on the laptop
 ```
 
 It measured **clean at 40 kB** on 9 Sep, so no tuning is installed. If Nav2's

@@ -1,8 +1,19 @@
 # Multi-machine ROS 2 over the phone hotspot — set up 9 Sep 2026
 
 Verified working end to end, both directions, on 9 Sep. This file is so it is
-never re-derived. **Everything here is reproduced by `make net`** in `cap_ws`;
-do not hand-edit `~/.bashrc` instead.
+never re-derived. **Everything here is reproduced by the same script on both
+machines** — do not hand-edit `~/.bashrc` instead:
+
+```bash
+make net                                                   # Jetson, in ~/cap_ws
+~/cap_view/setup_ros2_network.sh --peers 172.20.10.2,172.20.10.5   # laptop
+```
+
+> **`make net` exists only on the Jetson.** The laptop has no `cap_ws` and no
+> Makefile — deliberately, it needs nothing built — so the target is not there
+> to run. `make viewer-sync` on the Jetson is what puts the script (and
+> `nav.rviz`, and `check_ros2_link.py`) into `~/cap_view/` on the laptop in the
+> first place.
 
 ---
 
@@ -29,8 +40,13 @@ allocation, not a coincidence.
 
 > ⚠ **These are DHCP addresses on a phone hotspot and they will change.** The
 > peer list in the DDS profile is literal — it does not follow a rename or a
-> re-lease. After any reconnection, check `ip -4 addr` on both and re-run
-> `make net PEERS=<jetson>,<laptop>` on **both** machines if either moved.
+> re-lease. After any reconnection, check `ip -4 addr` on both, and if either
+> moved, re-run on **both** machines with the new pair:
+>
+> ```bash
+> make net PEERS=<jetson>,<laptop>                                  # Jetson
+> ~/cap_view/setup_ros2_network.sh --peers <jetson>,<laptop>        # laptop
+> ```
 
 SSH is key-based, Jetson → laptop, installed 9 Sep:
 `ssh ju@172.20.10.5` needs no password. Key `~/.ssh/id_ed25519` on the Jetson,
@@ -40,7 +56,9 @@ SSH is key-based, Jetson → laptop, installed 9 Sep:
 
 ## What is set, and why each one is load-bearing
 
-`make net` writes a marked block into `~/.bashrc` on the machine it runs on:
+The script writes a marked block into `~/.bashrc` on the machine it runs on.
+It is idempotent — re-running rewrites its own block between the `>>> cap_ws
+ros2 network >>>` markers and touches nothing else:
 
 ```bash
 export ROS_DOMAIN_ID=42
@@ -148,9 +166,11 @@ not need one. Only the layout file was copied:
 rviz2 -d ~/cap_view/nav.rviz
 ```
 
-`~/cap_view/` on the laptop holds `nav.rviz` and `check_ros2_link.py`, copied
-from `cap_ws/src/my_bot/`. **They are copies, not links** — re-scp `nav.rviz`
-after changing it in the repo, or the laptop keeps showing the old layout.
+`~/cap_view/` on the laptop holds `nav.rviz`, `setup_ros2_network.sh` and
+`check_ros2_link.py`, copied from `cap_ws/src/my_bot/`. **They are copies, not
+links, and nothing detects drift** — edit `nav.rviz` in the repo and the laptop
+keeps showing the old layout, silently. `make viewer-sync` on the Jetson
+re-pushes all three; run it after changing any of them.
 
 Everything in that layout is a standard message type (`LaserScan`,
 `OccupancyGrid`, `Path`, `TF`, `MarkerArray`), so the laptop needs no custom
