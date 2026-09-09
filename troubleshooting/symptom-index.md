@@ -273,6 +273,25 @@ accept it as a documented limitation.
 
 ## YOLO / Jetson
 
+### `torch.cuda.is_available()` is False and there was never a `uv sync`
+Before blaming the lock file, check whether **CUDA is installed at all**:
+
+```bash
+jetson_release            # Libraries: CUDA / cuDNN / TensorRT
+find /usr -name 'libnvinfer*' -o -name 'libcudnn*'
+```
+
+On this board, 9 Sep, all three read **Not installed** and both `find`s came
+back empty. The cause is upstream of Python entirely: every line of
+`/etc/apt/sources.list.d/nvidia-l4t-apt-source.list` is **commented out**, so
+`nvidia-jetpack` is not a package apt has ever heard of and the 6.2 → 6.1
+rollback never restored the userspace. Uncomment the `r36.4` lines, `apt
+update`, then install the JetPack components.
+
+This masquerades as a Python problem — every torch wheel you try "does not see
+the GPU" — and no amount of reinstalling wheels fixes it. → `records/calibration.md`,
+Day 2 progress
+
 ### `torch.cuda.is_available()` is False, and TensorRT vanished
 **Something ran `uv sync`.** The checked-in `uv.lock` pins generic PyPI
 **torch 2.13.0 / torchvision 0.28.0** and does not list `tensorrt` at all, so a

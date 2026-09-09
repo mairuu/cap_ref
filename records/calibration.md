@@ -361,6 +361,41 @@ Measured from `base_link` to the camera's optical centre.
 
 `torch.cuda.is_available()` → ______   **Date:** ______
 
+### Day 2 progress — 2026-09-09
+
+| Item | Value | How |
+|---|---|---|
+| Python | **3.10.12** `/usr/bin/python3.10` | matches the recovered interpreter |
+| `uv` | **0.12.11** aarch64, `~/.local/bin/uv` | astral install script |
+| Venv | **`~/yolo/venv`** | `uv venv --system-site-packages --python /usr/bin/python3.10` |
+| `rclpy` | imports — `/opt/ros/humble/local/lib/python3.10/dist-packages` | reached through system-site-packages, which is what makes that flag mandatory |
+| `cv2` | **4.5.4** | ⚠ Ubuntu stock, **NOT** JetPack's CUDA build |
+| `numpy` | **1.21.5** | system; already < 2, so the `numpy<2` pin costs nothing |
+| `torch` | not installed | **blocked — see below** |
+
+> ⚠⚠ **The JetPack CUDA userspace is not installed on this board.**
+> `jetson_release` reports **CUDA: Not installed, cuDNN: Not installed,
+> TensorRT: Not installed, OpenCV 4.5.4 with CUDA: NO.** `find /usr -name
+> 'libnvinfer*'` and `-name 'libcudnn*'` both return nothing; there is no
+> `nvcc`. Only a partial CUDA 12.6 runtime tree survives under
+> `/usr/local/cuda-12.6` (`libcudart.so.12.6.68` and little else).
+>
+> **Cause:** every line in `/etc/apt/sources.list.d/nvidia-l4t-apt-source.list`
+> is **commented out**, so `nvidia-jetpack` is not even a known package
+> (`apt-cache policy nvidia-jetpack` returns nothing). The 6.2 → 6.1 rollback
+> evidently did not restore the repo.
+>
+> **Consequence:** the JetPack torch wheel cannot give
+> `torch.cuda.is_available() == True` without cuDNN, and **D-11 Option A is not
+> merely awkward, it is impossible until TensorRT exists.** Finding this on
+> Day 2 rather than Day 5 is exactly what Track B is for.
+
+Also noted: `jetson_release` calls this an **Orin NX Engineering Reference
+Developer Kit**, not an Advantech carrier. Probably an unchanged device-tree
+model string in the Advantech BSP, and it changes nothing — the udev paths were
+re-derived from the wire on Day 1 rather than inherited — but do not cite
+"Advantech" as if the board had confirmed it.
+
 **Recovered performance (JetPack 6.2, must be re-measured on 6.1):**
 
 | | Value |
