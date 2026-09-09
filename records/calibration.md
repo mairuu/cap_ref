@@ -235,10 +235,32 @@ symmetric — CW and CCW must give the same size of error, opposite in sign. If
 they differ, something asymmetric is dragging and fitting a separation number
 would just paper over it.
 
-| Re-verify | Turns | Residual angle | New `sep` | Date |
-|---|---|---|---|---|
-| CCW | 10 | | | |
-| CW | 10 | | | |
+| Re-verify | Turns | Odom rotated | Residual angle | Implied `sep` | Date |
+|---|---|---|---|---|---|
+| first run (direction not recorded) | 10 | +3600.32° | **−22°** (under) | **0.25154** | 9 Sep 2026 |
+| the other direction | 10 | | | | ⚠ **still to do** |
+
+**Odom over-reports yaw by 0.61 %.** Installed 0.25 → implied **0.25154**, a
+1.5 mm change, worth 0.6° on a 90° turn.
+
+> ⚠ **Do not apply this yet — one direction cannot tell the two faults apart.**
+> A wheel_separation error is symmetric: CW and CCW under-rotate by the same
+> fraction. A wheel *asymmetry* is antisymmetric: it under-rotates one way and
+> over-rotates the other. A single run sees only their sum, so this −22° could
+> be either, and fitting `wheel_separation` to it would paper over a dragging
+> wheel. `calibrate_spin.py`'s own docstring says to do it both ways for exactly
+> this reason.
+>
+> - Other direction also ≈ **−0.6 %** → it is the separation. Apply **0.25154**.
+> - Other direction ≈ **+0.6 %** → it is asymmetry. **Leave 0.25 alone** and
+>   take it to `calibrate_correct.py --floor-lateral` instead.
+>
+> Also record which direction each run was; the first one's was not written down.
+
+**This retires the 0.2325 prediction.** Day 2's eyeballed 90° hand-turn implied
+`wheel_separation` ≈ 0.2325 — a 7 % error. Ten machine-counted turns say
+**0.61 %**, an order of magnitude smaller and the *other* sign of correction.
+The eyeball was the error, not the parameter. 0.25 was right.
 
 ### (d) Chassis geometry — **RECOVERED**
 
@@ -405,13 +427,12 @@ generates yaw, or a turn that walks the robot across the floor.
 > start aligned with odom's x-axis, which it generally will not. **Check the
 > straight-line distance**, which is what `odom_check.py` reports.
 
-**Prediction to test on Day 3, not a number to use.** If that hand-turn really
-was 90°, yaw under-reads by 7 %, which implies `wheel_separation` ≈ **0.2325 m**
-rather than the recorded 0.25. Odom yaw is `(right_arc − left_arc) /
-wheel_separation`, so under-reporting means the separation is too *large*. But
-the 90° was eyeballed, so this is weak evidence and **must not** be written into
-`my_controllers.yaml`. `calibrate_spin.py --turns 10` both ways settles it; if
-that comes back near 0.2325 the two agree and the number changes then.
+~~**Prediction to test on Day 3.**~~ **Tested 9 Sep and it did not hold.** The
+eyeballed 90° hand-turn implied `wheel_separation` ≈ **0.2325 m**, a 7 % error.
+`calibrate_spin.py --turns 10` measured **0.61 %**, and in the opposite
+direction — implied **0.25154**, not 0.2325. The 90° was the unreliable part,
+exactly as flagged. **0.25 stands.** See §(c) above; the confirming run in the
+other direction is still outstanding.
 
 Distance scale at −2 % needs nothing: `wheel_radius` 0.0327 is carrying it well.
 

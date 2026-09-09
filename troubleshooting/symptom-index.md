@@ -306,6 +306,16 @@ Flip `motors_reversed` on the ROS side. **Do not rewire.**
 ### Distance travelled is consistently short or long
 `wheel_radius` / `ticks_per_rev`. → §5.4(a),(b), `walk_straight.py`
 
+### A `scripts/` tool dies with `FileNotFoundError: .../install/my_bot/lib/config/...`
+**Fixed 9 Sep in `calibrate_correct.py`; check any other script that reads a
+config file.** The recovered scripts resolved `config/` and `description/` from
+`dirname(dirname(abspath(__file__)))`, which is right in the source tree
+(`src/my_bot/scripts/`) and wrong under `ros2 run`, where the script lives at
+`install/my_bot/lib/my_bot/`. They had only ever been run as
+`./src/my_bot/scripts/...`. Use `realpath(__file__)` — with `--symlink-install`
+the installed script is a symlink back into `src/`, which is also the copy you
+must edit, since a `make build` would erase an edit to `install/`.
+
 ### TF says `map → odom` is missing
 `slam_toolbox` is not running or not publishing. Run `tf_check.py` before
 blaming anything downstream.

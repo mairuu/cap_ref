@@ -30,13 +30,22 @@ reported limitation rather than a passed test — see the warning below.
 `checklists/day-3-odometry-slam.md`. Both need a person: the robot moves, and
 **`make teleop-nav` is the e-stop**.
 
-1. **Settle `wheel_separation`** — §1(c). `calibrate_spin.py --turns 10`, both
-   directions. Day 2's eyeballed 90° came out 7 % short, predicting **0.2325**
-   against the installed **0.25**. If the two agree, the number changes; if the
-   spin says 0.25, Day 2's eyeball was the error. **Do this before the map** —
-   a yaw scale error is exactly what draws a double wall, and the gate is
-   "no visible double wall".
+1. **`calibrate_spin.py --turns 10` in the OTHER direction.** One run is done
+   (10 turns, odom +3600.32°, residual **−22°** → implied `wheel_separation`
+   **0.25154**, a 0.61 % error). **Do not apply it on one direction.** A
+   separation error is symmetric and a wheel asymmetry is antisymmetric, so a
+   single run sees only their sum:
+   - other way also ≈ −0.6 % → separation. Apply **0.25154**, rebuild.
+   - other way ≈ +0.6 % → asymmetry. **Leave 0.25** and use
+     `calibrate_correct.py --floor-lateral` instead.
+
+   Record which direction each run is; the first one's was not noted.
 2. **Drive the closed loop** — §3, slowly, then `make save-map`.
+
+> **The 0.2325 prediction is dead.** Day 2's eyeballed 90° implied a 7 % yaw
+> error; ten machine-counted turns say **0.61 %**, and in the opposite
+> direction. The eyeball was the error. **0.25 was right** — this is why that
+> prediction was written down as a prediction and not applied.
 
 Worth doing in the same session, both quick:
 `check_scan_world_fixed.py` (turns ~90° in place, needs clear space), and
@@ -92,11 +101,10 @@ Hand-push odometry, via `odom_check.py`:
 distance. That is what proves the encoder signs and the kinematics, and it is
 the thing a swapped encoder would break loudly.
 
-> **A prediction for Day 3, not a number to use.** That 7 % yaw shortfall
-> implies `wheel_separation` ≈ **0.2325** rather than 0.25 — but the 90° was
-> eyeballed. **Do not edit `my_controllers.yaml` on this.**
-> `calibrate_spin.py --turns 10` both ways settles it; if it lands near 0.2325,
-> the two agree and the number changes then.
+> ~~**A prediction for Day 3.**~~ **Settled 9 Sep: it did not hold.** The 7 %
+> shortfall implied `wheel_separation` ≈ 0.2325; `calibrate_spin.py --turns 10`
+> measured **0.61 %** the other way, implying **0.25154**. The eyeballed 90° was
+> the unreliable part. **0.25 stands**, pending the reverse-direction run.
 >
 > ⚠ **The Day 2 checklist's odom test is wrong as written.** "Push 1 m → `/odom`
 > x increases by 1 m" only holds if the robot starts aligned with odom's x-axis.
@@ -332,7 +340,7 @@ This is the quick-reference mirror.
 | `enc_counts_per_rev_left` | **2475** | recovered |
 | `enc_counts_per_rev_right` | **2470** | recovered — near-equal on purpose |
 | `wheel_radius` | **0.0327** m | recovered, tape-calibrated |
-| `wheel_separation` | **0.25** m | recovered, contact-patch |
+| `wheel_separation` | **0.25** m | recovered, contact-patch. Spin test 9 Sep implies **0.25154** (0.61 %) — **not applied**, needs the reverse-direction run |
 | `wheel_offset_x / _y` | **0.255 / 0.125** m | recovered |
 | Lidar height above ground | **0.22** m | recovered |
 | `laser_frame` in `base_link` | **(−0.034, 0, 0.186)** | recovered |
