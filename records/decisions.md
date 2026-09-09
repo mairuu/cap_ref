@@ -160,6 +160,28 @@ Downgraded from 6.2; the 6.2 nvidia_sdk was suspected unstable on this device.
 **Unaffected:** Ubuntu 22.04 either way, so **ROS 2 Humble stands**. Constraint 1
 is untouched.
 
+### Amended 9 Sep 2026 — the suspicion was narrower than this recorded
+
+> The user corrected the premise: **the instability suspected was the NVIDIA SDK
+> Manager's flashing process itself, not JetPack 6.2 as a release.** This board
+> was re-flashed with NVIDIA's own recommended custom tooling instead, which is
+> what actually resolved it.
+>
+> So "6.2 is unstable on this device" was never the finding, and **nothing here
+> requires avoiding 6.2-era userspace.** The rollback stands as history, not as
+> a constraint on what may be installed.
+
+**What this changed, in practice (Day 2, Track B).** The board turned out to
+have **no CUDA, cuDNN or TensorRT at all** — the L4T apt sources were commented
+out, so the userspace was never reinstalled after the re-flash. Enabling
+`r36.4` and choosing what to install was therefore a live decision, and the
+amended premise is what freed it: see **D-15**.
+
+Point 3 above is also now doubtful — `jetson_release` reports an **Orin NX
+Engineering Reference Developer Kit**, not an Advantech carrier. The conclusion
+("re-run `make udev`") was right regardless and Day 1 did re-derive the paths
+from the wire, but the *reason* given for it may not be.
+
 ## D-13 · Rebuild from the ground up, using the recovered tree as reference
 **Date:** 8 Sep 2026 · **Status:** adopted (user decision, reaffirmed after recovery)
 
@@ -202,6 +224,36 @@ electrical fault.
 check the supply before debugging software. A reset mid-run is visible for free
 — the boot banner starts with `#`, and both `encoder_report.py` and
 `motor_check.py` already print a warning when one goes past. Believe it.
+
+## D-15 · JetPack userspace: targeted install, not the metapackage
+**Date:** 9 Sep 2026 · **Status:** adopted
+
+`jetson_release` reported CUDA, cuDNN and TensorRT all **Not installed**; every
+line of `/etc/apt/sources.list.d/nvidia-l4t-apt-source.list` was commented out.
+Re-enabled the three `r36.4` lines (backup kept alongside).
+
+**Installed, explicitly:** `cuda-toolkit-12-6` · `libcudnn9-cuda-12` +
+`libcudnn9-dev-cuda-12` · `tensorrt`. Seventy packages.
+
+**Rejected: the `nvidia-jetpack` metapackage.** 112 packages, and it pulls
+`nvidia-l4t-dla-compiler 36.4.7` — a BSP component from a newer L4T than the
+36.4.0 kernel actually running — plus nsight-systems, nsight-graphics, VPI,
+CUPVA and nvidia-container, none of which this project uses. The version
+question it appeared to raise (candidate 6.2.1+b38, with 6.1+b123 also on
+offer) turned out to be nearly moot: **the libraries we need have exactly one
+version each in this repo** — CUDA 12.6.11, cuDNN 9.3.0.75, TensorRT
+10.3.0.30 — so the metapackage version changes the label, not the bytes.
+Pinning to 6.1+b123 also fails without hand-pinning eight sub-metapackages.
+
+**Rejected: `nvidia-opencv`.** It co-installs cleanly (apt removes nothing),
+and `checklists/day-5-yolo.md` §1 does ask for JetPack's CUDA-enabled OpenCV.
+But ROS's `cv_bridge` is built against Ubuntu's **4.5.4**, and shadowing that
+six days before the demo buys nothing: YOLO inference runs through torch and
+TensorRT, not through OpenCV. **Documented limitation** — `cv2.cuda` stays
+unavailable, and the day-5 checklist item is deliberately not met.
+
+**Reversal cost:** low. Both rejected pieces are one `apt install` away, and
+the repo lines can be re-commented.
 
 ---
 
