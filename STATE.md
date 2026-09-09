@@ -123,10 +123,20 @@ it against the 6.1 wheel index rather than trust it:
 does not resolve) publishes exactly **torch 2.11.0** and **torchvision 0.26.0**
 for cp310 aarch64 — the recovered figures are **right**.
 
-> ⚠ **The install itself was still running when this was written**, at a
-> measured ~210 KB/s. `torch.cuda.is_available()` is **not yet confirmed**.
-> Check it before relying on the pair:
-> `~/yolo/venv/bin/python -c "import torch; print(torch.cuda.is_available())"`
+**Track B's gate is passed.** `torch.cuda.is_available()` → **True**, device
+**Orin**, verified with a real matmul on device: torch 2.11.0 · torchvision
+0.26.0 · TensorRT 10.3.0 · cuDNN 9.3.0 · cv2 4.5.4 with numpy 1.26.4 · rclpy ·
+ultralytics 8.4.144.
+
+> **Two traps sat between the wheels landing and torch working**, neither in any
+> prior note: `libcudss.so.0` is not an apt package at all (and its PyPI wheel
+> smuggles in CUDA 12.9), and **torch's own resolver** — not ultralytics — is
+> what installed numpy 2 and broke the system `cv2`. Both are written up in
+> `records/calibration.md` and the symptom index.
+>
+> **The rebuild is `cap_ws/yolo/setup_yolo_venv.sh`, not a lock file.** Order
+> and exclusions are what matter here and a freeze records neither. It refuses
+> to start if cuDNN, TensorRT or libcudss are missing system-side.
 
 **Still true and still important:**
 
@@ -180,7 +190,7 @@ failed gate.
 | Track | Scope | Where |
 |---|---|---|
 | **A** — needs the robot | foundation → drive → odometry → SLAM → Nav2 | Day 1 done. **Day 2 built and pushed; gate awaits the robot on blocks** |
-| **B** — needs only Jetson + camera | uv env → calibration → detector | **started 9 Sep and ahead of plan.** uv + venv up; CUDA/cuDNN/TensorRT installed after finding them absent; JetPack torch wheels in. Next: `ultralytics --no-deps`, then the three import checks |
+| **B** — needs only Jetson + camera | uv env → calibration → detector | **`day-5-yolo.md` §1 is DONE, on Day 2.** Venv built and verified end to end; CUDA/cuDNN/TensorRT installed after finding them absent entirely. Next: camera **intrinsics** (Day 4 work, needs no robot) and **D-11** |
 
 Track B runs in the gaps of Track A. Start it Day 2, not Day 5 — it is the
 highest-variance item in the week and it needs no robot.

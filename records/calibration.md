@@ -389,20 +389,62 @@ Extrinsics are now measured; intrinsics remain a Day 4 calibration against the
 
 **Target versions, recovered from `launch/yolo.launch.py`:**
 
-| Package | Was working | On JetPack 6.1 |
+| Package | Was working | **On JetPack 6.1, verified 9 Sep** |
 |---|---|---|
-| JetPack | 6.2 | **6.1 Advantech** — re-verify all of these |
-| `torch` | **2.11.0** JetPack aarch64+CUDA wheel | |
-| `torchvision` | **0.26.0** JetPack aarch64 wheel | |
-| `tensorrt` | present, **not in `uv.lock`** | |
-| `ultralytics` | | |
-| Python | **3.10.12** off `/usr/bin` | |
+| JetPack | 6.2 | **6.1**, L4T 36.4.0 |
+| `torch` | **2.11.0** JetPack aarch64+CUDA wheel | **2.11.0** ✅ same |
+| `torchvision` | **0.26.0** JetPack aarch64 wheel | **0.26.0** ✅ same |
+| `tensorrt` | present, **not in `uv.lock`** | **10.3.0** ✅ |
+| `cuDNN` | — | **9.3.0** (`90300` via torch) |
+| `ultralytics` | | **8.4.144** |
+| `numpy` | — | **1.26.4** (pinned < 2) |
+| `cv2` | — | **4.5.4** system, no CUDA |
+| Python | **3.10.12** off `/usr/bin` | **3.10.12** ✅ same |
+
+**The recovered torch pair was correct.** Confirmed against the live index
+rather than assumed.
+
+**Venv:** `~/yolo/venv`. **Rebuild with `cap_ws/yolo/setup_yolo_venv.sh`**, not
+from `requirements-frozen.txt` beside it — a freeze records versions but not
+**order** or **exclusions**, and here both matter more than the versions.
 
 > ⚠ **Never run `uv sync`** against this venv. The recovered `uv.lock` pins
 > generic PyPI torch **2.13.0** / torchvision **0.28.0** and omits `tensorrt`
 > entirely — a sync leaves you with no CUDA and no `.engine` support.
 
-`torch.cuda.is_available()` → ______   **Date:** ______
+`torch.cuda.is_available()` → **True**, device **Orin**   **Date:** 2026-09-09
+
+Verified with a real `512×512` matmul on device, not just the flag.
+
+### The two traps between "wheels installed" and "torch works"
+
+Neither appears in any pre-existing note; both cost real time on 9 Sep.
+
+**1. `libcudss.so.0` is missing and is not an apt package.** torch 2.11 links
+cuDSS; `apt-cache search cudss` returns **nothing** in the Jetson repo. It comes
+from the PyPI wheel `nvidia-cudss-cu12`, **but that wheel drags in
+`cuda-toolkit` 12.9 and `nvidia-cublas-cu12` 12.9 onto a CUDA 12.6 system** —
+the same class of mistake as the `uv.lock` hazard. What was done instead:
+
+```bash
+uv pip install --python ~/yolo/venv/bin/python nvidia-cudss-cu12==0.7.1.6
+sudo mkdir -p /usr/local/lib/cudss
+sudo cp -a ~/yolo/venv/lib/python3.10/site-packages/nvidia/cu12/lib/libcudss*.so* /usr/local/lib/cudss/
+echo /usr/local/lib/cudss | sudo tee /etc/ld.so.conf.d/cudss.conf && sudo ldconfig
+uv pip uninstall --python ~/yolo/venv/bin/python \
+    cuda-toolkit nvidia-cublas-cu12 nvidia-cuda-nvrtc-cu12 nvidia-cudss-cu12
+```
+
+Four `.so` files onto the system path; the CUDA 12.9 wheels gone. No
+`LD_LIBRARY_PATH` at launch, and nothing that can shadow JetPack's 12.6.
+
+**2. The `numpy<2` warning fired from an unexpected direction.** Not from
+installing ultralytics — from **torch's own dependency resolution**, which put
+**numpy 2.2.6** in the venv, shadowing the system numpy 1.21 and breaking the
+system `cv2` with `numpy.core.multiarray failed to import`. **Pin numpy after
+torch, not before.** A freeze cannot express that ordering, which is why the
+rebuild is a script.
+
 
 ### Day 2 progress — 2026-09-09
 

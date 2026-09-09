@@ -307,6 +307,31 @@ accept it as a documented limitation.
 
 ## YOLO / Jetson
 
+### `import torch` fails on `libcudss.so.0`
+```
+ImportError: libcudss.so.0: cannot open shared object file
+```
+JetPack torch links **cuDSS**, which is **not in the NVIDIA Jetson apt repo** —
+`apt-cache search cudss` returns nothing, so this looks unfixable at first. It
+ships in the PyPI wheel `nvidia-cudss-cu12`.
+
+⚠ **Do not just leave that wheel installed.** It pulls `cuda-toolkit` **12.9**
+and `nvidia-cublas-cu12` **12.9** onto a CUDA **12.6** system — the same trap as
+the `uv.lock` hazard, one layer down. Take the `.so` files, drop the wheel:
+`records/calibration.md` → "The two traps" has the exact commands.
+
+### `numpy.core.multiarray failed to import`, and nobody installed numpy
+**torch's own dependency resolution** installed **numpy 2.x** into the venv,
+which shadows the system numpy 1.x that the system `cv2` is built against.
+Pin **after** torch, never before:
+
+```bash
+uv pip install --python ~/yolo/venv/bin/python "numpy<2"
+```
+
+The checklist's `numpy<2` warning is usually attributed to `ultralytics`. On
+this board it was torch. → `cap_ws/yolo/setup_yolo_venv.sh` step 3
+
 ### `import tensorrt` fails on `libnvdla_compiler.so`
 ```
 ImportError: libnvdla_compiler.so: cannot open shared object file
