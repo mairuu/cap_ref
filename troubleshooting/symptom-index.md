@@ -141,6 +141,36 @@ until the `# boot` line.
 
 ## Lidar
 
+### `ydlidar_ros2_driver` will not build, or dies on the first parameter
+**You are on the `master` branch.** Upstream's default branch is Dashing-era:
+its launch files pass `node_executable=` / `node_name=` (removed in Foxy) and
+its node calls the one-argument `declare_parameter(name)`, which Humble
+deprecated and which throws when no override is supplied. The repo has a
+**`humble` branch** — use it:
+
+```bash
+git -C ~/cap_ws/src/ydlidar_ros2_driver checkout humble
+```
+
+Built 9 Sep from `humble` at `4ef70d3`, against YDLidar-SDK `01cdda4` installed
+to `/usr/local`. The SDK is a separate CMake project and is **not** an apt
+package; build it first or `find_package(ydlidar_sdk)` fails.
+→ `checklists/day-3-odometry-slam.md` §2
+
+### `Fail to get baseplate device information!` and checksum errors on startup
+**Normal for the X2, ignore both.** The X2 is single-channel and has no
+baseplate info to report, and a checksum error or two while the motor spins up
+is routine. The line that means it worked is `Lidar has started!`, followed by
+`Single Fixed Size: 350`.
+
+### `ros2 topic hz /scan` prints nothing at all
+Not a dead lidar — **`ros2 topic hz` subscribes RELIABLE and `/scan` is
+BEST_EFFORT**, so it never receives a message and never says why. Humble's `hz`
+has no QoS flag to fix this (`--qos-*` exists on `ros2 topic echo`, not on
+`hz`). Confirm the publisher is alive with `ros2 topic info /scan --verbose`,
+and get the real rate from `ros2 run my_bot scan_dropout_report.py`, which
+subscribes with sensor-data QoS.
+
 ### Driver connects but `/scan` never publishes
 **`isSingleChannel: true`** — the X2 is single-channel. And `baudrate: 115200`.
 
@@ -174,10 +204,27 @@ real-robot-only correction.
 driver's own X2 example.
 
 ### Half the scan is missing / lots of zero ranges
-**Expected — ~50% of the 400 rays, bench-measured.** `invalid_range_is_inf` is
-`false`, so dropouts come back as `0.0`, which is **below `range_min`**:
-anything that only checks for inf/nan treats them as obstacles 0 m away. Filter
-against **the scan message's own `range_min`**.
+**Expected.** `invalid_range_is_inf` is `false`, so dropouts come back as `0.0`,
+which is **below `range_min`**: anything that only checks for inf/nan treats
+them as obstacles 0 m away. Filter against **the scan message's own
+`range_min`**.
+
+Measured 9 Sep on this board: **27.9 % of 350 rays**, not the ~50 % of 400 that
+was recorded. The scan is **350 rays** — the driver says so on startup
+(`Single Fixed Size: 350`) and `angle_increment` 1.032° agrees; 400 was
+inherited and never counted. Re-measure with
+`ros2 run my_bot scan_dropout_report.py` before treating any figure as the
+sensor's.
+
+### One side of the scan drops far more rays than the other
+**Probably the room, not the lidar.** A bearing with no surface inside
+`range_max` (12 m) returns `0.0` — byte-identical to a true dropout, and nothing
+in the message distinguishes them. On 9 Sep the left half read 46–70 % against
+the right half's 5–28 %, purely because the open floor was on that side.
+
+Move the robot to open floor and re-run `scan_dropout_report.py`. If the
+asymmetry follows the robot rather than the room, *then* suspect the hardware —
+chassis clipping the beam on that side, or a dark or glazed surface.
 
 ---
 
@@ -262,6 +309,20 @@ Flip `motors_reversed` on the ROS side. **Do not rewire.**
 ### TF says `map → odom` is missing
 `slam_toolbox` is not running or not publishing. Run `tf_check.py` before
 blaming anything downstream.
+
+### slam_toolbox warns `minimum laser range setting (0.1 m) exceeds the capabilities of the used Lidar (0.1 m)`
+**Expected, ignore it.** It compares `min_laser_range` (a double, 0.1) against
+the scan message's `range_min` (a float32, which widens to 0.10000000149), so
+0.1 always looks smaller than itself. It clamps to `range_min` either way and
+the effective value is the one we want. Do **not** nudge the parameter to 0.12
+to silence it — that throws away 2 cm of range for a cosmetic fix. Seen on the
+first scan, 9 Sep, exactly as the recovered config predicted.
+
+### `Message Filter dropping message: ... 'discarding message because the queue is full'` on startup
+**Normal on the first scan or two**, while slam_toolbox is still registering the
+sensor and the TF buffer has not filled. It matters only if it keeps repeating
+once you are driving, which means the Jetson is not keeping up — raise
+`map_update_interval` back toward upstream's 5.0.
 
 ### Nav2 plans a perfect path and the robot never moves
 **`twist_mux` is not running.** `diff_cont` has `use_stamped_vel: false` so it

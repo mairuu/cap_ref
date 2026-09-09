@@ -9,122 +9,178 @@
 
 ---
 
-## 1 · Morning — calibrate odometry
+## 1 · Morning — confirm odometry
 
-Three numbers, **in this order**. Each depends on the one before.
-Full rationale: `RECOVERY.md` §5.4.
+> ⚠ **Rewritten 9 Sep. This section was written before the NVMe dump.** All
+> three numbers are **recovered**, with method and date, in
+> `records/calibration.md`. This is now a **confirmation**, not a derivation —
+> do not re-derive what is already recorded, and do not edit
+> `my_controllers.yaml` unless a measurement below disagrees with it.
+>
+> The scripts it asked you to write also already exist, under better names:
+> `walk_straight.py` → **`calibrate_straight.py`**, `spin_in_place.py` →
+> **`calibrate_spin.py`**, plus **`calibrate_correct.py`** for the encoder
+> split. All three are recovered and installed.
 
-### (a) Ticks per wheel revolution — safe, no motor power
+Current values, from `config/my_controllers.yaml`:
 
-- [ ] Write `walk_straight.py` and `spin_in_place.py` first
-      (`reference/scripts-to-rebuild.md`)
+| | Value | Origin |
+|---|---|---|
+| `enc_counts_per_rev_left` | 2475 | recovered |
+| `enc_counts_per_rev_right` | 2470 | recovered — near-equal **on purpose** |
+| `wheel_radius` | 0.0327 m | recovered, tape-calibrated |
+| `wheel_separation` | 0.25 m | recovered, contact-patch |
+
+### (a) Ticks per wheel revolution — **do not re-measure by hand**
+
+The hand method this checklist described is what produced the old
+`l:2473 r:2556` figures, and **that 3.4 % split was wrong, not merely
+imprecise** — counts per rev is a property of the encoder disc and the gearbox,
+and both sides are the same parts. It cost 62 cm of drift over 3 m. The story is
+in `reference/nvme-recovery-audit.md`; read it before touching these.
+
+If a straight run drifts, the tool is **`calibrate_correct.py`**, not a tyre
+mark and ten turns by hand.
+
+### (b) Effective wheel radius — confirm
+
+- [ ] `ros2 run my_bot calibrate_straight.py 3.0`, measure the actual with a tape
 
 ```
-r                    # zero
-(rotate one wheel exactly 10 full turns by hand, marking the tyre)
-e                    # read counts
-ticks_per_rev = counts / 10
+r_corrected = 0.0327 × (commanded / actual)
 ```
-
-Ten turns, not one — your marking error divides by ten. 4× quadrature, so
-expect `4 × CPR × gear_ratio`.
-
-  **`ticks_per_rev` = ____________**
-
-### (b) Effective wheel radius
-
-Calipers first, then correct empirically — loaded rubber rolls smaller than it
-measures.
-
-```
-ticks_per_metre = ticks_per_rev / (2π × r)
-```
-
-- [ ] `walk_straight.py 3.0`, measure actual with a tape
-
-```
-r_corrected = r_measured × (commanded / actual)
-```
-
-- [ ] Repeat once. Two iterations is plenty; a third chases floor variation.
 
   pass 1: commanded 3.0 m, actual ______ m → r = ______
-  pass 2: commanded 3.0 m, actual ______ m → **r = ______**
+  Agrees with 0.0327 within a few percent? Leave it alone.
 
-### (c) Wheel separation
+### (c) Wheel separation — **the one open question**
+
+Day 2's hand-turn came out **7 % short** (90° eyeballed → −83.7° reported),
+which implies `wheel_separation` ≈ **0.2325** rather than 0.25. That 90° was
+eyeballed, so it is a *prediction*, not a number. This settles it:
 
 - [ ] Mark the start heading on the floor
-- [ ] `spin_in_place.py 10` — ten full rotations
+- [ ] `ros2 run my_bot calibrate_spin.py --turns 10` — both directions
 
 ```
-sep_corrected = sep_measured × (commanded / actual)
+sep_corrected = 0.25 × (commanded / actual)
 ```
 
-  pass 1: actual ______ ° over/under → sep = ______
-  pass 2: actual ______ ° over/under → **sep = ______**
+  CW:  actual ______ ° → sep = ______
+  CCW: actual ______ ° → sep = ______
 
-- [ ] All three written into `controllers.yaml`
-- [ ] All three written into `records/calibration.md` **with the date**
-- [ ] Re-run the Day 2 sanity checks — 1 m push and 90° rotate now agree closely
+**If it lands near 0.2325, the two independent estimates agree and the number
+changes.** If it lands near 0.25, Day 2's eyeball was the error and nothing
+changes. Either way, write down which.
+
+- [ ] Any change written into `config/my_controllers.yaml`
+- [ ] Result written into `records/calibration.md` **with the date**, agree or not
+- [ ] Re-run `odom_check.py` — 1 m push and 90° rotate now agree closely
 - [ ] Pushed
 
-## 2 · Afternoon — lidar
+## 2 · Afternoon — lidar — **DONE 9 Sep**
 
 The X2 is **not in apt**. Build the SDK, then the driver.
 
-- [ ] SDK:
+- [x] SDK — built at `01cdda4`, installed to `/usr/local`
+      (`libydlidar_sdk.a`, static):
 
 ```bash
-git clone https://github.com/YDLIDAR/YDLidar-SDK.git && cd YDLidar-SDK
-mkdir build && cd build && cmake .. && make -j$(nproc) && sudo make install
+git clone https://github.com/YDLIDAR/YDLidar-SDK.git ~/YDLidar-SDK
+cd ~/YDLidar-SDK && mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release .. && make -j$(nproc) && sudo make install
 ```
 
-- [ ] `ydlidar_ros2_driver` into `cap_ws/src`, `colcon build`
-- [ ] `config/ydlidar.yaml` per `RECOVERY.md` §6.5
+- [x] `ydlidar_ros2_driver` into `cap_ws/src`, `colcon build`
+
+> ⚠ **Check out the `humble` branch. `master` does not work on Humble.**
+> Upstream's default branch is Dashing-era: its launch files use
+> `node_executable=` / `node_name=` (removed in Foxy) and its node calls the
+> one-argument `declare_parameter(name)`, deprecated in Humble and throwing
+> when no override is given. Built here from `humble` at `4ef70d3`.
+>
+> ```bash
+> git -C ~/cap_ws/src/ydlidar_ros2_driver checkout humble
+> ```
+
+- [x] `config/ydlidar.yaml` — **recovered, not written.** Both orientation
+      flags are already correct and must stay `true`. Read their comments
+      before touching either.
 
 > **`isSingleChannel: true` and `baudrate: 115200`.** Get either wrong and the
 > driver connects and publishes nothing. This is the setting people miss.
+> Both are already right in the recovered file.
 
-- [ ] `/scan` publishes:
+- [x] `/scan` publishes — **11.57 Hz**, 350 rays, `laser_frame`
+
+> ⚠ **`ros2 topic hz /scan` prints nothing, and that is not a dead lidar.**
+> `hz` subscribes RELIABLE; `/scan` is BEST_EFFORT, so it never receives a
+> message and never says why. Humble's `hz` has no QoS flag (`--qos-*` is on
+> `echo`, not `hz`). Use instead:
+>
+> ```bash
+> ros2 topic info /scan --verbose      # publisher alive? QoS?
+> ros2 run my_bot scan_dropout_report.py   # subscribes sensor-data QoS
+> ```
+
+- [ ] In RViz, the scan matches the room's actual shape (`make rviz`). **If it
+      is mirrored, that is `invert` / `reversion` / `angle_min` in
+      `ydlidar.yaml`** — verify against the driver's own X2 example.
+      *An ASCII top-down of 20 scans on 9 Sep showed a wall ~4 m left and ~1 m
+      behind with open floor ahead, which matched the room. Confirm by eye.*
+- [ ] `check_scan_world_fixed.py` — **drives the robot ~90°, needs clear space**
+
+### Measure the dropout rate — **DONE 9 Sep, and the recovered figure was wrong**
+
+- [x] `scan_dropout_report.py` written and run — 100 scans, robot still
+
+  **dropout fraction = 27.9 %** · worst sector: **+75° (LEFT), 69.6 %**
+
+  Not ~50 %, and the scan is **350 rays, not 400** — the driver prints
+  `Single Fixed Size: 350` on startup and `angle_increment` 1.032° agrees. 400
+  was inherited and never counted.
+
+- [x] Recorded in `records/calibration.md`
+
+> ⚠ **That 27.9 % is a fact about this corner of this room.** Dropout was 5–28 %
+> on the robot's right and 46–70 % on its left, because bearings with nothing
+> inside `range_max` 12 m return `0.0` — identical to a true dropout, and
+> indistinguishable in the message. **Re-run it in the room the map is made in**
+> before using it for anything. If the asymmetry follows the *robot* rather than
+> the room, suspect chassis clipping or a glazed surface, and know that before
+> Day 6 blames the camera.
+
+This sets `detection.min_returns` on Day 6. At 27.9 %, a 0.3 m object subtends
+~6 rays at 3 m of which ~4 come back, so `min_returns: 3` clears 3 m. At the
+recovered 50 % it would not have — that is the trade, now made knowingly.
+
+- [x] `tf_check.py` — all eight edges resolve; `base_link → laser_frame`
+      `(−0.034, 0, +0.187)`, which is **0.220 m above `base_footprint`** and
+      matches the 0.22 m tape measure
+
+## 3 · SLAM — config in place 9 Sep, the drive is still to do
+
+- [x] `config/mapper_params_online_async.yaml` — **recovered, not written.**
+      (This checklist called it `slam.yaml`; the real name is the upstream one.)
+      Ported with `slam.launch.py`, which defaults `use_sim_time:=false`.
+- [x] Launch — **not the upstream launch this checklist quotes.** Ours owns the
+      params file, so a `slam_toolbox` package upgrade cannot retune the robot:
 
 ```bash
-ros2 topic hz /scan          # expect ~10 Hz
-ros2 topic echo /scan --once
+make slam                 # ros2 launch my_bot slam.launch.py
 ```
 
-- [ ] In RViz, the scan matches the room's actual shape. **If it is mirrored,
-      that is `invert` / `reversion` / `angle_min` in `ydlidar.yaml`** — verify
-      against the driver's own X2 example.
+- [x] `/map` publishes (162×249 @ 0.05 m); `map → odom` appears in TF
 
-### Measure the dropout rate
+> **Two startup messages that are expected — do not chase either.**
+> `minimum laser range setting (0.1 m) exceeds the capabilities of the used
+> Lidar (0.1 m)` is a float32/double comparison against itself; it clamps
+> correctly. `Message Filter dropping message ... queue is full` on the first
+> scan is the sensor registering. Both are in the symptom index.
+>
+> `map → odom` at **exactly identity** is normal *before you move* and a red
+> flag *after*. `tf_check.py` warns either way — read it in context.
 
-The design note's "roughly half the rays" came from the lost `ydlidar.yaml` and
-is **currently unverified**.
-
-- [ ] Write and run `scan_dropout_report.py` — robot still, normal room, 100 scans
-
-  **dropout fraction = ______ %** · worst sector: ____________
-
-- [ ] Recorded in `records/calibration.md`
-
-This sets `detection.min_returns` on Day 6. If it really is ~50%, a narrow bbox
-at 3 m may be backed by two returns and `min_returns: 3` will reject it — the
-right trade, but choose it knowingly.
-
-- [ ] Write and run `tf_check.py` — `base_link → laser_frame` resolves with a
-      sane age
-
-## 3 · SLAM
-
-- [ ] `config/slam.yaml` written
-- [ ] Launch:
-
-```bash
-ros2 launch slam_toolbox online_async_launch.py \
-  slam_params_file:=$(ros2 pkg prefix my_bot)/share/my_bot/config/slam.yaml
-```
-
-- [ ] `/map` publishes; `map → odom` appears in TF
 - [ ] Drive a closed loop around one room, **slowly** — the X2 sweeps 360° over
       a full 100 ms, so fast rotation smears the scan
 
@@ -139,6 +195,8 @@ ros2 launch slam_toolbox online_async_launch.py \
 > you will pay for it on Day 4 and again on Day 7.
 
 - [ ] Map saved as a reference artefact for comparison later
-- [ ] All three calibration numbers recorded and pushed
+      (`make save-map MAP=~/maps/day3-reference`)
+- [ ] The `wheel_separation` question from §1(c) settled and recorded, whichever
+      way it goes
 
 **Then update `STATE.md`.**

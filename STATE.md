@@ -3,10 +3,11 @@
 > **Update this at the end of every session and whenever a gate passes.**
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
-**Last updated:** 9 Sep 2026 — **Day 2 gate PASSED**
-**Current day:** Day 2 **done**. Day 3 next
-**Blocked on:** nothing. **Day 3's first task is building `ydlidar_ros2_driver`
-from source** — it is not an apt package and is not on this board.
+**Last updated:** 9 Sep 2026 — **Day 3 in progress, lidar + SLAM stack up**
+**Current day:** Day 3. §2 (lidar) done, §3 (SLAM) configured and running.
+**Blocked on:** nothing technical — **the two remaining items both need the
+robot driven**, which needs you: §1(c) `calibrate_spin.py`, then the closed
+loop for the gate. ~~building `ydlidar_ros2_driver`~~ **resolved 9 Sep.**
 
 - ~~**`cap_ws` has no remote yet**~~ **Resolved 9 Sep.** `mairuu/cap_ws` exists,
   branch is **`main`** (not `master` as recorded earlier), and everything is
@@ -25,20 +26,56 @@ reported limitation rather than a passed test — see the warning below.
 
 ## Right now
 
-**Next action:** **Day 3** — `checklists/day-3-slam.md`. But it cannot start on
-the checklist's first line:
+**Next action:** two driving tasks, in this order, from
+`checklists/day-3-odometry-slam.md`. Both need a person: the robot moves, and
+**`make teleop-nav` is the e-stop**.
 
-> ⚠ **Build `ydlidar_ros2_driver` first.** It is **not** an apt package — it
-> builds from source against the YDLidar SDK, and neither is on this board.
-> Until it exists there is no `/scan`, so `slam_toolbox` has nothing to match
-> and Day 3 cannot begin. `make real` defaults to `use_lidar:=true` and will
-> fail until then; `USE_LIDAR=false` is the Day 2 workaround, not a Day 3 one.
+1. **Settle `wheel_separation`** — §1(c). `calibrate_spin.py --turns 10`, both
+   directions. Day 2's eyeballed 90° came out 7 % short, predicting **0.2325**
+   against the installed **0.25**. If the two agree, the number changes; if the
+   spin says 0.25, Day 2's eyeball was the error. **Do this before the map** —
+   a yaw scale error is exactly what draws a double wall, and the gate is
+   "no visible double wall".
+2. **Drive the closed loop** — §3, slowly, then `make save-map`.
+
+Worth doing in the same session, both quick:
+`check_scan_world_fixed.py` (turns ~90° in place, needs clear space), and
+re-run `scan_dropout_report.py` **in the room the map is made in**.
+
+> ⚠ **A `make real USE_LIDAR=false` stack from the Day 2 session was still
+> running at 17:18** (pids 3299/3317/3319). Ctrl-C it before `make real` —
+> `use_lidar` now defaults to `true` and two drivers cannot share
+> `/dev/ydlidar`. Clean restart:
 >
-> When it does come up, the **two flags in `config/ydlidar.yaml` are already
-> right and must stay `true`** — `reversion` and `inverted`. The audit calls
-> them the most expensive thing in the dump. Verify with
-> `check_scan_world_fixed.py`, and read the failure modes before touching
-> either: one of them cannot be caught by that script at all.
+> ```
+> make real           # base + lidar, USE_LIDAR is no longer needed
+> make slam           # second terminal
+> make rviz           # third
+> make teleop-nav     # fourth -- the e-stop
+> ```
+
+**Day 3 §2 and the SLAM config are done (9 Sep).** `ydlidar_ros2_driver` builds
+and runs, `/scan` is live at **11.57 Hz**, `/map` publishes 162×249 @ 0.05 m,
+`map → odom` appears, and all eight TF edges resolve. `laser_frame` lands
+**0.220 m** above `base_footprint`, matching the tape.
+
+> **The two flags in `config/ydlidar.yaml` are already right and must stay
+> `true`** — `reversion` and `inverted`. Neither has been *verified on this
+> board yet*: that is `check_scan_world_fixed.py`, and it only catches
+> `inverted`. `reversion` breaks on translation instead and no script catches
+> it — a forward drive that smears the map is the symptom. Read the failure
+> modes before touching either.
+
+> ⚠ **The recovered dropout figure was wrong twice, and this is the kind of
+> number the whole project exists to stop re-deriving badly.** It is **350 rays
+> per scan, not 400** (the driver prints `Single Fixed Size: 350`;
+> `angle_increment` 1.032° agrees) and **27.9 % dropout, not ~50 %**. Worse, the
+> average is misleading: 5–28 % on the robot's right against 46–70 % on its
+> left, because a bearing with nothing inside `range_max` 12 m returns `0.0`,
+> indistinguishable from a real dropout. **27.9 % describes this corner of this
+> room.** Re-measure where the map is made. If the left-side deficit follows the
+> robot instead of the room, it is chassis clipping or a glazed surface — worth
+> knowing before Day 6 blames the camera.
 
 **Day 2 gate passed 9 Sep.** `make teleop` drives the robot and `i` is forward.
 Both controllers active, both command interfaces claimed, `/joint_states` and
@@ -205,7 +242,7 @@ failed gate.
 |---|---|---|
 | 1 | `e` returns changing counts by hand; `m 20 20` spins both wheels forward and auto-stops after 2 s | **[x] PASSED 8 Sep.** §5.8 closed on 50/50 EN resets; manual cycles cut, D-14 |
 | 2 | `make teleop` drives the robot; `/odom` changes sanely; TF tree has no gaps | **[x] PASSED 9 Sep.** Teleop drives, `i` is forward; 1 m push → 0.980 m; 90° turn → −83.7°; 7 TF edges resolve; 30.0 Hz. Track B finished `day-5-yolo.md` §1 as well |
-| 3 | A driven loop closes without a visible double wall | [ ] |
+| 3 | A driven loop closes without a visible double wall | [ ] **§2 lidar and §3 SLAM config done 9 Sep**; the loop itself is undriven. `wheel_separation` must be settled first |
 | 4 | RViz goal → robot arrives; recovery behaviours fire when blocked | [ ] |
 | 5 | `/detections` stable; track IDs persist; no thermal throttle | [ ] |
 | 6 | Labelled marker appears at roughly the right place and stays; UI shows it | [ ] |
@@ -215,7 +252,7 @@ failed gate.
 
 | Track | Scope | Where |
 |---|---|---|
-| **A** — needs the robot | foundation → drive → odometry → SLAM → Nav2 | Day 1 done, **Day 2 done**. Day 3 next, **blocked on building `ydlidar_ros2_driver` from source** |
+| **A** — needs the robot | foundation → drive → odometry → SLAM → Nav2 | Day 1 done, **Day 2 done**. **Day 3 part done**: lidar driver built, `/scan` live, SLAM running. Remaining is all driving — `wheel_separation`, then the loop |
 | **B** — needs only Jetson + camera | uv env → calibration → detector | **`day-5-yolo.md` §1 is DONE, on Day 2.** Venv built and verified end to end; CUDA/cuDNN/TensorRT installed after finding them absent entirely. Next: camera **intrinsics** (Day 4 work, needs no robot) and **D-11** |
 
 Track B runs in the gaps of Track A. Start it Day 2, not Day 5 — it is the
@@ -234,6 +271,11 @@ Both were matched by USB port path. This carrier has different USB topology, so
 Reference Developer Kit. The conclusion held, the stated reason may not.)
 
 Confirmed still present 9 Sep: `/dev/esp32 → ttyUSB0`, `/dev/ydlidar → ttyUSB1`.
+**Re-checked 17:00 the same day and they had swapped again** — `/dev/esp32 →
+ttyUSB1`, `/dev/ydlidar → ttyUSB0`. Nothing was unplugged; the enumeration order
+simply differed across a restart. Both stable names still resolved to the right
+adapter, which is the udev rules doing exactly their job. This is the third
+recorded swap.
 Camera enumerates on `usb-3610000.usb-2.2.2` as `/dev/video0`, 640×480 MJPG and
 YUYV at 30 fps.
 
@@ -252,7 +294,7 @@ YUYV at 30 fps.
 > down as a risk. **Treat any `KERNELS` value in this table as true only until
 > a cable moves** — re-derive it, do not cite it.
 
-**Do not read `ttyUSB` numbers as identity.** They have already swapped once:
+**Do not read `ttyUSB` numbers as identity.** They have now swapped twice:
 first boot gave esp32 → `ttyUSB1`, after the replug esp32 → `ttyUSB0`. That the
 names held across the swap is the proof the rules work.
 
@@ -294,8 +336,11 @@ This is the quick-reference mirror.
 | `wheel_offset_x / _y` | **0.255 / 0.125** m | recovered |
 | Lidar height above ground | **0.22** m | recovered |
 | `laser_frame` in `base_link` | **(−0.034, 0, 0.186)** | recovered |
-| X2 dropout fraction | **~50%** of 400 rays | recovered, bench-measured |
-| X2 measured rate | **~11.6 Hz** | recovered |
+| X2 rays per scan | **350** | **measured 9 Sep** — recovered "400" was never counted |
+| X2 dropout fraction | **27.9%** of 350 rays | **measured 9 Sep** — ⚠ room-dependent, see below |
+| X2 dropout, right half | 5–28% | measured 9 Sep |
+| X2 dropout, left half | **46–70%** | measured 9 Sep — open floor, not necessarily the sensor |
+| X2 measured rate | **11.57 Hz** | **confirmed 9 Sep**; recovered ~11.6 Hz was right |
 | `camera.fx` | — | ⚠ **still lost** |
 | `camera.fy` | — | ⚠ **still lost** |
 | `camera.cx` | — | ⚠ **still lost** |
@@ -334,7 +379,7 @@ against a day if odometry is quietly wrong.
 |---|---|---|
 | `capstone-docs` (this workspace) | [x] `mairuu/cap_ref` | [x] **`eb4e9b3`, pushed 8 Sep** — includes `recoverable/` |
 | `semantic-bridge` | [x] tracked inside `cap_ref` | [x] — split out only if it starts changing |
-| `cap_ws` | [x] `mairuu/cap_ws` | [x] **pushed through `3383188`, 9 Sep** — the whole `my_bot` port and `camera.xacro`. `~/cap_ws`, renamed from `capstone-ws` 8 Sep. Branch is **`main`**, matching the others (an earlier note said `master`; it is not) |
+| `cap_ws` | [x] `mairuu/cap_ws` | [x] **pushed through `7e73c63`, 9 Sep** — Day 3 lidar + SLAM. Earlier: **`3383188`** — the whole `my_bot` port and `camera.xacro`. `~/cap_ws`, renamed from `capstone-ws` 8 Sep. Branch is **`main`**, matching the others (an earlier note said `master`; it is not) |
 | `esp-motor-firmware` | [x] | [x] **`52cf077`, pushed 8 Sep** — the encoder fixes |
 
 > ~~The recovered tree is not backed up.~~ **Resolved** — `recoverable/` is
@@ -362,5 +407,7 @@ report's methodology section.
 | 9 Sep | `real_robot.launch.py` gains `use_lidar`; Makefile gains `USE_LIDAR` | `ydlidar_ros2_driver` is built from source, not apt, and is not on this board. A missing executable takes the whole launch down, base included, so Day 2 could not have brought up drive at all. Default stays `true`. |
 | 9 Sep | `camera.xacro` written from tape-measure numbers, not recovered | The dump contained no camera frame; the old extrinsics lived in the lost `robot_params.yaml`. D-10 makes the URDF joint origin the single source. |
 | 9 Sep | JetPack userspace installed piecemeal, not via `nvidia-jetpack` | CUDA/cuDNN/TensorRT were **absent**. The metapackage is 112 packages and forces a 36.4.7 BSP component onto a 36.4.0 kernel. **D-15.** |
+| 9 Sep | `ydlidar_ros2_driver` taken from the **`humble`** branch, not `master` | `master` is Dashing-era: `node_executable=` / `node_name=` in the launch files and one-argument `declare_parameter(name)`, which Humble deprecated and which throws with no override. `make lidar-deps` pins the branch and refuses a wrong checkout. |
+| 9 Sep | `src/ydlidar_ros2_driver/` gitignored, not vendored | Pristine upstream checkout at `humble` `4ef70d3`; `make lidar-deps` reproduces it exactly. Vendoring buries a large upstream diff in our history for no gain. |
 | 9 Sep | `nvidia-opencv` **not** installed | `checklists/day-5-yolo.md` §1 asks for JetPack's CUDA OpenCV; `cv_bridge` is built against Ubuntu's 4.5.4 and shadowing it six days out risks the image pipeline for no gain. **`cv2.cuda` is unavailable — reported limitation.** D-15. |
 | 8 Sep | `cap_ws` created with only `Makefile` + `setup_udev.sh` | Day 1 needs no more than that. The rest of `my_bot` crosses over file by file on Day 2, re-verifying measured numbers as it goes (D-13). The recovered `99-my-bot-serial.rules` was **not** copied — its `KERNELS` paths are devkit-specific. |

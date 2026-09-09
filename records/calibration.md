@@ -272,8 +272,8 @@ r=0.265 and refuses doorways it fits through):
 | `lidar_height_above_ground` | **0.22 m** | measured |
 | `lidar_offset_behind_axle` | **0.034 m** | measured |
 | `laser_frame` in `base_link` | **(−0.034, 0, 0.186)** | derived |
-| **Dropout fraction** | **~50% of 400 rays** are `0.0` indoors | bench-measured |
-| Measured scan rate | **~11.6 Hz** (config says 10.0) | measured |
+| **Dropout fraction** | ~~~50% of 400 rays~~ **superseded 9 Sep — 350 rays, 27.9%**, see below | bench-measured |
+| Measured scan rate | **~11.6 Hz** (config says 10.0) — **confirmed 11.57 Hz, 9 Sep** | measured |
 | `reversion` | **true** — puck 0° points at robot BACK | |
 | `inverted` | **true** — X2 is CW, ROS needs CCW | |
 | `range_min` / `range_max` | 0.1 / 12.0 | |
@@ -289,8 +289,57 @@ Failure modes are written out in `reference/nvme-recovery-audit.md`. Verify with
 
 | Re-verify on new board | Result | Date |
 |---|---|---|
-| Dropout fraction | | |
+| Dropout fraction | **27.9 % of 350 rays** — see below | 9 Sep 2026 |
+| Scan rate | **11.57 Hz** — recovered ~11.6 Hz confirmed | 9 Sep 2026 |
 | `check_scan_world_fixed.py` | | |
+
+### Dropout re-measured 9 Sep 2026 — and the recovered figure was wrong twice
+
+Method: `scripts/scan_dropout_report.py --scans 100`, robot stationary, lidar
+driver alone (no base), ordinary indoor room. 35,000 rays counted.
+
+| | Recovered figure | Measured 9 Sep |
+|---|---|---|
+| Rays per scan | 400 | **350** |
+| Dropout fraction | ~50 % | **27.9 %** |
+| Scan rate | ~11.6 Hz | **11.57 Hz** |
+| Dropout marker | `0.0` | **`0.0`, all 9,780 of them** — no inf/nan |
+
+**350, not 400.** The driver prints it on startup: `Fixed Size: 720` then
+`Single Fixed Size: 350`. 400 was inherited, never counted. `angle_increment`
+is 1.032°, which is 350 rays over 360°, so the message and the scan agree.
+
+**Neither is a constant, and the average hides the shape of it.** Per-sector,
+0° = ahead:
+
+| Sector | Dropout | Sector | Dropout |
+|---|---|---|---|
+| −165° BEHIND | 13.3 % | +15° AHEAD | **59.0 %** |
+| −135° rear-right | 10.4 % | +45° front-left | **46.3 %** |
+| −105° RIGHT | 27.8 % | **+75° LEFT** | **69.6 %** |
+| −75° RIGHT | 12.7 % | +105° LEFT | **47.0 %** |
+| −45° front-right | **5.3 %** | +135° rear-left | 19.3 % |
+| −15° AHEAD | 13.0 % | +165° BEHIND | 12.8 % |
+
+The robot's **left half drops three to five times as many rays as its right
+half** in this spot. Per-scan spread was tight (22–32 %), so this is the room,
+not noise. An ASCII top-down of the same scans shows a wall ~4 m to the left and
+~1 m behind, with open space ahead and right — bearings with nothing inside
+`range_max` 12.0 m return `0.0` exactly like a true dropout, and cannot be told
+apart from one in the message.
+
+> ⚠ **So 27.9 % is a number about this corner of this room, not about the X2.**
+> Re-run it in the room the Day 3 map is made in before it is used for anything.
+> It is entered here because it was measured, not because it is the answer.
+>
+> If the left-side deficit survives a move to open floor, then it is the sensor
+> or the mounting — look for chassis clipping the beam on that side, or a dark
+> or glazed surface — and that is worth knowing before Day 6 blames the camera.
+
+**What it implies for `detection.min_returns` (Day 6)**, at 27.9 % dropout — a
+0.3 m object subtends 17 rays at 1 m (≈12 live), 8 at 2 m (≈6), 6 at 3 m (≈4).
+`min_returns: 3` clears 3 m here. At the recovered 50 % it would not have, which
+is exactly the trade the Day 3 checklist says to make knowingly.
 
 ## Camera intrinsics — ⚠ **STILL LOST, must redo**
 
