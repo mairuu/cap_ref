@@ -3,8 +3,10 @@
 > **Update this at the end of every session and whenever a gate passes.**
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
-**Last updated:** 9 Sep 2026 — **Day 3 in progress, lidar + SLAM stack up**
+**Last updated:** 9 Sep 2026 — **Day 3 in progress, lidar + SLAM up, network up**
 **Current day:** Day 3. §2 (lidar) done, §3 (SLAM) configured and running.
+**Multi-machine ROS 2 is up (9 Sep)** — RViz and teleop can run off-board on
+the laptop. See `reference/ros2-network.md` and D-16.
 **Blocked on:** nothing technical — **the two remaining items both need the
 robot driven**, which needs you: §1(c) `calibrate_spin.py`, then the closed
 loop for the gate. ~~building `ydlidar_ros2_driver`~~ **resolved 9 Sep.**
@@ -47,19 +49,37 @@ reported limitation rather than a passed test — see the warning below.
 > direction. The eyeball was the error. **0.25 was right** — this is why that
 > prediction was written down as a prediction and not applied.
 
+**The network is off the critical path now.** RViz can run on the laptop
+instead of on the Jetson, which frees the Orin's GPU during the driving tasks
+above and means the robot no longer needs a screen on it.
+
+```bash
+# laptop, in its own terminal
+rviz2 -d ~/cap_view/nav.rviz
+```
+
+> **The stale-stack warning below still applies, and the four Makefile
+> terminals still run on the Jetson.** Only RViz moves.
+
+> ⚠ **`ROS_DOMAIN_ID` is now 42, not 0.** Both machines have it exported from
+> `~/.bashrc`. Anything launched from a stripped environment — a systemd unit,
+> a container, `env -i` — will land on domain 0 and see nothing. This is the
+> first thing to check if a node that used to work goes silent.
+
 Worth doing in the same session, both quick:
 `check_scan_world_fixed.py` (turns ~90° in place, needs clear space), and
 re-run `scan_dropout_report.py` **in the room the map is made in**.
 
-> ⚠ **A `make real USE_LIDAR=false` stack from the Day 2 session was still
-> running at 17:18** (pids 3299/3317/3319). Ctrl-C it before `make real` —
-> `use_lidar` now defaults to `true` and two drivers cannot share
-> `/dev/ydlidar`. Clean restart:
+> ~~⚠ **A `make real USE_LIDAR=false` stack from the Day 2 session was still
+> running at 17:18** (pids 3299/3317/3319).~~ **Gone — checked 9 Sep, no ROS
+> processes are running on the Jetson.** The reason it mattered stands: two
+> drivers cannot share `/dev/ydlidar` and
+> `use_lidar` now defaults to `true`, so check before `make real`. Clean start:
 >
 > ```
 > make real           # base + lidar, USE_LIDAR is no longer needed
 > make slam           # second terminal
-> make rviz           # third
+> make rviz           # third -- or rviz2 on the laptop instead
 > make teleop-nav     # fourth -- the e-stop
 > ```
 
@@ -265,6 +285,39 @@ failed gate.
 
 Track B runs in the gaps of Track A. Start it Day 2, not Day 5 — it is the
 highest-variance item in the week and it needs no robot.
+
+---
+
+## Network
+
+Set up 9 Sep, verified both directions. **`reference/ros2-network.md` is the
+full account**; this is the quick-reference mirror. Reproduce with `make net`.
+
+| | Jetson (robot) | Laptop (viewer) |
+|---|---|---|
+| user@address | `mic-711@`**`172.20.10.2`** | `ju@`**`172.20.10.5`** |
+| hostname | `ubuntu` | `ju-hp-probook-laptop` |
+| interface | `enP8p1s0` | `wlp0s20f3` |
+| runs | `make real` / `slam` / `nav` / `teleop-nav` | `rviz2 -d ~/cap_view/nav.rviz` |
+| firewall | none (ufw inactive) | **ufw active** — first suspect on one-way discovery |
+
+`ROS_DOMAIN_ID=42` · `ROS_LOCALHOST_ONLY=0` ·
+`FASTRTPS_DEFAULT_PROFILES_FILE=~/.ros2/fastdds_hotspot.xml` on both.
+SSH is key-based Jetson → laptop, no password.
+
+> ⚠ **`172.20.10.2` is the Jetson, not the laptop.** It was handed over as the
+> "remote" address and is not; there is no `ju` account on the Jetson. Both
+> addresses are `172.20.10.x` and neither hostname says which is the robot.
+
+> ⚠ **These are DHCP addresses on a phone hotspot, and the DDS peer list is
+> literal.** Nothing detects a change; discovery just stops. After any
+> reconnection: `ip -4 addr` on both, then `make net PEERS=<jetson>,<laptop>`
+> on **both** machines if either moved. This is the network equivalent of the
+> `ttyUSB` swaps below — do not cite an address, re-derive it.
+
+Measured 9 Sep with `check_ros2_link.py`, Jetson → laptop over 15.1 s:
+**String 10.07 Hz of 10** and **40 kB OccupancyGrid 1.99 Hz of 2**, no loss —
+so `/map` crosses without socket-buffer tuning.
 
 ---
 

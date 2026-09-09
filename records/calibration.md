@@ -636,6 +636,35 @@ re-derived from the wire on Day 1 rather than inherited — but do not cite
 | Detection rate | ______ Hz |
 | Temp after 5 min | ______ °C |
 
+## Network link — **MEASURED 2026-09-09**
+
+Jetson `172.20.10.2` → laptop `172.20.10.5`, over the phone hotspot
+(`172.20.10.0/28`). Method: `my_bot/scripts/check_ros2_link.py --pub` on the
+Jetson, `--sub --secs 15` on the laptop. `ROS_DOMAIN_ID=42`, Fast DDS with
+unicast initial peers (D-16, `reference/ros2-network.md`).
+
+| Stream | Published | Received | Rate | Loss |
+|---|---|---|---|---|
+| `std_msgs/String` | 10 Hz | 152 in 15.1 s | **10.07 Hz** | none |
+| `nav_msgs/OccupancyGrid` 162×249 (40 kB) | 2 Hz | 30 in 15.1 s | **1.99 Hz** | none |
+
+**The grid is the number that matters.** It is deliberately the shape of our
+real `/map` (162×249 @ 0.05 m, measured the same day), and at 40 kB it exceeds
+the ~64 kB datagram limit only when combined with headers — so it exercises the
+fragmentation path that `/scan` never does. Clean at default socket buffers, so
+**no `sysctl` or `<...SocketBufferSize>` tuning is installed**. If Nav2's larger
+costmaps stall on Day 4, that is where to look first, and the script prints the
+fix itself.
+
+Also confirmed the same day: `demo_nodes_cpp` talker→listener **both
+directions**, and `ros2 node list` on each machine listing the other's nodes.
+
+> ⚠ **This measurement is tied to two DHCP addresses.** It says nothing about
+> the link after either machine re-leases. Re-run it — it takes 15 s — rather
+> than assuming it still holds.
+
+---
+
 ## Nav2 — **RECOVERED**
 
 | | Value | Note |

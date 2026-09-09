@@ -255,6 +255,46 @@ unavailable, and the day-5 checklist item is deliberately not met.
 **Reversal cost:** low. Both rejected pieces are one `apt install` away, and
 the repo lines can be re-commented.
 
+## D-16 · Multi-machine ROS 2: domain 42, unicast peers, keep Fast DDS
+**Date:** 9 Sep 2026 · **Status:** adopted
+
+RViz and teleop run on the laptop (`ju@172.20.10.5`); the Jetson
+(`172.20.10.2`) runs the stack. Discovery is `ROS_DOMAIN_ID=42` plus a Fast DDS
+profile listing both machines as **unicast initial peers**, with the multicast
+locator kept first. `make net` installs it. Full detail in
+`reference/ros2-network.md`.
+
+**Why:**
+The hotspot is an access point and drops client-to-client multicast, which is
+Fast DDS's default discovery mechanism — two machines that ping in 0.08 ms see
+none of each other's topics, and every obvious culprit (firewall, domain,
+`ROS_LOCALHOST_ONLY`) is a red herring. Unicast initial peers remove the
+dependency on multicast crossing the AP. Domain **42 rather than 0** because 0
+is what every other ROS 2 machine on a shared hotspot also defaults to, and the
+collision presents as a corrupted `/tf`, not as a second robot.
+
+**Rejected: switching to `rmw_cyclonedds_cpp`.** It is the commonly recommended
+RMW for Nav2 on Humble, and its peer configuration is simpler. But the stack
+that works today — Day 2's drive, Day 3's SLAM — runs on default
+`rmw_fastrtps_cpp`, and the profile above already fixes the only thing that was
+actually broken. Changing the RMW four days from the demo trades a solved
+problem for an unknown set of new ones. Constraint 3.
+
+**Rejected: a Fast DDS `interfaceWhiteList`.** Both machines advertise locators
+the other cannot route to — `docker0` 172.17.0.1 on the laptop, `l4tbr0`
+192.168.55.1 on the Jetson. Whitelisting the hotspot NIC would suppress that,
+but it requires `useBuiltinTransports=false`, which drops shared memory and
+risks the ~15-participant on-robot stack for a problem that measured as zero
+loss on both streams. Additive config only.
+
+**Cost:** the peer list is literal. Hotspot DHCP moves addresses, and nothing
+detects it — `make net PEERS=...` on both machines after any reconnection.
+
+**Limitation to report:** discovery is statically configured, so a third
+machine (a second viewer, a demo-day laptop) does not just work — it must be
+added to the peer list on every machine.
+
+
 ---
 
 ## Template

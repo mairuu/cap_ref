@@ -498,6 +498,65 @@ Thermal throttling. `tegrastats`. Check cooling, `nvpmodel -m 0`,
 
 ---
 
+## Multi-machine / network
+
+### Both machines ping fine, but `ros2 topic list` on one shows none of the other's topics
+**The hotspot is dropping multicast.** A phone hotspot is an access point; it
+forwards unicast between clients and drops client-to-client multicast. Fast DDS
+discovers over `239.255.0.1` by default, so a link with 0.08 ms ping carries
+**zero** discovery. Firewall, domain and `ROS_LOCALHOST_ONLY` all look guilty
+and are all innocent. Fix: `make net` on **both** machines — it adds each
+address as a unicast initial peer.
+→ `reference/ros2-network.md`, D-16
+
+### It worked yesterday and today neither machine sees the other
+**Check the addresses first, before anything else.** The peer list in
+`~/.ros2/fastdds_hotspot.xml` is literal, and the hotspot hands out DHCP. A
+reconnection can move either machine. `ip -4 addr` on both, then
+`make net PEERS=<jetson>,<laptop>` on **both** if either changed.
+
+### Strange nodes in `ros2 topic list`, or `/tf` looks corrupted with the robot idle
+**Someone else is on `ROS_DOMAIN_ID` 0.** We are on **42** for exactly this
+reason — domain 0 is everyone's default, and a stranger's `/tf` competing with
+ours reads as a broken TF tree rather than as a second robot. Confirm with
+`echo $ROS_DOMAIN_ID` in the shell that actually launched the node; a systemd
+unit or container will not have inherited the `.bashrc` block.
+
+### RViz on the laptop shows the laser but the map never appears
+**Not discovery — UDP fragmentation.** `/scan` is small; `/map` and Nav2's
+costmaps exceed the ~64 kB datagram limit and are fragmented, and fragments are
+dropped silently when the socket buffers are smaller than the burst. A
+talker/listener test passes straight through this. Diagnose with the two-stream
+check — small arriving while large does not is the signature:
+
+```bash
+make net-check                          # on the Jetson
+./check_ros2_link.py --sub              # on the laptop
+```
+
+It measured **clean at 40 kB** on 9 Sep, so no tuning is installed. If Nav2's
+larger costmaps do stall on Day 4, the script prints the `sysctl` and the two
+`<...SocketBufferSize>` lines to add.
+
+### Discovery works one way only
+**First suspect is the laptop's `ufw`, which is active.** Traffic crosses today
+only because the laptop's own outbound announcements open conntrack state.
+Make it explicit, on the laptop:
+
+```bash
+sudo ufw allow from 172.20.10.0/28 comment "ROS2 hotspot subnet"
+```
+
+The Jetson has no firewall, so nothing is needed there.
+
+### `ros2 topic echo /yolo/detections` fails on the laptop with an unknown type
+Expected. `yolo_msgs` is not installed there and the laptop has no `cap_ws` —
+by design, it only needs standard types. Echo it on the Jetson. The Day 6
+semantic markers are `visualization_msgs/MarkerArray` and do display in the
+laptop's RViz.
+
+---
+
 ## Semantic layer
 
 ### Node dies immediately on startup
