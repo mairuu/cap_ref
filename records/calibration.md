@@ -363,6 +363,56 @@ apart from one in the message.
 `min_returns: 3` clears 3 m here. At the recovered 50 % it would not have, which
 is exactly the trade the Day 3 checklist says to make knowingly.
 
+### Dropout re-measured 10 Sep 2026 — **the deficit is the room, and the sensor is cleared**
+
+Method: same script, 100 scans, robot stationary, **full stack running**
+(`make real` + `slam` + `nav`) in a different spot in the same room. This is the
+re-run the 9 Sep note asked for.
+
+| | 9 Sep | **10 Sep** |
+|---|---|---|
+| Rays per scan | 350 | **350** |
+| Dropout fraction | 27.9 % | **25.7 %** (8,990 of 35,000) |
+| Per-scan spread | 22–32 % | **22.6–28.6 %** |
+| Rate | 11.57 Hz | **11.58 Hz** by header stamp |
+| Dropout marker | `0.0`, no inf/nan | **`0.0`, no inf/nan** |
+| Worst sector | **+75° LEFT, 69.6 %** | **−15° AHEAD, 43.8 %** |
+| Best sector | −45° front-right, 5.3 % | −165° BEHIND, 2.3 % |
+
+**The overall fraction is stable at ~26–28 %; the asymmetry is not.** Full
+per-sector, 0° = ahead:
+
+| Sector | Dropout | Sector | Dropout |
+|---|---|---|---|
+| −165° BEHIND | **2.3 %** | +15° AHEAD | 36.9 % |
+| −135° rear-right | 27.9 % | +45° front-left | 36.2 % |
+| −105° RIGHT | 35.9 % | +75° LEFT | 24.2 % |
+| −75° RIGHT | 14.7 % | +105° LEFT | **5.5 %** |
+| −45° front-right | 38.1 % | +135° rear-left | 40.2 % |
+| −15° AHEAD | **43.8 %** | +165° BEHIND | 4.0 % |
+
+> ✅ **This closes the question the 9 Sep entry left open.** The left-side
+> deficit was 46–70 % then and is 5–24 % now; +75° LEFT went 69.6 % → 24.2 %,
+> and +105° LEFT went 47.0 % → 5.5 %. **It did not follow the robot.** So it is
+> not chassis clipping and not a glazed surface on that side — it was open floor
+> beyond `range_max` 12 m, exactly as the ASCII top-down suggested. **The X2 and
+> its mounting are cleared, and Day 6 has one fewer thing to blame the camera
+> for.**
+>
+> What follows the *room* now points behind: −165° and +165° both read 2–4 %,
+> so the robot is near a wall at its back this time, and the open direction has
+> rotated to the front. The number to trust is the **overall 26 %**, which has
+> now held across two spots.
+
+**Day 6 `detection.min_returns` is unchanged and now rests on this room's own
+figure:** a 0.3 m object subtends 17 rays at 1 m (≈12 live), 8 at 2 m (≈6), 6 at
+3 m (≈4). **`min_returns: 3` still clears 3 m.**
+
+> ⚠ Note the sector spread is what bites, not the mean. At −15° AHEAD's 43.8 %,
+> that 3 m object drops to ~3.4 live returns — right on the threshold. An object
+> dead ahead at 3 m is the marginal case, and dead ahead is where the robot
+> drives.
+
 ## Scan timing and drive speed — **MEASURED 2026-09-09**
 
 Taken off the live stack (`make real` + `make slam` running), by subscribing to
@@ -854,6 +904,54 @@ directions**, and `ros2 node list` on each machine listing the other's nodes.
 > ⚠ **These are the only speed limits the robot has.** `diff_cont` sets none and
 > the hardware interface passes commands straight through. Watch it drive before
 > raising them.
+
+### Nav2 brought up for the first time — **VERIFIED 2026-09-10**
+
+`navigation.launch.py` + `nav2_params.yaml` ported and launched against the live
+robot. All seven lifecycle nodes reached `active` on the first attempt:
+`controller_server`, `smoother_server`, `planner_server`, `behavior_server`,
+`bt_navigator`, `waypoint_follower`, `velocity_smoother`.
+
+**The e-stop gap recorded on 9 Sep is closed.** `/cmd_vel_teleop` now has
+subscribers where it had none, and `twist_mux` bridges to the controller:
+
+| Topic | Publishers | Subscribers |
+|---|---|---|
+| `/cmd_vel_nav` | 1 (`controller_server`) | 1 (`velocity_smoother`) |
+| `/cmd_vel` | **6** — `velocity_smoother` ×1, `behavior_server` ×5 | 1 (`twist_mux`) |
+| `/cmd_vel_teleop` | 0 (until teleop runs) | **2** — `twist_mux`, `behavior_server` |
+| `/diff_cont/cmd_vel_unstamped` | 1 (`twist_mux`) | 1 (`diff_cont`) |
+
+Two things in that table are not what the design comments describe, and both
+were read off the live graph rather than inferred:
+
+> ⚠ **Recovery behaviours BYPASS the velocity_smoother.** `behavior_server`
+> holds five publishers straight onto `/cmd_vel` — one per behaviour plugin —
+> while only `controller_server` goes through `/cmd_vel_nav` → smoother. So the
+> smoother's `[0.055, 0.0, 0.125]` clamp does **not** apply to a recovery. What
+> clamps a recovery spin is `behavior_server.max_rotational_vel: 0.1`, and
+> nothing else. `BackUp` and `DriveOnHeading` take their speed from the BT's
+> action goal, not from params at all.
+>
+> This matters for the Day 4 gate, which deliberately provokes a recovery by
+> blocking the robot: the recovery is the one moment Nav2 can command a speed
+> no params file in this repo reviewed. It is still slow — 0.1 rad/s is below
+> DWB's 0.125 — but the earlier note above ("these are the only speed limits")
+> is **incomplete**, and `max_rotational_vel` belongs in that list.
+
+> ⚠ **`/cmd_vel_teleop` is not exclusively the e-stop topic.** `behavior_server`
+> subscribes to it too: it is the input topic of the `AssistedTeleop` behaviour
+> plugin. The e-stop is unaffected — `twist_mux` still holds it at priority 100
+> and forwards to the controller — but the keystrokes are also visible to Nav2,
+> and while an `AssistedTeleop` action is active the same keys feed a behaviour
+> that publishes back onto `/cmd_vel` at priority 10. Nothing in our BT invokes
+> `AssistedTeleop`, so this is dormant; it is recorded because "the e-stop topic
+> has exactly one subscriber" is the kind of assumption that is cheap to write
+> down now and expensive to discover during a demo.
+
+TF with the full stack up: all eight edges resolve, `base_link → laser_frame`
+`(−0.034, 0, +0.187)` and `base_link → camera_optical_link` at −90° as expected.
+`map → odom` sat at exactly identity, which is correct before the robot moves.
 
 ## Final results — the tape-measure protocol (Day 7)
 

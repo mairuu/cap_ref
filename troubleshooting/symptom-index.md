@@ -279,6 +279,12 @@ Move the robot to open floor and re-run `scan_dropout_report.py`. If the
 asymmetry follows the robot rather than the room, *then* suspect the hardware —
 chassis clipping the beam on that side, or a dark or glazed surface.
 
+> ✅ **Settled 10 Sep: it was the room.** Re-run from a different spot put
+> +75° LEFT at 24.2 % (was 69.6 %) and +105° LEFT at 5.5 % (was 47.0 %), while
+> the worst sector moved to −15° AHEAD. The deficit did not follow the robot,
+> so the sensor and its mounting are cleared. The **overall** fraction held at
+> 25.7 % against 27.9 % — that is the figure to quote, not any one sector.
+
 ---
 
 ## URDF and TF
@@ -411,6 +417,37 @@ Check `cmd_vel` is going to the topic the controller actually subscribes to.
 ---
 
 ## Nav2
+
+### A recovery behaviour moves faster than the velocity_smoother should allow
+It is not a bug and the smoother is not broken — **recoveries bypass it.**
+`behavior_server` publishes straight onto `/cmd_vel` (five publishers, one per
+behaviour plugin); only `controller_server` routes through `/cmd_vel_nav` →
+`velocity_smoother` → `/cmd_vel`. So `velocity_smoother.max_velocity` never sees
+a recovery.
+
+What clamps a recovery spin is **`behavior_server.max_rotational_vel`** (0.1
+rad/s here). `BackUp` and `DriveOnHeading` take their speed from the BT action
+goal and are not clamped by any params file in this repo. Verified from the live
+graph 10 Sep. → `config/nav2_params.yaml`
+
+### `/cmd_vel_teleop` has two subscribers, not one
+Expected. `twist_mux` is one; the other is **`behavior_server`** — it is the
+input topic of the `AssistedTeleop` behaviour plugin. The e-stop still works
+(twist_mux holds priority 100), but the topic is shared. Nothing in our BT
+invokes `AssistedTeleop`, so it is dormant. Do not "fix" this by renaming the
+teleop topic — that would break the mux config and the Makefile target together.
+
+### Nav2 plans a perfect path and the robot does not move
+`diff_cont` has `use_stamped_vel: false`, so it listens on
+`/diff_cont/cmd_vel_unstamped` and **nothing in Nav2 publishes there.**
+`twist_mux` is what bridges the gap, via the `cmd_vel_out` remap in
+`navigation.launch.py`. If `twist_mux` is not running, Nav2 looks completely
+healthy — lifecycle nodes active, a plan drawn in RViz — and the wheels never
+turn. Check `ros2 topic info /diff_cont/cmd_vel_unstamped` for a publisher.
+
+This is exactly what was wrong from the rebuild until 10 Sep: `navigation.launch.py`
+had not been ported, so nothing started the mux, and because `config/twist_mux.yaml`
+and the `package.xml` dependency were both already present the gap was invisible.
 
 ### `make teleop-nav` does nothing — no keypress moves the robot
 **`twist_mux` is not running, and as of 9 Sep nothing in `cap_ws` can start

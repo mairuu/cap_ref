@@ -295,6 +295,49 @@ machine (a second viewer, a demo-day laptop) does not just work — it must be
 added to the peer list on every machine.
 
 
+## D-17 · Nav2 params ported wholesale, and `footprint` keeps beating `robot_radius`
+
+**Date:** 2026-09-10 · **Status:** adopted
+
+`config/nav2_params.yaml` and `launch/navigation.launch.py` come across from
+`recoverable/` as-is (D-13), rather than being re-derived from `nav2_bringup`'s
+default and re-tuned. Only comments were edited; no value changed.
+
+The Day 4 checklist §1 says "from the bringup default, changing only what
+`RECOVERY.md` §6.6 lists", and §2 says to set `robot_radius` = measured radius
++ 20 % with `inflation_radius` 0.35. **Both are superseded.** They were written
+before the NVMe dump, when we believed the Nav2 config was lost.
+
+**Why:** the recovered file *is* the derivation the checklist asks for, already
+done against this robot and annotated with the reasoning for each delta —
+including several we would not have rediscovered in a week. `inflation_radius`
+0.25 carries a note that upstream's 0.55 would inflate an 0.8 m doorway shut.
+`sim_time` 5.0 carries the arithmetic showing that 1.5 s at our cut speed gives
+an 8 cm planning horizon, shorter than the robot. `max_vel_theta` 0.125 carries
+the deskew calculation tying yaw rate to map smear. Re-deriving these from the
+upstream default means rediscovering them by driving into things.
+
+On `robot_radius` specifically: `base_link` sits on the wheel axle and the
+chassis hangs behind it, so the shape is strongly asymmetric (x −0.265…+0.09).
+The enclosing circle needs r ≈ 0.30 against a true half-width of 0.147, and the
+robot would refuse doorways it physically fits through. This is already a hard
+constraint in `CLAUDE.md`; D-17 records that the Day 4 checklist contradicts it
+and that the checklist loses.
+
+**Cost:** we inherit tuning done on the old board, and its provenance is prose
+in the file rather than a measurement in `records/`. The SPEEDS header was
+already found stale on arrival — it quoted upstream's 0.22/1.0 as if they were
+ours — which is a fair warning about the rest of the prose. Values were checked
+against the live system where that was possible (topic names, frame names, all
+seven lifecycle blocks present); the footprint polygon has **not** been checked
+with a tape and `chassis_length` 0.295 remains unverified.
+
+**Limitation to report:** the footprint's front edge (+0.09) is a deliberate
+over-reservation beyond the derived +0.040, not a measurement. It is the safe
+direction to be wrong, but it means the robot reserves ~5 cm more space in front
+than it occupies, and a doorway refusal should be checked against that before
+`inflation_radius` is touched.
+
 ---
 
 ## Template

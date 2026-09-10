@@ -3,8 +3,9 @@
 > **Update this at the end of every session and whenever a gate passes.**
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
-**Last updated:** 9 Sep 2026 — **Day 3 in progress, lidar + SLAM up, network up**
-**Current day:** Day 3. §2 (lidar) done, §3 (SLAM) configured and running.
+**Last updated:** 10 Sep 2026 — **Day 4 in progress: Nav2 is up, the e-stop is real**
+**Current day:** Day 4. §1 (Nav2 port) **done and verified**; Day 3's gate is
+still the blocker and both remaining items need the robot driven.
 **Multi-machine ROS 2 is up (9 Sep)** — RViz and teleop can run off-board on
 the laptop. See `reference/ros2-network.md` and D-16.
 **Blocked on:** nothing technical — **the two remaining items both need the
@@ -28,21 +29,35 @@ reported limitation rather than a passed test — see the warning below.
 
 ## Right now
 
-**Next action:** two driving tasks, in this order, from
-`checklists/day-3-odometry-slam.md`. Both need a person: the robot moves, and
-**`make teleop-nav` is the e-stop**.
+**Next action:** three driving tasks, in this order. All need a person: the
+robot moves, and **`make teleop-nav` is the e-stop** (real again as of 10 Sep).
 
-1. **`calibrate_spin.py --turns 10` in the OTHER direction.** One run is done
+1. **`calibrate_spin.py --turns 10`, and NOTE THE DIRECTION.** One run is done
    (10 turns, odom +3600.32°, residual **−22°** → implied `wheel_separation`
-   **0.25154**, a 0.61 % error). **Do not apply it on one direction.** A
-   separation error is symmetric and a wheel asymmetry is antisymmetric, so a
-   single run sees only their sum:
-   - other way also ≈ −0.6 % → separation. Apply **0.25154**, rebuild.
-   - other way ≈ +0.6 % → asymmetry. **Leave 0.25** and use
-     `calibrate_correct.py --floor-lateral` instead.
+   **0.25154**, a 0.61 % error) but its direction was never recorded.
 
-   Record which direction each run is; the first one's was not noted.
-2. **Drive the closed loop** — §3, slowly, then `make save-map`.
+   > **The old two-direction decision rule is retired — read this before
+   > driving.** It expected a reverse run to separate a separation error from a
+   > wheel asymmetry by sign. That reasoning is wrong: in a spin the wheels
+   > counter-rotate, so a per-wheel radius error enters yaw with the *same* sign
+   > on both sides and **cancels**, surfacing as the robot's centre translating
+   > rather than as residual heading. A reverse run would not have
+   > discriminated.
+   >
+   > **It no longer needs to.** The asymmetry was measured and applied on 9 Sep
+   > (`1.002982` / `0.997018`) and verified the same day at ~0.1° of heading
+   > change over 3 m. With that removed, **a spin residual now reads separation
+   > cleanly** — one run, either direction, settles it. Record the direction
+   > anyway.
+
+   Outcome to record either way: whether **0.25168** (live, unprovenanced),
+   **0.25154** (the one logged run), or something else is right. Any change goes
+   into **both** `my_controllers.yaml` and `robot_core.xacro`
+   (`wheel_separation = 2 × wheel_offset_y`), then rebuild.
+2. **Drive the closed loop** — slowly, **at ~0.10 m/s**, then
+   `make save-map MAP=~/maps/day3-reference`. **This is the Day 3 gate.**
+3. **Then Day 4 §3:** RViz `2D Goal Pose` → arrives and stops; block it with a
+   chair → recovery behaviours fire. **That is the Day 4 gate.**
 
 > **The 0.2325 prediction is dead.** Day 2's eyeballed 90° implied a 7 % yaw
 > error; ten machine-counted turns say **0.61 %**, and in the opposite
@@ -96,20 +111,41 @@ measurement and the run only gives it once.
 > The map built at 0.5 m/s is not evidence. Discard it.
 
 > ⚠ **`wheel_separation` 0.25168 is live in the controller with no recorded
-> provenance** — applied in the working tree, not committed, and not the
-> 0.25154 the one recorded spin run implies. A straight-line run will not test
-> it; separation is a yaw term. Its direction/turns/residual are still needed
-> before it can go in `records/calibration.md`.
+> provenance** — not the 0.25154 the one recorded spin run implies. A
+> straight-line run will not test it; separation is a yaw term. Its
+> direction/turns/residual are still needed before it can go in
+> `records/calibration.md`.
+>
+> **Correction (10 Sep): it IS committed**, in `db32d88`, paired with
+> `wheel_offset_y: 0.12584` in `robot_core.xacro` so the two stay consistent —
+> an earlier note here said "working tree, not committed" and that was wrong.
+> `cap_ws` is clean. What is missing is the *provenance*, not the commit.
 
-> ⚠ **`make teleop-nav` is NOT an e-stop yet — found 9 Sep.**
-> `navigation.launch.py` has not been ported (Day 4 work), so **nothing in
-> `cap_ws` starts `twist_mux`** and `/cmd_vel_teleop` has no subscriber.
-> `config/twist_mux.yaml` and the `package.xml` dependency are both present,
-> which makes the gap invisible. Until Nav2 lands, the only things that stop a
-> driving robot are **Ctrl-C in the terminal running the script** (every
-> calibration script publishes a zero `Twist` in a `finally`), `make teleop`
-> fighting on the same topic, or power. Re-read this when
-> `navigation.launch.py` arrives — the rule flips back then.
+> ✅ **`make teleop-nav` IS the e-stop again — restored 10 Sep.** The rule has
+> flipped back. `navigation.launch.py` and `nav2_params.yaml` are ported, all
+> seven Nav2 lifecycle nodes reach `active`, `twist_mux` runs, and
+> `/cmd_vel_teleop` has subscribers where it had none. Use `make teleop-nav`,
+> **never `make teleop`**, during any autonomous run.
+>
+> ~~`make teleop-nav` is NOT an e-stop yet — found 9 Sep.~~ Kept as history:
+> nothing in `cap_ws` started `twist_mux`, and because `config/twist_mux.yaml`
+> and the `package.xml` dependency were both already present, the gap was
+> invisible. That is the failure mode to remember, not the fix.
+>
+> ⚠ **Two live-graph findings that qualify it** — both in
+> `records/calibration.md` and the symptom index:
+> - **Recoveries bypass the `velocity_smoother`.** `behavior_server` publishes
+>   straight onto `/cmd_vel`, so the smoother's `[0.055, 0, 0.125]` does not
+>   clamp them; `behavior_server.max_rotational_vel: 0.1` does, and `BackUp` /
+>   `DriveOnHeading` take speed from the BT goal and are not clamped by params
+>   at all. Relevant to the Day 4 gate, which deliberately provokes a recovery.
+> - **`/cmd_vel_teleop` has two subscribers**, `twist_mux` and
+>   `behavior_server` (it is `AssistedTeleop`'s input topic). The e-stop is
+>   unaffected; the topic is simply not exclusively ours.
+>
+> **`make teleop-nav` now starts at 0.10 m/s, not 0.5** (`SPEED` in the
+> Makefile). 0.5 is what smeared the Day 3 map. `k` still stops the robot at any
+> speed.
 
 **That run also found a real wheel asymmetry, and it is APPLIED (9 Sep).**
 Odom reported 0.9 mm of lateral drift over 3 m; the robot finished **10.9 cm
@@ -358,7 +394,7 @@ failed gate.
 
 | Track | Scope | Where |
 |---|---|---|
-| **A** — needs the robot | foundation → drive → odometry → SLAM → Nav2 | Day 1 done, **Day 2 done**. **Day 3 part done**: lidar driver built, `/scan` live, SLAM running. Remaining is all driving — `wheel_separation`, then the loop |
+| **A** — needs the robot | foundation → drive → odometry → SLAM → Nav2 | Day 1 done, **Day 2 done**. **Day 3 part done**: lidar driver built, `/scan` live, SLAM running. **Day 4 §1 done 10 Sep** — Nav2 ported, all 7 lifecycle nodes active, e-stop restored. Remaining is all driving — `wheel_separation`, the loop, then goals |
 | **B** — needs only Jetson + camera | uv env → calibration → detector | **`day-5-yolo.md` §1 is DONE, on Day 2.** Venv built and verified end to end; CUDA/cuDNN/TensorRT installed after finding them absent entirely. Next: camera **intrinsics** (Day 4 work, needs no robot) and **D-11** |
 
 Track B runs in the gaps of Track A. Start it Day 2, not Day 5 — it is the
@@ -483,9 +519,10 @@ This is the quick-reference mirror.
 | Lidar height above ground | **0.22** m | recovered |
 | `laser_frame` in `base_link` | **(−0.034, 0, 0.186)** | recovered |
 | X2 rays per scan | **350** | **measured 9 Sep** — recovered "400" was never counted |
-| X2 dropout fraction | **27.9%** of 350 rays | **measured 9 Sep** — ⚠ room-dependent, see below |
-| X2 dropout, right half | 5–28% | measured 9 Sep |
-| X2 dropout, left half | **46–70%** | measured 9 Sep — open floor, not necessarily the sensor |
+| X2 dropout fraction | **25.7%** of 350 rays | **re-measured 10 Sep** (was 27.9% on 9 Sep) — stable across two spots |
+| X2 dropout, worst sector | **43.8%** at −15° AHEAD | measured 10 Sep — was +75° LEFT at 69.6% on 9 Sep |
+| X2 dropout, best sector | **2.3%** at −165° BEHIND | measured 10 Sep |
+| X2 left-side deficit | ✅ **was the room, not the sensor** | settled 10 Sep — it did not follow the robot |
 | X2 measured rate | **11.57 Hz** | **confirmed 9 Sep**; recovered ~11.6 Hz was right |
 | `camera.fx` | — | ⚠ **still lost** |
 | `camera.fy` | — | ⚠ **still lost** |
@@ -556,4 +593,8 @@ report's methodology section.
 | 9 Sep | `ydlidar_ros2_driver` taken from the **`humble`** branch, not `master` | `master` is Dashing-era: `node_executable=` / `node_name=` in the launch files and one-argument `declare_parameter(name)`, which Humble deprecated and which throws with no override. `make lidar-deps` pins the branch and refuses a wrong checkout. |
 | 9 Sep | `src/ydlidar_ros2_driver/` gitignored, not vendored | Pristine upstream checkout at `humble` `4ef70d3`; `make lidar-deps` reproduces it exactly. Vendoring buries a large upstream diff in our history for no gain. |
 | 9 Sep | `nvidia-opencv` **not** installed | `checklists/day-5-yolo.md` §1 asks for JetPack's CUDA OpenCV; `cv_bridge` is built against Ubuntu's 4.5.4 and shadowing it six days out risks the image pipeline for no gain. **`cv2.cuda` is unavailable — reported limitation.** D-15. |
+| 10 Sep | Day 4 §1 done **before** Day 3's gate, inverting the checklist order | Porting Nav2 is what starts `twist_mux`, and `twist_mux` is the e-stop. Driving Day 3's loop first would have meant driving with no software stop. Desk work, no robot needed, so it cost nothing to reorder. |
+| 10 Sep | `nav2_params.yaml` ported wholesale; Day 4 §2's `robot_radius` rejected | The recovered file already *is* the derivation §2 asks for, annotated per-delta. `robot_radius` is forbidden by `CLAUDE.md` — the enclosing circle needs r≈0.30 against a 0.147 half-width and refuses doorways the robot fits. **D-17.** |
+| 10 Sep | `make teleop-nav` defaults to `SPEED=0.10`, not teleop's own 0.5 | 0.5 m/s is what smeared the Day 3 map (8.7 cm of scan shear per sweep). The e-stop is unaffected — `k` sends zeros at any speed. Override with `make teleop-nav SPEED=0.3`. |
+| 10 Sep | Day 4 §4's camera commands replaced | Checklist says `usb_cam` / `/camera/image_raw` / `8x6` / `0.025`. All four are wrong post-dump: it is `cam2image` on `/image`, board is **9×6 / 20 mm**, and `--no-service-check` is required because `cam2image` offers no `set_camera_info` service. |
 | 8 Sep | `cap_ws` created with only `Makefile` + `setup_udev.sh` | Day 1 needs no more than that. The rest of `my_bot` crosses over file by file on Day 2, re-verifying measured numbers as it goes (D-13). The recovered `99-my-bot-serial.rules` was **not** copied — its `KERNELS` paths are devkit-specific. |
