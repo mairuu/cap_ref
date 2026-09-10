@@ -29,12 +29,16 @@ reported limitation rather than a passed test — see the warning below.
 
 ## Right now
 
-**Next action:** three driving tasks, in this order. All need a person: the
+**Next action:** two driving tasks, in this order. Both need a person: the
 robot moves, and **`make teleop-nav` is the e-stop** (real again as of 10 Sep).
 
-1. **`calibrate_spin.py --turns 10`, and NOTE THE DIRECTION.** One run is done
-   (10 turns, odom +3600.32°, residual **−22°** → implied `wheel_separation`
-   **0.25154**, a 0.61 % error) but its direction was never recorded.
+> **The `wheel_separation` item that used to head this list is done** — settled
+> 10 Sep by inverting the formula, no driving required. See the callout below.
+> Day 3's gate is now **only** the closed loop.
+
+1. ~~**`calibrate_spin.py --turns 10`, and NOTE THE DIRECTION.**~~ ✅ **DONE
+   10 Sep, without driving.** See the settled callout below. Kept for the
+   reasoning, which still applies to any future spin:
 
    > **The old two-direction decision rule is retired — read this before
    > driving.** It expected a reverse run to separate a separation error from a
@@ -50,19 +54,26 @@ robot moves, and **`make teleop-nav` is the e-stop** (real again as of 10 Sep).
    > cleanly** — one run, either direction, settles it. Record the direction
    > anyway.
 
-   Outcome to record either way: whether **0.25168** (live, unprovenanced),
-   **0.25154** (the one logged run), or something else is right. Any change goes
-   into **both** `my_controllers.yaml` and `robot_core.xacro`
-   (`wheel_separation = 2 × wheel_offset_y`), then rebuild.
-2. **Drive the closed loop** — slowly, **at ~0.10 m/s**, then
-   `make save-map MAP=~/maps/day3-reference`. **This is the Day 3 gate.**
-3. **Then Day 4 §3:** RViz `2D Goal Pose` → arrives and stops; block it with a
+   Any future change goes into **both** `my_controllers.yaml` and
+   `robot_core.xacro` (`wheel_separation = 2 × wheel_offset_y`), then rebuild.
+
+1. **Drive the closed loop** — slowly, **at ~0.10 m/s**, then
+   `make save-map MAP=~/maps/day3-reference`. **This is the Day 3 gate**, and
+   now the only thing standing between here and Day 4's.
+2. **Then Day 4 §3:** RViz `2D Goal Pose` → arrives and stops; block it with a
    chair → recovery behaviours fire. **That is the Day 4 gate.**
+3. **Track B, any gap:** camera intrinsics (`cam2image` + `cameracalibrator`,
+   9×6 / 20 mm, `--no-service-check`). Needs no robot.
 
 > **The 0.2325 prediction is dead.** Day 2's eyeballed 90° implied a 7 % yaw
-> error; ten machine-counted turns say **0.61 %**, and in the opposite
-> direction. The eyeball was the error. **0.25 was right** — this is why that
-> prediction was written down as a prediction and not applied.
+> error; ten machine-counted turns say **0.61–0.67 %**, and in the opposite
+> direction. The eyeball was the error — which is exactly why that prediction
+> was written down as a prediction and not applied.
+>
+> ⚠ **But "0.25 was right" — an earlier version of this line — is also wrong.**
+> 0.25 is 0.67 % low, worth 2.4° of yaw per full turn. The eyeballed 7 % was
+> badly wrong about the *size*; it was not wrong that there was something to
+> correct. Settled value is **0.25168**.
 
 **The network is off the critical path now.** RViz can run on the laptop
 instead of on the Jetson, which frees the Orin's GPU during the driving tasks
@@ -110,16 +121,24 @@ measurement and the run only gives it once.
 
 > The map built at 0.5 m/s is not evidence. Discard it.
 
-> ⚠ **`wheel_separation` 0.25168 is live in the controller with no recorded
-> provenance** — not the 0.25154 the one recorded spin run implies. A
-> straight-line run will not test it; separation is a yaw term. Its
-> direction/turns/residual are still needed before it can go in
-> `records/calibration.md`.
+> ✅ **`wheel_separation` is SETTLED (10 Sep) — 0.25168 stays, and no driving
+> was needed.** `calibrate_correct.py`'s formula is one-parameter, so the
+> installed value inverts back to the reading that made it:
+> `0.25 × 3600.32/(3600.32 − 24.0) = 0.25168`, against
+> `0.25 × 3600.32/(3600.32 − 22.0) = 0.25154`. **Both are the same 9 Sep run** —
+> same odom reading, same starting 0.25 — with the floor residual read as −24°
+> when it was applied and −22° when it was written down. Nothing else fits
+> either number.
 >
-> **Correction (10 Sep): it IS committed**, in `db32d88`, paired with
-> `wheel_offset_y: 0.12584` in `robot_core.xacro` so the two stay consistent —
-> an earlier note here said "working tree, not committed" and that was wrong.
-> `cap_ws` is clean. What is missing is the *provenance*, not the commit.
+> **Kept at 0.25168.** The gap is 0.14 mm / 0.056 %, worth 0.05° of yaw over a
+> 90° turn and 0.20° over a full rotation — below the precision of reading a
+> chalk mark after ten turns. Churning it would record noise as a calibration,
+> the same reason `wheel_radius` stayed 0.0327.
+>
+> **What is resolved is that 0.25 was wrong:** both readings put the separation
+> 0.61–0.67 % high, i.e. 2.2–2.4° of yaw per full turn. The correction is real;
+> the fifth decimal is not. Full derivation in `records/calibration.md`.
+> Committed in `cap_ws` `db32d88`, paired with `wheel_offset_y: 0.12584`.
 
 > ✅ **`make teleop-nav` IS the e-stop again — restored 10 Sep.** The rule has
 > flipped back. `navigation.launch.py` and `nav2_params.yaml` are ported, all
@@ -514,7 +533,7 @@ This is the quick-reference mirror.
 | `enc_counts_per_rev_left` | **2475** | recovered |
 | `enc_counts_per_rev_right` | **2470** | recovered — near-equal on purpose |
 | `wheel_radius` | **0.0327** m | recovered, tape-calibrated |
-| `wheel_separation` | **0.25** m | recovered, contact-patch. Spin test 9 Sep implies **0.25154** (0.61 %) — **not applied**, needs the reverse-direction run |
+| `wheel_separation` | **0.25168** m | ✅ **settled 10 Sep.** 9 Sep spin run, residual −24°. Installed, committed, = 2 × `wheel_offset_y` 0.12584. Recovered 0.25 was 0.67 % low |
 | `wheel_offset_x / _y` | **0.255 / 0.125** m | recovered |
 | Lidar height above ground | **0.22** m | recovered |
 | `laser_frame` in `base_link` | **(−0.034, 0, 0.186)** | recovered |

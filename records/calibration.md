@@ -851,9 +851,69 @@ cancels.
 > decomposition is: straight run → asymmetry (lateral) and mean radius (tape);
 > spin → mean radius × separation.
 
-> ⚠ **`wheel_separation` 0.25168 remains unprovenanced.** Applied by hand 9 Sep,
-> not the 0.25154 the one logged spin run implies, and that run's direction was
-> never noted.
+> ~~⚠ **`wheel_separation` 0.25168 remains unprovenanced.**~~ **Recovered
+> 10 Sep — see below.** It is the same 9 Sep run, read 2° differently.
+
+### `wheel_separation` — **SETTLED 2026-09-10, by inversion not by driving**
+
+**Method:** no new run. `scripts/calibrate_correct.py` computes the separation
+from a spin with a single-parameter formula (lines 280–282):
+
+```
+physical = spin_odom_deg + spin_error_deg
+ratio    = spin_odom_deg / physical
+new_sep  = sep * ratio            # sep read from the INSTALLED my_controllers.yaml
+```
+
+With `spin_odom_deg` fixed at the logged **3600.32°** and `sep` at the
+then-installed **0.25**, the residual is the only free variable, so the
+installed value can be inverted back to the reading that produced it:
+
+| Residual read | physical | ratio | new_sep | |
+|---|---|---|---|---|
+| −22.0° | 3578.32 | 1.0061481 | 0.2515370 | **0.25154** — the figure in `STATE.md` |
+| −23.0° | 3577.32 | 1.0064294 | 0.2516073 | 0.25161 |
+| **−24.0°** | **3576.32** | **1.0067108** | **0.2516777** | **0.25168** — the figure **installed** |
+
+**Both figures are the same run.** Same odom reading, same starting 0.25. The
+only difference is the floor residual being read as **−24°** when the value was
+applied and written down as **−22°** afterwards. Nothing else fits either
+number, and −24.0 hits 0.25168 to five decimals exactly. **There was never a
+second method or an unrecorded measurement** — which is why this was settleable
+from the desk, with the robot switched off.
+
+**Decision: keep 0.25168. Do not churn it to 0.25154.**
+
+| | |
+|---|---|
+| Gap between the two | **0.00014 m — 0.14 mm, 0.056 %** |
+| Yaw error that implies over a 90° turn | **0.05°** |
+| …over a full 360° rotation | **0.20°** |
+
+That is far below the precision of reading a chalk mark off a floor after ten
+turns: the reading would have to be good to ~1° to justify the fifth decimal,
+and the two records differ by 2°. Moving the value would be **recording noise as
+a calibration** — the same reasoning that left `wheel_radius` at 0.0327 on 9 Sep
+rather than taking the 0.03264 the straight run suggested.
+
+> ✅ **What IS resolved, and it is the part that matters:** 0.25 is wrong. Both
+> readings put the separation **0.61–0.67 % high**, i.e. **2.2–2.4° of yaw error
+> per full turn**, and 0.25 requires a residual of exactly zero to be right.
+> **The correction is real; the fifth decimal place is not.**
+
+**Direction of the run is still unrecorded, and it no longer blocks anything.**
+The old rule wanted a reverse run to separate a separation error from a wheel
+asymmetry by sign, but in a spin the wheels counter-rotate, so a per-wheel
+radius error enters yaw with the same sign on both sides and cancels — it
+surfaces as the robot's centre translating, not as residual heading. A reverse
+run would not have discriminated. The asymmetry was independently measured and
+applied on 9 Sep (`1.002982` / `0.997018`) and verified at ~0.1° of heading
+change over 3 m, so the spin residual already reads separation cleanly.
+
+**Installed and consistent:** `my_controllers.yaml` `wheel_separation: 0.25168`
+= 2 × `robot_core.xacro` `wheel_offset_y: 0.12584`, committed in `cap_ws`
+`db32d88`. Re-derive only if a driven loop shows yaw drift that scan matching
+cannot absorb.
 
 ---
 
