@@ -761,9 +761,27 @@ printed board cannot corrupt a bearing either; `atan((u − cx)/fx)` carries no
 length. An earlier version of this entry said the opposite.
 
 **To settle it, measure against a tape:** `make calib-scale`. That is the only
-check with an absolute length in it. On 11 Sep it returned slope 1.0117 over
-three distances, pinning the true `fx` at **664.87** and confirming the camera
-at **~51° HFOV, not the ~62° this project had assumed**.
+check with an absolute length in it, and it is what confirmed this camera at
+**~51° HFOV against an assumed ~62°** — a 20% error, eight sigma.
+
+### `calib-scale` gives a different answer every time you run it
+Because it is a regression with very few points, and you are reading more
+decimals out of it than it has. `SE(slope) = σ/√Sxx` — the scatter divided by
+the **spread of the stations**, with `n−2` degrees of freedom. Three stations
+over 0.4–1.0 m and 11 mm of scatter is **±2.6% at 1σ**, so two honest runs came
+back 1.1% apart (`fx_true` 664.87 and 672.36) and both were right.
+
+- **Use the six-station default**, 0.4–1.5 m. Precision goes as `1/√Σ(D−D̄)²`,
+  so one extra station far out is worth several near ones: same scatter, SE
+  ±1.2% instead of ±2.6%.
+- **Read the SE line the script prints**, not just the percentage. When the
+  offset is inside the noise it now says so, and that sentence means *do not
+  quote this number as an agreement*.
+- **Brace the board.** Spread at a single station is hand-shake once the focus
+  is locked; the median absorbs it, but it inflates σ and therefore the SE.
+- A **negative** intercept is unphysical — the entrance pupil sits behind the
+  lens front, so measuring from the front should under-read. A small negative
+  one (−6 mm was seen) just means the noise is comparable to the offset.
 
 ### Every landmark is offset by a constant angle, but the map scale looks right
 Suspect `cx`, not `fx`. `cx` enters `atan((u − cx)/fx)` as a constant bearing

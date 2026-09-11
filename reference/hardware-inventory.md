@@ -72,7 +72,7 @@ Full pin table and the encoder-pin conflict: `reference/firmware-protocol.md`.
 | Native mode | 480 × 640, 15 Hz |
 | Horizontal FOV | **~51° MEASURED** at 640×480 (50.9° from calibration, 51.4° from a tape). ⚠ The "roughly 62°" carried here before 11 Sep was a **pre-dump guess and is wrong** — a vendor diagonal quoted for 16:9 does not survive the crop to 4:3. |
 | Autofocus | ⚠ **Varifocal, AF on by default — AF moves `fx`.** Lock it: `make camera` sets `focus_automatic_continuous=0` and `focus_absolute=51`. **Same value for calibration and for the demo.** Sharp from ~0.4 m to far. |
-| `fx / fy / cx / cy` | **667.874 / 669.846 / 321.569 / 234.502** at 640×480, 11 Sep. Reprojection **0.3403 px** over 59 images (80 captured, boards under 0.30 m excluded); **+0.45% against a tape measure.** `records/calibration.md`. |
+| `fx / fy / cx / cy` | **667.874 / 669.846 / 321.569 / 234.502** at 640×480, 11 Sep. Reprojection **0.3403 px** over 59 images (80 captured, boards under 0.30 m excluded). Tape-checked twice, both PASS; pooled tape estimate 668.6, i.e. **−0.11%** — but each tape run is only **±2.6%** precise. `records/calibration.md`. |
 | Checkerboard used | **9×6, 20 mm squares** — recovered from `.bash_history` |
 | Extrinsics from `base_link` | **Measured 9 Sep and in the URDF** — `camera_link` at (0.05, 0.03, 0.167), pitch −3°. `description/camera.xacro` is the single source (D-10); the semantic node reads TF, not params. ⚠ the +y (left) **side** was assumed, not measured — magnitude 3 cm is real. |
 

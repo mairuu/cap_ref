@@ -226,14 +226,24 @@ model thinks the distance is against what the tape says: **slope 1.000 means
 `fx` is right**, and the intercept absorbs the entrance-pupil offset — which is
 why it asks for more than one distance rather than trusting any single one.
 
-- [ ] Slope within **2%** of 1.000
+- [ ] Slope within the tolerance the script prints — **2%, or the run's own 2σ
+      if that is wider**. It now tells you which, and refuses to dress noise up
+      as agreement.
 - [ ] Slope recorded in `records/calibration.md` alongside `fx`
 
-> ✅ **Passed 11 Sep: slope 1.0117 over three distances**, residuals ±9 mm,
-> intercept 19.3 mm — giving the tape's own `fx = 664.87`. That is what makes
-> the installed **fx 667.874 · fy 669.846 · cx 321.569 · cy 234.502**
-> trustworthy, at **+0.45%**. The reprojection error alone was not, and the
-> first attempt proves it: it scored *better* (0.3651 px) while being 17.5%
+> ✅ **Passed 11 Sep, twice** — slopes 1.0117 and 0.9933, giving `fx_true`
+> 664.87 and 672.36. The installed **fx 667.874 · fy 669.846 · cx 321.569 ·
+> cy 234.502** sits −0.11% from their mean.
+>
+> ⚠ **But read the standard error before quoting any of those decimals.** Three
+> stations over 0.4–1.0 m gives `SE(slope)` = **±2.6%**, which is why the two
+> runs differ by 1.1% and why neither can choose between 667.87 and 672.65.
+> **Use the six-station default** (0.4–1.5 m, SE ±1.2%); precision goes as
+> `1/√Σ(D−D̄)²`, so reaching further out beats repeating the near stations.
+>
+> What this check *is* for: catching a grossly wrong `fx`. It is what caught
+> ~51° against the assumed ~62°, at eight sigma. The reprojection error catches
+> nothing here — the first attempt scored *better* (0.3651 px) while being 17.5%
 > unstable in `fx`.
 - [ ] Off by more than that? **Recalibrate — do not scale `fx` by the ratio.**
       Fix the cause (focus lock, depth spread), then recapture.

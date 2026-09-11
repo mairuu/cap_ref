@@ -119,9 +119,21 @@ robot moves, and **`make teleop-nav` is the e-stop** (real again as of 10 Sep).
    a tape measure.** Installed at `my_bot/config/c615_640x480.yaml`:
 
    **fx 667.874 · fy 669.846 · cx 321.569 · cy 234.502**
-   reprojection **0.3403 px**, focus **locked at 51**, **+0.45% against a tape
-   measure.** 80 images captured, refit on the 59 at or beyond 0.30 m —
-   `make calib-report` now takes `--min-depth` for exactly this.
+   reprojection **0.3403 px**, focus **locked at 51**. 80 images captured, refit
+   on the 59 at or beyond 0.30 m — `make calib-report` takes `--min-depth` for
+   exactly this. **Tape-checked twice, both PASS**; pooled tape estimate 668.6,
+   installed value −0.11% from it.
+
+   > ⚠ **Do not quote the tape to better than a couple of percent.** Two runs of
+   > three stations returned `fx_true` **664.87** and **672.36** — 1.1% apart,
+   > because `SE(slope) = σ/√Sxx` is **±2.6%** at that span and scatter. The
+   > ±2% gate the script shipped with was tighter than its own precision and has
+   > been corrected: it now reports σ, span, SE and dof, widens the tolerance to
+   > its own 2σ, and defaults to **six stations out to 1.5 m** (SE ±1.2%).
+   >
+   > **What the tape settles beyond doubt is the ~51° vs ~62° question** — a 20%
+   > error is eight sigma. What it cannot do is choose between 667.87 and
+   > 672.65. The refit is installed on the strength of **`cx`**, not the tape.
 
    > **The trim was worth it for `cx`, not for the RMS.** It moved 331.19 →
    > 321.57, and `cx` biases *every* bearing by a constant: 9.6 px at fx 668 is

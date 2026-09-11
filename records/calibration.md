@@ -645,7 +645,7 @@ and cross-checked against a physical length, which is the part that matters.
 | `cy` | **234.5015** |
 | Distortion coefficients | `[-0.062931, 0.057181, -0.001224, 0.000858, 0.0]` |
 | **Reprojection error** | **0.3403 px** — passes the < 0.5 gate |
-| **Tape-measure check** | `fx` is **+0.45%** above the tape's 664.87 |
+| **Tape-measure check** | **PASS**, twice. Pooled tape estimate **668.6**; installed value is **−0.11%** from it. Each run is only ±2.6% precise — see below |
 | Measured HFOV | **51.2°** H / 39.4° V (independently 51.4° from the tape) |
 | Board depth range | 0.30 – 0.83 m (2.7×) |
 | Checkerboard | 9×6, 20 mm |
@@ -664,17 +664,25 @@ A locked focus makes near boards soft, and the soft ones carry the residual.
 Trimming them is strictly better on every axis — including the one that is not
 self-referential, the tape:
 
-| fit | n | RMS | `fx` | `cx` | vs tape 664.87 |
+| fit | n | RMS | `fx` | `cx` | vs pooled tape 668.6 |
 |---|---|---|---|---|---|
-| all 80, as shipped | 80 | 0.4464 | 672.65 | 331.19 | **+1.17%** |
-| **refit, ≥ 0.30 m** | **59** | **0.3403** | **667.87** | **321.57** | **+0.45%** |
-| refit, ≥ 0.35 m | 54 | 0.3156 | 663.30 | 308.4 | −0.23% ⚠ |
+| all 80, as shipped | 80 | 0.4464 | 672.65 | 331.19 | +0.60% |
+| **refit, ≥ 0.30 m** | **59** | **0.3403** | **667.87** | **321.57** | **−0.11%** |
+| refit, ≥ 0.35 m | 54 | 0.3156 | 663.30 | 308.4 | −0.79% ⚠ |
 
-**`cx` is the reason this was worth doing, not the RMS.** `cx` offsets every
-bearing by a constant: the 9.6 px it moved is `atan(9.6/668)` = **0.82° of
-systematic pointing bias** removed from every landmark the semantic layer ever
-places. 321.57 also sits where a webcam's principal point ought to, on the frame
-centre.
+> ⚠ **Correction. An earlier version of this table justified the refit on the
+> tape**, quoting +0.45% against +1.17% as though the tape had chosen between
+> them. It had not and cannot: a single run of that test is only ±2.6% precise,
+> and running it a second time moved its own answer by 1.1%. **All three fits
+> are inside the tape's noise.** The pooled column above is a weak preference,
+> not evidence.
+
+**`cx` is the reason this was worth doing — not the RMS, and not the tape.**
+`cx` offsets every bearing by a constant: the 9.6 px it moved is
+`atan(9.6/668)` = **0.82° of systematic pointing bias** removed from every
+landmark the semantic layer ever places. 321.57 also sits where a webcam's
+principal point ought to, on the frame centre. Unlike `fx`, that argument does
+not depend on a measurement with ±2.6% noise in it.
 
 > ⚠ **Do not trim further.** The 0.35 m cut scores better again and is worse:
 > `cx` swings out to 308.4. The near views are what constrain the wide end of
@@ -687,29 +695,48 @@ centre.
 > **−0.398**, a large high-order term fitted from fewer near-edge views — a
 > different camera model smuggled in under the name of a trim.
 
-### The tape-measure check is what makes this trustworthy
+### The tape-measure check — what it settles, and what it cannot
 
-`scripts/camera_check_scale.py`, three distances, board flat-on:
+`scripts/camera_check_scale.py`, run twice on 11 Sep, each time three stations
+at 0.4 / 0.7 / 1.0 m with the board flat-on:
 
-```
-Z = 1.0117 * D + 0.0193
-residuals  [-4.5, 9.0, -4.5] mm
-fx in config      672.65   (HFOV 50.9 deg)
-fx from the tape  664.85   (HFOV 51.4 deg)   -> config is +1.2% off. PASS.
-```
+| run | config `fx` at the time | slope | intercept | `fx_true` = config/slope |
+|---|---|---|---|---|
+| 1 | 672.6463 | 1.0117 | +19.3 mm | **664.87** |
+| 2 | 667.8740 | 0.9933 | −5.9 mm | **672.36** |
 
-**That was measured against the 80-image fit.** The tape's own answer,
-`fx_true = fx_config / slope = 672.6463 / 1.0117 = **664.87**`, does not depend
-on which config it was compared against — so the installed refit's 667.87 is
-**+0.45%**, comfortably inside the 2% gate. Worth re-running `make calib-scale`
-against the installed file when the board is next to hand, but the arithmetic
-does not need it.
+**The two runs disagree by 1.1%, and that is the important result.**
+`fx_true` is supposed to be an absolute anchor independent of the config it was
+compared against. It did not reproduce, so the first thing to establish is how
+precisely this test measures anything.
 
-±9 mm of residual over a 0.4–1.0 m span is a straight line, and the 19.3 mm
-intercept is a believable entrance-pupil offset — the regression absorbs it so
-it never enters `fx`. **Nothing inside a chessboard calibration can do this
-check**: reprojection error is computed in pixels against the same
-self-consistent fit, and a chessboard carries no absolute length.
+`SE(slope) = σ / √Sxx` — the scatter divided by the *spread* of the stations.
+With σ = 11.0 mm, `Sxx` = 0.18 m² and one degree of freedom:
+
+> **SE(slope) = ±2.6% at 1σ.**
+
+So each run pins `fx` to about ±2.6%, the two runs differ by 1.1%, and **that
+difference is comfortably inside the noise.** The 1.0117 and 0.9933 slopes are
+the same measurement twice.
+
+> ⚠ **The ±2% gate this script shipped with was tighter than its own
+> precision.** It passed both runs while implying an accuracy neither had.
+> Corrected: the script now prints σ, the span, `SE(slope)` and its dof, widens
+> the tolerance to the run's own 2σ when that exceeds 2%, and says explicitly
+> when a residual offset is inside the noise. The default sweep is now **six
+> stations from 0.4 to 1.5 m** — precision goes as `1/√Σ(D−D̄)²`, so reaching
+> further out is worth far more than repeating the near stations. At the same
+> scatter that takes SE from 2.6% to **1.2%**.
+
+**What the test does establish, beyond any doubt:** the camera is **~51° HFOV,
+not the ~62°** this project assumed. That is a 20% error, or **eight sigma**.
+The tool is fit for the purpose it was built for — catching a grossly wrong
+`fx` — and unfit for adjudicating fractions of a percent. Both facts matter.
+
+**Pooling the two runs** gives `fx` ≈ **668.6**, and the installed 667.874 sits
+**−0.11%** from it (the 80-image fit is +0.60%). That is a weak preference, not
+a proof: at ±2.6% per run the tape cannot choose between 667.87 and 672.65.
+**The case for the installed refit rests on `cx` and the RMS, not on the tape.**
 
 ### ⚠ The C615's HFOV is ~51°, not the ~62° this project assumed
 
