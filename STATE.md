@@ -3,7 +3,7 @@
 > **Update this at the end of every session and whenever a gate passes.**
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
-**Last updated:** 11 Sep 2026 — **Day 4 in progress: camera capture outstanding; RViz rubber band half-diagnosed; multi-machine ROS 2 is DOWN**
+**Last updated:** 11 Sep 2026 (evening) — **Day 4 in progress: SLAM retuned to trust odometry (D-18), ready for the driving session; camera recapture outstanding; multi-machine ROS 2 is DOWN**
 
 > ⛔ **Multi-machine ROS 2 stopped working — found 11 Sep.** Both machines left
 > the hotspot and are on **different subnets** (Jetson `192.168.160.106/22`
@@ -23,6 +23,19 @@
 > `ros2 run my_bot check_pose_stability.py --seconds 30`.
 > Baseline numbers in `records/calibration.md`; the four causes and what each
 > looks like are in the symptom index.
+>
+> ✅ **The config review for (3) is done and applied — D-18, 11 Sep evening.**
+> The matcher had a ±25 cm / ±20° search window per keyframe with an odometry
+> penalty of 0.95 at the window edge — odometry had no effective vote, against
+> a measured ~1 cm / ~0.01° of odom error per 0.2 m keyframe. Now ±15 cm /
+> ±10° with `distance_variance_penalty` 0.1 and `angle_variance_penalty` 0.2
+> (verified against the humble-branch `Mapper.cpp`: the penalty is
+> `1 − 0.2·d²/p²` and the setter squares `p`). **Odometry covariance was
+> confirmed a red herring** — slam_toolbox reads TF, not `/diff_cont/odom`.
+> Also added a **hard velocity ceiling in `diff_cont`** (0.15 m/s, 0.5 rad/s)
+> so a stray `q` can never reproduce the 10 Sep shear. Rebuilt; installed
+> copies verified; committed and pushed as `cap_ws` `257d4f1`. Both are untested on a moving robot: the next driving session
+> is the test.
 **Current day:** Day 4. §1 (Nav2 port) **done and verified**; Day 3's gate is
 still the blocker and both remaining items need the robot driven.
 **Multi-machine ROS 2 is up (9 Sep)** — RViz and teleop can run off-board on
@@ -80,6 +93,16 @@ robot moves, and **`make teleop-nav` is the e-stop** (real again as of 10 Sep).
    `make save-map MAP=~/maps/day3-reference`. **This is the Day 3 gate**, and
    now the only thing standing between here and Day 4's.
 
+   > **Run `check_pose_stability.py --seconds 30` in a fifth terminal during
+   > the first minute of driving (D-18).** Read the `map -> odom CORRECTION`
+   > section: total path of the correction close to the net means the matcher
+   > is quiet and odom is trusted. Total path far above net means it is still
+   > fighting → next step is `distance_variance_penalty: 0.05`, not a wider
+   > window. Pose steady but walls elongated → shear → speed, which the new
+   > controller ceiling of 0.15 m/s should now make impossible from teleop.
+   > First thing to confirm on bring-up: `ros2 param get /diff_cont
+   > linear.x.max_velocity` → 0.15, and that `make teleop-nav` still drives.
+
    > ⚠ **Do not touch `q` during the run.** `teleop_twist_keyboard`'s `q`
    > raises speed **permanently** until `z` lowers it, and the current value is
    > shown only in the teleop terminal — which nobody is watching while looking
@@ -92,44 +115,33 @@ robot moves, and **`make teleop-nav` is the e-stop** (real again as of 10 Sep).
    > the scan, so the doubled wall stays drawn. Start from a fresh `make slam`.
 2. **Then Day 4 §3:** RViz `2D Goal Pose` → arrives and stops; block it with a
    chair → recovery behaviours fire. **That is the Day 4 gate.**
-3. **Track B — camera intrinsics: captured 11 Sep, PASSED the gate, and
-   `fx` is still not trustworthy.** Installed at
-   `my_bot/config/c615_640x480.yaml`: **fx 714.63 · fy 718.01 · cx 321.15 ·
-   cy 241.42, reprojection 0.3651 px over 48 images.** Full derivation and the
-   subset table are in `records/calibration.md`.
+3. ~~**Track B — camera intrinsics.**~~ ✅ **DONE 11 Sep, and validated against
+   a tape measure.** Installed at `my_bot/config/c615_640x480.yaml`:
 
-   > ⚠ **Two things do not add up, and they point the same way.** The implied
-   > HFOV is **48.2°** against the C615's ~62° spec; and splitting the same 48
-   > images by capture order gives **fx 819.74** (first 29) against **676.30**
-   > (last 19) — **17.5% apart**, with the *better*-scoring half the more
-   > suspect one (RMS 0.15 vs 0.53, but `cx` adrift at 391.7).
-   >
-   > **Autofocus was on during the capture.** The C615 is varifocal, so `fx`
-   > moves when the lens refocuses — and with AF enabled the driver moved
-   > `focus_absolute` 51 → 85 on its own while we watched. That also means the
-   > lens keeps drifting at *run* time, not just during calibration.
+   **fx 672.646 · fy 674.368 · cx 331.193 · cy 235.703**
+   reprojection **0.4464 px** over 80 images, focus **locked at 51**,
+   **tape-measure slope 1.0117 → `fx` is +1.2% high. PASS.**
 
-   **Next, in this order — all desk work, no robot:**
+   > **The ~62° HFOV this project assumed was wrong.** The camera is **~51°** —
+   > 50.9° from the calibration and 51.4° from the tape, independently. The 62°
+   > in `reference/hardware-inventory.md` was a pre-dump guess, now corrected,
+   > and `camera_calib_report.py`'s reference value with it. **Anything still
+   > assuming ~62°, or `fx` near the node's `554.0` default, is ~20% wrong.**
 
-   ```bash
-   make camera        # now locks focus (FOCUS=51) before starting cam2image
-   make calib         # recapture, sweeping the board through a WIDE depth range
-   make calib-report  # wants depth ratio >= 2.5x and cx/cy near (320, 240)
-   make calib-scale   # the tape-measure check: slope must be 1.000 +/- 2%
-   ```
+   > **Autofocus was the whole problem, and the numbers close the loop.** The
+   > first attempt (AF on) passed the gate at 0.3651 px and was wrong: split by
+   > capture order it gave fx **819.74** (first 29) against **676.30** (last
+   > 19). That `676.30` — the frames after the lens settled — sits alongside the
+   > focus-locked **672.65** and the tape's **664.85**, all inside 1.7%. The
+   > outlier was the AF-hunting, depth-degenerate opening. **`make camera` now
+   > locks focus; use the same `FOCUS` for the demo as for the calibration.**
 
-   > **`make calib-scale` is the only check with an absolute length in it.**
-   > Nothing inside a chessboard calibration can tell you `fx` is wrong —
-   > reprojection error is computed in pixels against the same self-consistent
-   > fit. It puts the board at tape-measured distances and regresses model
-   > against tape; the intercept absorbs the entrance-pupil offset, which is why
-   > it wants two or more distances.
-
-   > ✅ **Settled, and it reverses what this file said earlier today:** `fx` is
-   > *exactly* invariant to square size (seven significant figures across a 2.5×
-   > change in `--square`). **A mis-scaled printout cannot corrupt a bearing** —
-   > `atan((u − cx)/fx)` has no length in it. Do not spend time measuring the
-   > board; spend it on focus lock and depth spread.
+   > **Still outstanding, and it is Day 6 work, not Day 4:** the semantic node's
+   > built-in `554.0` intrinsics must be **deleted** when the September
+   > `semantic_objects` tree is rebuilt, so a missing params file fails loudly
+   > instead of quietly mapping the room 20% off. The only surviving copy is the
+   > June-era `semantic-object-ros/semantic_objects/semantic_objects_node.py`
+   > lines 144–145, which is reference-only and does not run.
 
 > **The 0.2325 prediction is dead.** Day 2's eyeballed 90° implied a 7 % yaw
 > error; ten machine-counted turns say **0.61–0.67 %**, and in the opposite
@@ -697,9 +709,11 @@ report's methodology section.
 | 10 Sep | Day 4 §1 done **before** Day 3's gate, inverting the checklist order | Porting Nav2 is what starts `twist_mux`, and `twist_mux` is the e-stop. Driving Day 3's loop first would have meant driving with no software stop. Desk work, no robot needed, so it cost nothing to reorder. |
 | 10 Sep | `nav2_params.yaml` ported wholesale; Day 4 §2's `robot_radius` rejected | The recovered file already *is* the derivation §2 asks for, annotated per-delta. `robot_radius` is forbidden by `CLAUDE.md` — the enclosing circle needs r≈0.30 against a 0.147 half-width and refuses doorways the robot fits. **D-17.** |
 | 10 Sep | `make teleop-nav` defaults to `SPEED=0.10`, not teleop's own 0.5 | 0.5 m/s is what smeared the Day 3 map (8.7 cm of scan shear per sweep). The e-stop is unaffected — `k` sends zeros at any speed. Override with `make teleop-nav SPEED=0.3`. |
+| 11 Sep | slam_toolbox matcher retuned to trust odometry; hard velocity ceiling added to `diff_cont` | Upstream matcher params let the scan matcher wander ±25 cm / ±20° per keyframe with no effective odometry penalty, against ~1 cm of measured odom error per keyframe. Nothing capped speed during manual driving. **D-18.** Untested while moving until the next driving session. |
 | 10 Sep | Day 4 §4's camera commands replaced | Checklist says `usb_cam` / `/camera/image_raw` / `8x6` / `0.025`. All four are wrong post-dump: it is `cam2image` on `/image`, board is **9×6 / 20 mm**, and `--no-service-check` is required because `cam2image` offers no `set_camera_info` service. |
 | 11 Sep | Day 4 §4 **rewritten in the file**, not only logged | The 10 Sep row above recorded the replacement but `checklists/day-4-nav2.md` still carried the `usb_cam` / `8x6` / `0.025` commands. Now rewritten, with `make camera` / `make calib` / `make calib-report` added to the Makefile so the corrected form is the one that runs. |
 | 11 Sep | Two scripts added rather than walking the calibration by hand | `camera_calib_report.py` exists because `cameracalibrator` computes the reprojection error and discards it — the Day 4 gate is otherwise unmeasurable. `make_checkerboard.py` exists because a mis-scaled printout is invisible to that error. Working agreement: a bring-up step that needs a measurement gets a script. |
+| 11 Sep | `reference/hardware-inventory.md`'s ~62° HFOV corrected to ~51° measured | Two independent measurements on this camera agree at ~51° and the spec figure was a pre-dump guess. It was not harmless: it fired a false "fx may be wrong" warning on two good calibrations, and it is the same 20% error carried by the node's `554.0` default. `camera_calib_report.py`'s reference is now the measured value, annotated as such. |
 | 11 Sep | Focus lock folded into `make camera` rather than left as a checklist line | The C615 is varifocal and autofocus moves `fx`. A step that must hold identically at calibration time and at demo time is not a thing to remember — it belongs in the target that starts the camera. `FOCUS=auto` restores AF for anything that genuinely wants it. |
 | 11 Sep | `make calib-scale` added; the Day 4 gate gains a second camera condition | Reprojection error cannot see a wrong `fx` — it is pixels against a self-consistent fit. The 11 Sep run passed at 0.3651 px while being 17.5% unstable internally. A tape measure is the only independent length available, so the gate now requires it. |
 | 11 Sep | `/image/compressed` dropped as a Day 4 checkbox | It does not exist. `cam2image` uses a plain `rclcpp` publisher, not `image_transport`, so no transport plugin ever attaches — confirmed on the live node. Becomes a Day 6 decision: an `image_transport republish` node, or a different camera driver. |

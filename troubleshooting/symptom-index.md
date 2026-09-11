@@ -510,6 +510,14 @@ ros2 run my_bot check_pose_stability.py --seconds 30 --check-peer ju@172.20.10.5
    finally does match.
 3. **The scan matcher fighting odometry.** The correction *oscillates* rather
    than drifts — it travels far more than it nets. That is the snap-back.
+   **Config cause found and fixed 11 Sep (D-18), untested while moving:** the
+   upstream matcher params gave a ±25 cm / ±20° search window per keyframe with
+   an odometry penalty of 0.95 at the edge, against ~1 cm of real odom error per
+   keyframe. Along a plain wall the correlation ridge is flat, so the matcher
+   picks a different spot on it every keyframe. Fix: `distance_variance_penalty`
+   0.1, `angle_variance_penalty` 0.2, window ±15 cm / ±10°. **The knob is those
+   two penalties, not odometry covariance** — slam_toolbox takes odom from TF and
+   never reads `/diff_cont/odom`. If it persists: 0.05, not a wider window.
 4. **Clock skew to the RViz laptop.** Since 9 Sep RViz runs on the laptop, and
    RViz resolves every transform against **its own** clock. Two clocks more than
    ~50 ms apart draw the robot and the map at different instants. **This one is

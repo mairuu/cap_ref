@@ -340,6 +340,73 @@ than it occupies, and a doorway refusal should be checked against that before
 
 ---
 
+## D-18 · Trust odometry: tighten the scan matcher, cap velocity in the controller
+
+**Date:** 2026-09-11 · **Status:** adopted — **untested on a moving robot**
+
+Five `slam_toolbox` scan-matcher parameters and six new `diff_cont` velocity
+limits, both in `cap_ws/src/my_bot/config/`:
+
+| Parameter | Was (upstream) | Now |
+|---|---|---|
+| `correlation_search_space_dimension` | 0.5 (±25 cm) | **0.3** (±15 cm) |
+| `coarse_search_angle_offset` | 0.349 (±20°) | **0.175** (±10°) |
+| `distance_variance_penalty` | 0.5 | **0.1** |
+| `angle_variance_penalty` | 1.0 | **0.2** |
+| `minimum_angle_penalty` | 0.9 | **0.8** |
+| `diff_cont` `linear.x` velocity limit | none | **±0.15 m/s** |
+| `diff_cont` `angular.z` velocity limit | none | **±0.5 rad/s** |
+
+**Why:** the sequential scan matcher is the one rubber-band cause not yet
+eliminated on this board (symptom index, cause 3). Reading the humble-branch
+`karto_sdk/Mapper.cpp` settled how the "trust odometry" mechanism actually
+works: each candidate pose's correlation score is multiplied by
+`1 − 0.2·d²/p²` (floored at `minimum_distance_penalty`), `d` being the offset
+from the odometry-predicted pose and `p` the configured value **squared by the
+setter**; the best candidate is then applied with no response gate. At upstream
+values the penalty is 0.95 at the very edge of the ±25 cm window and 0.976 at
+±20° — odometry had no effective vote. Measured odometry error per 0.2 m
+keyframe after the 9–10 Sep corrections is ~1 cm and ~0.01°, so the window was
+25× the error budget in translation and ~100× in yaw. Along a plain wall the
+correlation ridge is flat and the matcher lands anywhere on it, differently at
+each keyframe — exactly the oscillation `check_pose_stability.py` looks for.
+With the new values, 5 cm off odom costs 5 % of score, 10 cm costs 20 %; 5.7°
+costs 5 %. The window stays 10× the error budget so wheel slip is still
+recoverable. Loop closure uses a separate matcher with `doPenalize=false` and is
+untouched; the gate is a loop closure and must stay one.
+
+**Odometry covariance is a red herring and was deliberately not set.**
+`slam_toolbox` never subscribes to `/diff_cont/odom`; it takes odometry from
+the `odom → base_footprint` TF edge. Nav2 ignores the covariance too. It only
+matters to an EKF, and there is no EKF because there is no IMU.
+
+The velocity ceiling is about **shear**, the other smear mechanism. Nothing
+capped speed during manual driving: `teleop_twist_keyboard`'s `q` raises speed
+10 % per press without limit, and the 10 Sep attempt smeared on straight
+sections after one such moment (4.4 cm of shear per 89 ms sweep at 0.5 m/s
+against 0.9 cm at 0.10). `diff_cont` sits below `twist_mux`, both teleops and
+Nav2's recoveries, so it is the one place a cap covers every path to the
+wheels. Odometry is unaffected — limits apply to wheel commands; odom is
+integrated from encoder positions. Nav2 never reaches the cap
+(`velocity_smoother` 0.055 m/s / 0.125 rad/s, `behavior_server` 0.1 rad/s).
+
+**Cost:** if the matcher was *not* the problem, tighter penalties can hide a
+real odometry fault by making the map follow odom more faithfully — the map
+would drift with odom instead of oscillating. The 9–10 Sep calibration runs
+make that unlikely, and `check_pose_stability.py` still reports the net
+correction, which is where such drift would show. A robot that slips more than
+15 cm in one keyframe (a shove, a cable) is now beyond the search window and
+will need a fresh `make slam`. The velocity cap also means `make teleop-nav
+SPEED=0.3` silently drives at 0.15.
+
+**Limitation to report:** tuned from the penalty maths and the calibration
+numbers, not from a driven A/B. The next driving session is the test; if
+`check_pose_stability.py` still shows the correction travelling far more than
+it nets, the next step is `distance_variance_penalty: 0.05`, not a wider
+window.
+
+---
+
 ## Template
 
 ```
