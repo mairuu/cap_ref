@@ -413,6 +413,68 @@ figure:** a 0.3 m object subtends 17 rays at 1 m (≈12 live), 8 at 2 m (≈6), 
 > dead ahead at 3 m is the marginal case, and dead ahead is where the robot
 > drives.
 
+### The two orientation flags — **VERIFIED ON THIS BOARD 2026-09-11**
+
+**Both were inherited, and neither had ever been checked on this hardware.**
+`reversion` and `inverted` describe how the puck is **bolted on**, not how the
+sensor behaves, so `true` is only correct while the mounting is. The NVMe audit
+calls them the most expensive thing in the dump; until today they were trusted,
+not measured.
+
+**Method:** `scripts/check_scan_bearing.py`, written 10 Sep for this. Robot
+stationary, nothing commanded, an object placed ~0.5 m away in a known
+direction. Each flag combination gives a different bearing, so two placements
+settle the pair:
+
+| Object placed | correct | `reversion` wrong | `inverted` wrong | both wrong |
+|---|---|---|---|---|
+| IN FRONT | 0° | 180° | 0° | 180° |
+| to its LEFT | +90° | −90° | −90° | +90° |
+
+**Measured:**
+
+| Placement | Readings | Verdict |
+|---|---|---|
+| **in front**, 0.55 m | **+1.5°, −0.5°, +2.6°** | ~0° → **`reversion: true` is CORRECT** |
+| **robot's left**, 0.53 m | **+91.3°, +89.2°** | ~+90° → **`inverted: true` is CORRECT** |
+
+**Both stay `true`.** They are now measured on this board, not inherited.
+
+> **Why this needed a new script.** `check_scan_world_fixed.py` rotates the
+> robot and checks the scan stays world-fixed. That catches `inverted` — a
+> mirrored scan counter-rotates at twice the yaw rate — but **cannot catch
+> `reversion`**, because a scan rotated by π is still world-fixed under
+> rotation. `reversion`'s only symptom is that driving *forward* smears the
+> map, by which point you are debugging SLAM instead of the sensor. The static
+> bearing test catches both in thirty seconds with the robot switched off.
+
+> **Consequence for the 10 Sep forward smear:** `reversion` was the standing
+> suspect and is now **eliminated**. The remaining explanation is the
+> user-reported speed increase partway through that run — see the note below on
+> why a brief fast segment is not brief in its effects.
+
+### A brief fast segment permanently contaminates the map — 2026-09-10
+
+The 10 Sep gate run was driven at `make teleop-nav`'s 0.10 m/s **except for one
+short stretch** where the speed was raised. The resulting map smeared on
+straight sections, which had been clean at a constant 0.10 m/s on 9 Sep.
+
+**Slowing back down does not undo it.** `slam_toolbox` builds a pose graph, and
+scans taken during the fast stretch enter it already sheared — 8.7 cm per sweep
+at 0.5 m/s, against 1.0 cm at Nav2's 0.055. Graph optimisation can move a
+scan's *pose*; it cannot un-shear the scan itself, so the thick or doubled wall
+those scans drew stays drawn. If scan matching latched onto one of them, the
+pose error propagates into everything mapped afterwards.
+
+> ⚠ **`teleop_twist_keyboard`'s `q` raises speed permanently**, until `z` lowers
+> it, and the current value is only displayed in the teleop terminal — which
+> nobody is looking at while watching RViz. `make teleop-nav` now starts at
+> `SPEED=0.10` for this reason, but `q` still overrides it at runtime.
+>
+> **A map built with any fast segment in it is not a valid gate artefact.**
+> `~/maps/day3-reference` (10 Sep, 255×557) is kept as a file but must not be
+> used as the Day 3 reference.
+
 ## Scan timing and drive speed — **MEASURED 2026-09-09**
 
 Taken off the live stack (`make real` + `make slam` running), by subscribing to

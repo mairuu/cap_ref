@@ -57,9 +57,20 @@ robot moves, and **`make teleop-nav` is the e-stop** (real again as of 10 Sep).
    Any future change goes into **both** `my_controllers.yaml` and
    `robot_core.xacro` (`wheel_separation = 2 × wheel_offset_y`), then rebuild.
 
-1. **Drive the closed loop** — slowly, **at ~0.10 m/s**, then
+1. **Drive the closed loop** — slowly, at a **constant ~0.10 m/s**, then
    `make save-map MAP=~/maps/day3-reference`. **This is the Day 3 gate**, and
    now the only thing standing between here and Day 4's.
+
+   > ⚠ **Do not touch `q` during the run.** `teleop_twist_keyboard`'s `q`
+   > raises speed **permanently** until `z` lowers it, and the current value is
+   > shown only in the teleop terminal — which nobody is watching while looking
+   > at RViz. The 10 Sep attempt was driven at 0.10 "except for a moment" and
+   > the map smeared on straight sections; `~/maps/day3-reference` from that run
+   > is kept as a file but is **not** a valid gate artefact.
+   >
+   > **A brief fast segment is not brief in its effects.** Sheared scans enter
+   > the pose graph, and optimisation can move a scan's pose but cannot un-shear
+   > the scan, so the doubled wall stays drawn. Start from a fresh `make slam`.
 2. **Then Day 4 §3:** RViz `2D Goal Pose` → arrives and stops; block it with a
    chair → recovery behaviours fire. **That is the Day 4 gate.**
 3. **Track B, any gap:** camera intrinsics (`cam2image` + `cameracalibrator`,
@@ -104,9 +115,13 @@ teleop speed** against 1.0 cm at Nav2's 0.055 m/s. A spin smears about the
 sensor origin and `slam_toolbox` absorbs it into its ±20° yaw search;
 translation shears along the path and no rigid transform can absorb it.
 
-**`reversion` produces the same asymmetry and is the other suspect.** It reads
-`true` in the config and on the live node — but `true` came from the **old
-board's mounting** and has never been verified on this one.
+~~**`reversion` produces the same asymmetry and is the other suspect.**~~
+✅ **ELIMINATED 11 Sep.** `reversion: true` is now verified on this board with
+`check_scan_bearing.py`: an object placed in front of the robot read
+**+1.5 / −0.5 / +2.6°**, i.e. ~0°. A wrong `reversion` would have put it at
+180°. `inverted: true` was settled in the same session — an object at the
+robot's **left** read **+91.3 / +89.2°**, where a wrong `inverted` mirrors it
+to −90°. **Both flags are measured now, not inherited.**
 
 **The test settles both**, and it is the run that was wanted anyway:
 
@@ -221,12 +236,18 @@ and runs, `/scan` is live at **11.57 Hz**, `/map` publishes 162×249 @ 0.05 m,
 `map → odom` appears, and all eight TF edges resolve. `laser_frame` lands
 **0.220 m** above `base_footprint`, matching the tape.
 
-> **The two flags in `config/ydlidar.yaml` are already right and must stay
-> `true`** — `reversion` and `inverted`. Neither has been *verified on this
-> board yet*: that is `check_scan_world_fixed.py`, and it only catches
-> `inverted`. `reversion` breaks on translation instead and no script catches
-> it — a forward drive that smears the map is the symptom. Read the failure
-> modes before touching either.
+> ✅ **Both flags in `config/ydlidar.yaml` are VERIFIED ON THIS BOARD (11 Sep)**
+> and stay `true` — `reversion` and `inverted`. Method and readings are in
+> `records/calibration.md`; the values are annotated at the point of use in
+> `ydlidar.yaml`.
+>
+> The tool is **`check_scan_bearing.py`**, written 10 Sep because nothing
+> existing could do it. `check_scan_world_fixed.py` rotates the robot and only
+> catches `inverted`; a scan rotated by π is still world-fixed under rotation,
+> so it is blind to `reversion`, whose only symptom is that driving *forward*
+> smears the map. The static bearing test catches both in thirty seconds with
+> the robot stationary — an object in front separates `reversion`, one at the
+> robot's left separates `inverted`.
 
 > ⚠ **The recovered dropout figure was wrong twice, and this is the kind of
 > number the whole project exists to stop re-deriving badly.** It is **350 rays
@@ -543,6 +564,8 @@ This is the quick-reference mirror.
 | X2 dropout, best sector | **2.3%** at −165° BEHIND | measured 10 Sep |
 | X2 left-side deficit | ✅ **was the room, not the sensor** | settled 10 Sep — it did not follow the robot |
 | X2 measured rate | **11.57 Hz** | **confirmed 9 Sep**; recovered ~11.6 Hz was right |
+| `reversion` flag | **true** | ✅ **verified on this board 11 Sep** — front object read ~0°, not 180° |
+| `inverted` flag | **true** | ✅ **verified on this board 11 Sep** — left object read ~+90°, not −90° |
 | `camera.fx` | — | ⚠ **still lost** |
 | `camera.fy` | — | ⚠ **still lost** |
 | `camera.cx` | — | ⚠ **still lost** |
