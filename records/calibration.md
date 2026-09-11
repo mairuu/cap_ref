@@ -628,25 +628,66 @@ do; ad-hoc `rclpy` snippets are where this bites.
 
 ---
 
-## Camera intrinsics — ⚠ **STILL LOST, must redo**
+## Camera intrinsics — ⚠ **STILL LOST. Method settled 11 Sep; the run is outstanding.**
 
 `robot_params.yaml` and `camera_info.yaml` were in `semantic_objects/config/`,
 which the dump did not reach. **This is the one calibration that must be redone.**
 
 The tools that produced them (`capture_checkerboard.py`, `calibrate_camera.py`
-in `semantic_objects/tools/`) are also lost — rebuild or use
-`ros-humble-camera-calibration`.
+in `semantic_objects/tools/`) are also lost. **We are not rebuilding them** —
+`ros-humble-camera-calibration` is installed and verified present, and two small
+scripts now cover what it does not do.
 
-**Recovered method** (from `.bash_history`): checkerboard **9×6, 20 mm squares**.
+**Board, recovered from `.bash_history`: 9×6 interior corners, 20 mm squares.**
+The recovered command line reads `--square 20.0` because that tool took
+**millimetres**. `cameracalibrator` takes **metres**:
 
 ```
-python3 capture_checkerboard.py --out /tmp/calib
-python3 calibrate_camera.py --dir /tmp/calib --size 9x6 --square 20.0 \
-    --write-params ../config/robot_params.yaml --write-info ../config/camera_info.yaml
+--size 9x6 --square 0.020        # NOT 20.0, and NOT the pre-dump 8x6 / 0.025
 ```
 
 The history shows this was run **many** times — budget for it. One run was kept
 as `/tmp/calib-0.4`, suggesting 0.4 px was the error being chased.
+
+### The run (11 Sep, established but not yet executed)
+
+```bash
+make camera        # terminal 1: cam2image 640x480 RELIABLE 15 Hz
+make calib         # terminal 2: cameracalibrator 9x6 / 0.020, --no-service-check
+make calib-report  # after pressing SAVE
+```
+
+Three things were established on this board on 11 Sep and are what the targets
+encode. Each one is a way to get a calibration that looks fine and is wrong.
+
+**1. `cameracalibrator` computes the reprojection error and discards it.**
+`calibrator.py:797` binds `reproj_err` from `cv2.calibrateCamera` and never
+stores or prints it. The number shown beside the CALIBRATE button is the
+**linear** error — how straight an undistorted row of corners comes out — which
+is a different measurement on a different scale, and it is not the Day 4 gate.
+`scripts/camera_calib_report.py` recovers the real figure from the images in
+`/tmp/calibrationdata.tar.gz` by solvePnP-ing each board with `K` and `D` held
+at their published values. **Validated against OpenCV's own RMS on a synthetic
+12-image set: 0.3253 px both ways, agreeing to four decimals.**
+
+**2. A square-size error is invisible to the reprojection error.** Re-scoring
+the same 12 images with `--square 0.030` instead of `0.020` changed the RMS by
+**zero** — a uniform scale error is absorbed entirely by the board-to-camera
+distance. So the printed board must be **measured**, not assumed: ten squares
+must span 200 mm. The only automatic guard is the implied HFOV against the
+C615's ~62° spec, which `calib-report` checks. `scripts/make_checkerboard.py`
+writes a board at exact PDF scale with a 100 mm ruler printed beside it;
+verified by rendering at 150 dpi and measuring the corner pitch back at
+**19.98 mm**, and `findChessboardCorners` finds the 9×6 grid in the render.
+
+**3. `cam2image` defaults to 320×240.** Intrinsics do not transfer across
+resolutions — `fx`, `fy`, `cx`, `cy` all scale — so a calibration captured at
+the default is silently wrong for a pipeline running 640×480. `make camera`
+passes the size explicitly; `calib-report` fails the run if `ost.yaml` does not
+say 640×480.
+
+Also settled: `--no-service-check` is **required**, not cosmetic — see the
+symptom index. And **COMMIT does nothing**; SAVE is what writes the tarball.
 
 | | Value |
 |---|---|
@@ -657,7 +698,10 @@ as `/tmp/calib-0.4`, suggesting 0.4 px was the error being chased.
 | `cy` | |
 | Distortion coefficients | |
 | **Reprojection error** | ______ px (target < 0.5) |
-| Checkerboard | **9×6, 20 mm** |
+| Implied HFOV | ______ ° (C615 spec ~62°) |
+| Checkerboard | **9×6, 20 mm** — span of ten squares measured: ______ mm |
+| Images used | |
+| Method | `make camera` + `make calib` + `make calib-report` |
 | Date | |
 
 **Saved to:** `my_bot/config/c615_640x480.yaml`

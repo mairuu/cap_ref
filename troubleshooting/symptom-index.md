@@ -655,6 +655,66 @@ Thermal throttling. `tegrastats`. Check cooling, `nvpmodel -m 0`,
 
 ---
 
+## Camera and calibration
+
+### `cameracalibrator` starts and then sits there — no window, no corners
+It is waiting on a `set_camera_info` service that **`cam2image` does not
+offer**. There is no error and no timeout; it looks exactly like a hung node.
+
+```bash
+ros2 run camera_calibration cameracalibrator \
+  --size 9x6 --square 0.020 --no-service-check -c c615 image:=/image
+```
+
+`--no-service-check` is **required on this robot**, not cosmetic. Use
+`make calib`, which passes it.
+
+### Pressed COMMIT and nothing was saved
+Same cause. COMMIT calls `set_camera_info`, which `cam2image` does not provide.
+**SAVE** is the button — it writes `/tmp/calibrationdata.tar.gz`. Then
+`make calib-report`.
+
+### Calibration finished but the reprojection error is nowhere
+It is computed and thrown away. `calibrator.py:797` binds `reproj_err` from
+`cv2.calibrateCamera` and never stores it. **The number next to CALIBRATE is
+the *linear* error**, a different measurement — not the < 0.5 px gate.
+
+`make calib-report` recovers the real one from the saved tarball, overall and
+**per image**. A run at 0.8 px is usually two bad frames, not a bad set: drop
+the worst ones it lists and re-run rather than recapturing blind.
+
+### Intrinsics look plausible, bearings in the semantic layer are all off by a few percent
+Two candidates, and reprojection error catches **neither**.
+
+- **The printed board is not 20 mm.** Verified 11 Sep: re-scoring the same
+  images with `--square 0.030` instead of `0.020` changed the RMS by **zero** —
+  a uniform scale error is absorbed by the board-to-camera distance. Measure ten
+  squares; the span must be 200 mm. The one automatic guard is the implied HFOV
+  against the C615's ~62°, which `calib-report` prints.
+- **It was calibrated at 320×240.** `cam2image` **defaults** to that, and `fx`,
+  `fy`, `cx`, `cy` all scale with resolution. `make camera` sets 640×480
+  explicitly and `calib-report` refuses a tarball that says anything else.
+
+### `ros2 topic hz /image/compressed` shows nothing
+**The topic does not exist.** `cam2image` publishes with a plain `rclcpp`
+publisher, not an `image_transport::CameraPublisher`, so the transport plugins
+never attach — a live `cam2image` offers only `/image` (confirmed 11 Sep).
+`compressed_image_transport` being installed changes nothing.
+
+Republish it if the bridge needs it:
+
+```bash
+ros2 run image_transport republish raw compressed \
+  --ros-args -r in:=/image -r out/compressed:=/image/compressed
+```
+
+The pre-dump advice — namespace `usb_cam` to `/camera` and read
+`/camera/image_raw/compressed` — belonged to a driver this robot does not use.
+
+### `cam2image` aborts with `Could not open video stream`
+Something else still holds `/dev/video0` — usually a previous run. See the
+recovered `my_bot/README.md`. `fuser -v /dev/video0` names it.
+
 ## Multi-machine / network
 
 ### Both machines ping fine, but `ros2 topic list` on one shows none of the other's topics
@@ -762,8 +822,12 @@ and do not follow a loop closure. Documented limitation.
 `ROS_DOMAIN_ID` mismatch between the bridge and the robot.
 
 ### Camera panel is blank
-`/camera/image_raw/compressed` does not exist. Namespace `usb_cam` to `/camera`
-and install `ros-humble-compressed-image-transport`.
+The compressed topic does not exist — and installing
+`ros-humble-compressed-image-transport` will not create it. `cam2image` does not
+use `image_transport` at all, so it has no `/compressed` companion. Run an
+`image_transport republish` node; see **Camera and calibration** above. The old
+advice here (namespace `usb_cam` to `/camera`) was written pre-dump for a driver
+this robot does not use.
 
 ### Landmarks reach the bridge but not the browser
 CORS. `cors_origins` in `semantic_bridge/config.py` defaults to
