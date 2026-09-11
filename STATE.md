@@ -3,7 +3,26 @@
 > **Update this at the end of every session and whenever a gate passes.**
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
-**Last updated:** 11 Sep 2026 — **Day 4 in progress: camera calibration tooling ready, capture outstanding**
+**Last updated:** 11 Sep 2026 — **Day 4 in progress: camera capture outstanding; RViz rubber band half-diagnosed; multi-machine ROS 2 is DOWN**
+
+> ⛔ **Multi-machine ROS 2 stopped working — found 11 Sep.** Both machines left
+> the hotspot and are on **different subnets** (Jetson `192.168.160.106/22`
+> wired, laptop `10.0.144.205/16` wifi), while both DDS peer lists still name
+> the dead `172.20.10.2` / `172.20.10.5`. The laptop sees **none** of the
+> robot's topics. **RViz on the laptop is unusable until this is re-run on both
+> machines** — `reference/ros2-network.md` has the two commands. Until then run
+> RViz on the Jetson.
+
+> **The reported RViz rubber band: three of four causes are eliminated, on this
+> board, stationary.** One process each of `ros2_control_node`,
+> `robot_state_publisher` and `slam_toolbox`; `map → odom` 50.1 Hz and
+> `odom → base_link` 30.0 Hz, both exactly their configured rates; zero
+> backwards stamps anywhere; `/scan` age 88.4 ms **sd 1.1 ms**; laptop clock
+> 10.3 ms off. **What is left is the scan matcher fighting odom, and that can
+> only be measured while driving:**
+> `ros2 run my_bot check_pose_stability.py --seconds 30`.
+> Baseline numbers in `records/calibration.md`; the four causes and what each
+> looks like are in the symptom index.
 **Current day:** Day 4. §1 (Nav2 port) **done and verified**; Day 3's gate is
 still the blocker and both remaining items need the robot driven.
 **Multi-machine ROS 2 is up (9 Sep)** — RViz and teleop can run off-board on

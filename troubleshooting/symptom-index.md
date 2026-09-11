@@ -513,8 +513,34 @@ ros2 run my_bot check_pose_stability.py --seconds 30 --check-peer ju@172.20.10.5
 4. **Clock skew to the RViz laptop.** Since 9 Sep RViz runs on the laptop, and
    RViz resolves every transform against **its own** clock. Two clocks more than
    ~50 ms apart draw the robot and the map at different instants. **This one is
-   purely a display artefact — the map on disk is fine.** `reference/ros2-network.md`
-   sets up discovery but says nothing about time sync; that gap is real.
+   purely a display artefact — the map on disk is fine.**
+
+> **✅ (1), (2) and (4) were all ELIMINATED on this board, 11 Sep**, on a
+> stationary robot with the full stack up. Do not re-derive them — see the
+> idle-stack timing baseline in `records/calibration.md`:
+> - **One** `ros2_control_node`, **one** `robot_state_publisher`, **one**
+>   `slam_toolbox` process. `map → odom` at 50.1 Hz = exactly
+>   `1/transform_publish_period`, `odom → base_link` at 30.0 Hz = exactly the
+>   `update_rate` cap. Zero backwards stamps, zero same-stamp-different-pose.
+> - `/scan` stamp age **88.4 ms median, sd 1.1 ms** — structural (it is the
+>   89 ms sweep), nowhere near the 200 ms `transform_timeout`.
+> - Laptop clock **10.3 ms** behind the Jetson.
+>
+> That leaves **(3)**, and (3) can only be measured while driving.
+
+> ⚠ **`slam_toolbox` holds TWO `/tf` publisher endpoints, and this is normal.**
+> `ros2 topic info /tf --verbose` shows two writers with different GIDs under
+> the one node name, which reads exactly like a duplicate broadcaster and is
+> not one: `libtoolbox_common.so` contains a single `sendTransform` reference,
+> and the measured `map → odom` rate is 50 Hz, not 100. One writer is idle.
+> **Endpoint count never settles this question — the per-edge rate does.**
+> Likewise `diff_cont` publishes `/tf` under its **own** node name, not
+> `controller_manager`'s, despite running inside `ros2_control_node`.
+
+> **`base_link → laser_frame` has no update rate**, and looking for one is a
+> false alarm. It is a fixed joint, so `robot_state_publisher` puts it on
+> `/tf_static` once, latched. Only `odom → base_link`, `map → odom` and the two
+> wheel joints appear on `/tf` at all.
 
 > ⚠ **`ros2 run tf2_ros tf_monitor` cannot settle (1), and does not exist.**
 > The executable is **`tf2_monitor`**. More importantly its authority column is
@@ -529,6 +555,23 @@ ros2 run my_bot check_pose_stability.py --seconds 30 --check-peer ju@172.20.10.5
 **If all four come back clean and the map still smears while the pose holds
 steady, it is not a rubber band at all** — it is motion shear, see "The map
 smears when driving forward" above.
+
+### RViz on the laptop shows nothing, and `ros2 topic list` is empty there
+**The DHCP addresses moved and the DDS peer list did not.** Checked 11 Sep: both
+machines had left the hotspot, the Jetson was on `192.168.160.106/22` wired and
+the laptop on `10.0.144.205/16` wifi, while `~/.ros2/fastdds_hotspot.xml` on
+both still listed the dead `172.20.10.2` / `172.20.10.5`. **Different subnets
+now**, so the multicast locator cannot cover for the stale unicast peers the way
+it does on one LAN. Fix on **both** machines — see `reference/ros2-network.md`:
+
+```bash
+make net PEERS=<jetson>,<laptop>                              # Jetson
+~/cap_view/setup_ros2_network.sh --peers <jetson>,<laptop>    # laptop
+```
+
+`ssh` to the laptop will also fail with `Host key verification failed` until the
+new address is added; the host key itself does not change with the address, so
+compare fingerprints before accepting rather than blindly `-o StrictHostKeyChecking=no`.
 
 ### Nothing happens in simulation, and no error
 `SIM_TIME` was not passed to **every** layer. `use_sim_time` must match across

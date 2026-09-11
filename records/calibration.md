@@ -1226,6 +1226,78 @@ TF with the full stack up: all eight edges resolve, `base_link → laser_frame`
 `(−0.034, 0, +0.187)` and `base_link → camera_optical_link` at −90° as expected.
 `map → odom` sat at exactly identity, which is correct before the robot moves.
 
+## Idle-stack timing baseline — 11 Sep 2026
+
+Measured with `check_pose_stability.py --seconds 60`, robot **stationary**, full
+stack up (`real_robot.launch.py` + `slam.launch.py`), while `cam2image` and
+`cameracalibrator` were also running on the board. Taken to chase a reported
+RViz rubber band; it is the baseline any future rubber band is compared against.
+
+| Edge / topic | Measured | Expected, and why |
+|---|---|---|
+| `odom → base_link` | **30.0 Hz** | `publish_rate: 50` capped by `update_rate: 30`. Confirms the 9 Sep note. |
+| `map → odom` | **50.1 Hz** | `1 / transform_publish_period` = 1/0.02. **One publisher.** |
+| `base_link → left/right_wheel` | 15.0 Hz | rsp off `/joint_states`, which itself runs at 30.0 Hz. Cosmetic frames; nothing localises off them. |
+| `base_link → laser_frame` | **static, 0 Hz** | On `/tf_static`, published once and latched. A rate of zero here is correct, not a fault. |
+| `/joint_states` | 29.997 Hz | |
+| `/diff_cont/odom` | 30.0 Hz | |
+| `/scan` | **11.5 Hz** | **Not the 10.0 in `ydlidar.yaml`.** 4 kHz sample rate / 350 rays ≈ 11.4 Hz — the hardware's real rate; the config value is not what it runs at. |
+
+Timestamp health, 1747 odom and 670 scan messages, **zero** stamps going
+backwards on either, and zero same-stamp-different-pose on any TF edge:
+
+| | median age | sd | p99 | max |
+|---|---|---|---|---|
+| `/diff_cont/odom` | 2.2 ms | 1.0 ms | 5.6 ms | 12.2 ms |
+| `/scan` | 88.4 ms | 1.1 ms | 92.2 ms | 93.7 ms |
+
+**Scan sweep: 89 ms** (`scan_time` = 0.0871 s; `time_increment` × 349 = 88.0 ms).
+This independently reproduces the 86 ms measured 9 Sep. The shear table stands:
+4.4 cm per scan at 0.5 m/s, 0.9 cm at 0.10 m/s.
+
+> **The 88 ms scan age is structural, not a fault.** It is the sweep itself: the
+> driver stamps the scan when the sweep completes and the ranges span the 89 ms
+> before it. It is nowhere near the 200 ms `transform_timeout`, and its standard
+> deviation is 1.1 ms — there is no jitter to chase here.
+
+> ⚠ **A first run of the same test reported 338 ms and 352 ms outliers and a
+> ±22 ms odom jitter. Those were an artefact of the measurement**, taken while
+> the ros2 daemon was being restarted and several `ros2` CLI processes were
+> starting. The 60 s rerun on a settled graph put the sd at 1.0/1.1 ms. **Judge
+> this test on p99, never on max, and never run it during bring-up.**
+
+## Jetson ↔ laptop clock offset — 11 Sep 2026
+
+**Laptop is 10.3 ms BEHIND the Jetson. Uncertainty ±12.2 ms.** Well inside the
+~50 ms where RViz's TF interpolation would visibly rubber-band, so **clock skew
+is eliminated** as a cause of the reported snap-back.
+
+Method matters here. An SSH round-trip estimate gave `+54.8 ms ±82.2 ms` — the
+uncertainty is wider than the threshold it is being compared against, so that
+number decides nothing, and its midpoint is biased high because remote process
+spawn lands late in the window. The figure above is a four-timestamp NTP-style
+UDP exchange (server on the Jetson, which has no firewall; client on the
+laptop, whose `ufw` allows the outbound), best-delay sample of 34:
+
+| | |
+|---|---|
+| round-trip delay, min | 24.4 ms |
+| offset, best-delay sample | +10.25 ms (Jetson ahead) |
+| offset, median of 34 | +10.39 ms |
+| offset, stdev | **0.54 ms** |
+| UDP replies | 34/40 — **15 % loss on the laptop's wifi** |
+
+Sync quality is **not** symmetric, and that is worth knowing before trusting a
+future reading: the Jetson runs **chrony** against `ntp1.bknix.co.th`, RMS
+offset 0.6 ms, polling every 64 s. The laptop runs **systemd-timesyncd** against
+`ntp.ubuntu.com`, reporting **Jitter=55 ms** and polling every **34 minutes**.
+The 10 ms agreement is better than the laptop's own sync discipline deserves;
+it can drift between polls, so **re-measure rather than assume it holds.**
+
+> The two boxes are also in different timezones — `Asia/Taipei` on the Jetson,
+> `Asia/Bangkok` on the laptop. UTC agrees, which is all ROS uses. Not a bug,
+> but it makes side-by-side `date` output look alarming.
+
 ## Final results — the tape-measure protocol (Day 7)
 
 Ground truth chair position, measured against two walls: x ______ y ______

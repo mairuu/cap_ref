@@ -1,5 +1,67 @@
 # Multi-machine ROS 2 over the phone hotspot — set up 9 Sep 2026
 
+> # ⛔ STALE AS OF 11 Sep 2026 — BOTH ADDRESSES BELOW ARE DEAD
+>
+> **Cross-machine ROS 2 does not work right now.** Verified 11 Sep: the laptop
+> runs `ros2 topic list` and sees only `/parameter_events` and `/rosout` while
+> the robot's full stack is up on the Jetson.
+>
+> Both machines left the hotspot and are on **different subnets**:
+>
+> | | 9 Sep (this document) | 11 Sep (actual) |
+> |---|---|---|
+> | Jetson | 172.20.10.2 | **192.168.160.106/22**, `enP8p1s0`, **wired** |
+> | Laptop | 172.20.10.5 | **10.0.144.205/16**, `wlp0s20f3`, wifi |
+>
+> `~/.ros2/fastdds_hotspot.xml` on **both** machines still lists `172.20.10.2`
+> and `172.20.10.5` as its unicast initial peers. Both are unreachable, and
+> because the two machines are now on different subnets the multicast locator
+> cannot save it either — multicast does not cross the router between
+> `192.168.160.0/22` and `10.0.0.0/16`. So discovery has nothing left to work
+> with. This is exactly the failure the "these are DHCP addresses and they will
+> change" warning below predicted.
+>
+> **The fix is the documented one, run on BOTH machines:**
+>
+> ```bash
+> make net PEERS=192.168.160.106,10.0.144.205                        # Jetson
+> ~/cap_view/setup_ros2_network.sh --peers 192.168.160.106,10.0.144.205   # laptop
+> ```
+>
+> Then re-verify with `check_ros2_link.py` before believing RViz — and note the
+> link is worse than the hotspot was: **15 % UDP loss** was measured on the
+> laptop's wifi on 11 Sep (34/40 packets). The `/map` fragmentation risk that
+> "did not happen here" on the hotspot is live again on this link.
+>
+> ⚠ **The SSH host key moved with the address.** `ssh ju@10.0.144.205` fails
+> with `Host key verification failed` until the new address is added.
+> The laptop's ed25519 host key is **unchanged** —
+> `SHA256:CtUCIBngpCiKOKLodEM/GBEU+k4Rpb9sGH+YeZCEAIs` — verified 11 Sep
+> against the entry `known_hosts` already held for `172.20.10.5`, so it is the
+> same machine and the new address is safe to add.
+
+## Clock sync — the gap this document had, closed 11 Sep
+
+This file set up discovery and said nothing about **time**, which matters just
+as much once RViz is off-board: RViz resolves every transform against **its
+own** clock, so two clocks more than ~50 ms apart draw the robot model and the
+map at different instants and the result looks exactly like a TF fault.
+
+**Measured 11 Sep: the laptop is 10.3 ms behind the Jetson, ±12.2 ms.** Fine.
+But the two machines sync very differently and the margin is not guaranteed:
+
+| | Jetson | Laptop |
+|---|---|---|
+| daemon | **chrony** | **systemd-timesyncd** |
+| source | `ntp1.bknix.co.th` (stratum 2) | `ntp.ubuntu.com` (stratum 2) |
+| RMS offset | 0.6 ms | — |
+| reported jitter | — | **55 ms** |
+| poll interval | 64 s | **34 min** |
+
+Method and full figures in `records/calibration.md`. **Do not measure this with
+an SSH round trip** — it returned ±82 ms of uncertainty against a 50 ms
+threshold, which decides nothing.
+
 Verified working end to end, both directions, on 9 Sep. This file is so it is
 never re-derived. **Everything here is reproduced by the same script on both
 machines** — do not hand-edit `~/.bashrc` instead:
