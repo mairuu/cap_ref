@@ -6,7 +6,7 @@ Placing labelled objects on the SLAM map by taking bearing from the camera, rang
 
 | Platform | Sensors | Package | Status |
 |---|---|---|---|
-| Jetson · ROS 2 Humble | C615 mono · YDLidar X2 | `semantic_objects` | Scaffolded, untuned |
+| Jetson · ROS 2 Humble | C615 mono · YDLidar **X3 Pro** | `semantic_objects` | Scaffolded, untuned |
 
 ---
 
@@ -31,9 +31,11 @@ Placing labelled objects on the SLAM map by taking bearing from the camera, rang
 
 `slam_toolbox` produces an occupancy grid: free space, walls, unknown. It has no idea that one of those wall-shaped blobs is a couch. `yolo_ros` produces bounding boxes at 15 Hz: it knows a chair when it sees one, but a bounding box is a rectangle in an image with no position in the world. The goal is a third artefact — a **semantic layer** registered to the same `map` frame — that says *there is a chair at (2.4, −1.1)* and keeps saying it after the robot has driven away.
 
-The hardware constrains the solution sharply. The C615 is a monocular webcam: it gives no depth. The YDLidar X2 gives excellent range but only along a single horizontal plane, and it has no idea what it is ranging. Neither sensor can do this alone, which is the whole reason the fusion is interesting.
+The hardware constrains the solution sharply. The C615 is a monocular webcam: it gives no depth. The YDLidar X3 Pro gives good range — rated to 8 m — but only along a single horizontal plane, and it has no idea what it is ranging. Neither sensor can do this alone, which is the whole reason the fusion is interesting.
 
-> **What makes the pairing work:** at the calibrated `fx ≈ 528` and 640 px width, one pixel of the image subtends **0.109°**. The X2, at 10 Hz with roughly 400 rays over 360°, resolves **0.9°**. The camera measures bearing about ten times more finely than the lidar can — and the lidar measures a range the camera cannot measure at all. Each sensor supplies exactly what the other lacks.
+> **What makes the pairing work:** at the calibrated `fx ≈ 528` and 640 px width, one pixel of the image subtends **0.109°**. The lidar, at **11.6 Hz with 350 rays** over 360°, resolves **1.032°**. The camera measures bearing about ten times more finely than the lidar can — and the lidar measures a range the camera cannot measure at all. Each sensor supplies exactly what the other lacks.
+>
+> ⚠ **Corrected 11 Sep**, twice over: the sensor is a **YDLidar X3 Pro**, not an X2, and the ray count is **350 at 1.032°**, not "roughly 400 … 0.9°" — 400 was inherited and never counted, and the driver prints 350 on startup. The conclusion is unchanged and slightly strengthened: the camera/lidar bearing ratio is **9.5×**, not 8×. Note `fx ≈ 528` is itself from the LOST calibration and must be re-derived before any of this arithmetic is trusted.
 
 ---
 
@@ -101,7 +103,7 @@ While the robot is translating this is a small error. While it is rotating it is
 
 `semantic_objects_node.py · _on_synced`
 
-Even with P2 fixed, rotation is the worst case: the X2 sweeps 360° over a full 100 ms, so rays within one scan are up to 100 ms apart in time and were taken from different headings. The scan is treated as instantaneous everywhere in the pipeline.
+Even with P2 fixed, rotation is the worst case: the lidar sweeps 360° over a full ~86 ms (measured 9 Sep; this note said 100 ms), so rays within one scan are up to 100 ms apart in time and were taken from different headings. The scan is treated as instantaneous everywhere in the pipeline.
 
 **Fix:** Subscribe to `/odom` and drop detections while `|ω| > 0.3 rad/s`. Objects are re-observed as soon as the robot settles, so almost nothing is lost — and this is a dozen lines against what is otherwise a scan-deskewing project.
 
@@ -198,7 +200,7 @@ P7, P8 — whether the semantic layer is still true an hour later.
 | Topic | Type | Direction | Note |
 |---|---|---|---|
 | `/yolo/tracking` | `yolo_msgs/DetectionArray` | in | **Changed** — was `/yolo/detections`; carries `track_id` |
-| `/scan` | `sensor_msgs/LaserScan` | in | BEST_EFFORT, matching the X2 driver |
+| `/scan` | `sensor_msgs/LaserScan` | in | BEST_EFFORT, matching the X3 Pro driver |
 | `/odom` | `nav_msgs/Odometry` | in | **New** — angular-velocity gate (P3) |
 | `/map` | `nav_msgs/OccupancyGrid` | in | **New** — occlusion ray-cast (P7) |
 | `/semantic_markers` | `visualization_msgs/MarkerArray` | out | TRANSIENT_LOCAL; adds covariance ellipses |

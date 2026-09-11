@@ -557,6 +557,16 @@ so the next board loss costs an hour rather than a day.
 
 ### 5.5 · X2 dropout rate
 
+> ⚠ **SUPERSEDED IN TWO WAYS — read `records/calibration.md` before this
+> section.** (1) **The sensor is a YDLidar X3 Pro, not an X2** — corrected
+> 11 Sep off the label; the model is not discoverable in software. Its rated
+> range is **0.12–8.0 m**, not the 12.0 every config carried, and that value has
+> been propagated to `ydlidar.yaml`, `mapper_params_online_async.yaml`,
+> `nav2_params.yaml` and the Gazebo sensor in `lidar.xacro`. (2) **Dropout was
+> re-derived three times** — 27.9 %, 25.7 %, ~19 % — and the spread is
+> **position**, not improvement. Every "X2" below should read "X3 Pro"; the
+> method described is still correct.
+
 The design note's "roughly half the rays" came from the lost `ydlidar.yaml`
 and is currently unverified. `scan_dropout_report.py` re-derives it: subscribe
 to `/scan`, count returns that are `0.0` or below `msg.range_min`, report the

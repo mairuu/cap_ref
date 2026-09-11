@@ -17,7 +17,7 @@ Recovered tree is 4.9 MB: `Makefile`, `uv.lock`, `.bash_history` (1,800+ lines),
 | **Root `Makefile`** | `recoverable/mount/Makefile` | Every target, heavily commented with the reasoning |
 | **All odometry calibration** | `config/my_controllers.yaml`, `description/ros2_control.xacro` | With method **and** date **and** the story behind each |
 | **Lidar orientation flags** | `config/ydlidar.yaml` | `reversion` / `inverted`, each with its failure mode written out. Days of work. |
-| **X2 dropout figure** | `config/ydlidar.yaml` | "~50% of the 400 rays are 0.0" — **now sourced**, not inherited |
+| ~~**X2 dropout figure**~~ | `config/ydlidar.yaml` | "~50% of the 400 rays are 0.0" — **wrong on both numbers.** It is **350** rays and ~19–28% depending where the robot stands. Do not use the recovered figure |
 | **twist_mux e-stop design** | `config/twist_mux.yaml`, README | The robot's only emergency stop |
 | **Nav2 footprint + speeds** | `config/nav2_params.yaml` | Real footprint polygon, and the only velocity clamp that exists |
 | **`setup_udev.sh`** | `scripts/setup_udev.sh` | Interactive, handles the no-serial case properly |
@@ -64,6 +64,7 @@ untouched. Three things do change:
 
 | I wrote | Actually |
 |---|---|
+| The lidar is a YDLidar **X2** | **X3 Pro** — corrected 11 Sep off the label. Changes `range_max` 12.0 → **8.0**, `range_min` 0.1 → **0.12**, `sample_rate` 3 → **4**. The SDK cannot report the model: no X2/X3 in its enum, and single-channel units never answer the device-info query (that is what `Fail to get baseplate device information!` is) |
 | `/dev/lidar` | **`/dev/ydlidar`** |
 | `usb_cam` namespaced to `/camera` | **`cam2image`** from `image_tools`, publishing `/image`, **RELIABLE** QoS |
 | Checkerboard 8×6, 25 mm | **9×6, 20 mm** (`--size 9x6 --square 20.0`) |

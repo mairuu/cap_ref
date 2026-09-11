@@ -289,6 +289,13 @@ r=0.265 and refuses doorways it fits through):
 
 ## Lidar — **RECOVERED**
 
+> ⚠ **READ THE 11 SEP ENTRY BELOW FIRST — "The lidar is a YDLidar X3 Pro, not
+> an X2".** Everything in this section down to that entry was written believing
+> the sensor was an X2. The mounting and geometry figures are unaffected and
+> still good; the **range figures in this table are not**, and every dated
+> dropout note below was measured with `range_max` declared at 12.0 for a
+> sensor rated to 8.0.
+
 | | Value | Source |
 |---|---|---|
 | `lidar_height_above_ground` | **0.22 m** | measured |
@@ -297,8 +304,8 @@ r=0.265 and refuses doorways it fits through):
 | **Dropout fraction** | ~~~50% of 400 rays~~ **superseded 9 Sep — 350 rays, 27.9%**, see below | bench-measured |
 | Measured scan rate | **~11.6 Hz** (config says 10.0) — **confirmed 11.57 Hz, 9 Sep** | measured |
 | `reversion` | **true** — puck 0° points at robot BACK | |
-| `inverted` | **true** — X2 is CW, ROS needs CCW | |
-| `range_min` / `range_max` | 0.1 / 12.0 | |
+| `inverted` | **true** — the unit is CW, ROS needs CCW | ✅ **verified on this board 11 Sep** |
+| ~~`range_min` / `range_max`~~ | ~~0.1 / 12.0~~ → **0.12 / 8.0** | ⚠ **corrected 11 Sep with the model** |
 | `invalid_range_is_inf` | **false** → dropouts are `0.0`, **below** `range_min` | |
 | `/scan` QoS | **BEST_EFFORT** — a RELIABLE subscriber gets nothing, silently | |
 
@@ -474,6 +481,106 @@ pose error propagates into everything mapped afterwards.
 > **A map built with any fast segment in it is not a valid gate artefact.**
 > `~/maps/day3-reference` (10 Sep, 255×557) is kept as a file but must not be
 > used as the Day 3 reference.
+
+### The lidar is a YDLidar **X3 Pro**, not an X2 — **CORRECTED 2026-09-11**
+
+**Every document in this project said X2 until today.** `ydlidar.yaml`'s header,
+`reference/nvme-recovery-audit.md`, `STATE.md`, the dropout entries above, the
+scripts' docstrings, `description/lidar.xacro`. The unit is an **X3 Pro**,
+confirmed off the label by the user.
+
+> **There is no software route to the model, which is why this survived so
+> long.** The SDK's `YDLIDAR_MODLES` enum contains **no X2 and no X3 at all** —
+> `YDLIDAR_X4 = 6` is the only X-series entry. And the
+> `Fail to get baseplate device information!` error on every startup, filed in
+> the symptom index as expected noise, *is the reason*: single-channel units do
+> not answer the device-info query, so `di.model` is never populated. **Read the
+> label; nothing will tell you.**
+
+**The driver settings do not change with the model.** Upstream's `X2.yaml` and
+`X3.yaml` are byte-identical apart from key ordering — same baudrate,
+`lidar_type`, `device_type`, `isSingleChannel`, `abnormal_check_count`,
+`fixed_resolution`. What changes is the **physical spec**, and both figures we
+had were wrong:
+
+| | Was (X2 values) | **Now (X3 Pro)** | How known |
+|---|---|---|---|
+| `range_max` | 12.0 m | **8.0 m** | rated spec |
+| `range_min` | 0.1 m | **0.12 m** | rated spec |
+| `sample_rate` | 3 (3K) | **4 (~4K)** | **measured**, see below |
+
+**Sample rate, measured 11 Sep.** The SDK prints it at startup for
+single-channel units because it computes it rather than reading it:
+
+```
+Single Fixed Size: 350
+Sample Rate: 4.57K
+```
+
+Subtract the `+0.5` rounding term the code adds
+(`m_SampleRate = count/scan_time/1000 + 0.5`, `CYdLidar.cpp:1111`) for a true
+**~4.07K**. It cross-checks against the scan: 350 points/rev × 11.57 rev/s =
+4050/s. **X2 and X3 are 3K; ~4K is the X3 Pro.** This was the first
+hardware-side evidence that the model was wrong.
+
+> **`350` is also measured, not configured.** `m_FixedSize` for a single-channel
+> unit is the observed mean points per revolution rounded to the nearest 10
+> (`CYdLidar.cpp:1125`). It will move if the spin rate does.
+
+**Everything downstream that declared a range was corrected with it**, because
+all of it was keyed to a sensor that does not exist:
+
+| File | Was | Now |
+|---|---|---|
+| `config/ydlidar.yaml` | 0.1 / 12.0 | **0.12 / 8.0** |
+| `config/mapper_params_online_async.yaml` | `min_laser_range` 0.1, `max_laser_range` 12.0 | **0.12 / 8.0** |
+| `config/nav2_params.yaml` ×2 costmaps | `raytrace_max_range` 12.0, `obstacle_max_range` 10.0 | **8.0 / 6.5** |
+| `description/lidar.xacro` (Gazebo sensor) | 0.1 / 12.0 | **0.12 / 8.0** |
+
+Nav2 keeps `obstacle` below `raytrace` as it did before (10/12 → 6.5/8): clear
+stale obstacles out to the sensor's limit, but only *mark* where the beam is
+still dense. At 8 m the 1.032° ray spacing is 14 cm, so a chair leg falls
+between rays. `lidar.xacro` matters because its header promises sim and real
+agree on range — leaving it at 12 m would have given the simulated robot four
+metres the real one does not have.
+
+`range_min` 0.1 → 0.12 discards nothing real: 0.12 m from `laser_frame` is
+inside the robot's own footprint (half-width 0.147), so those readings are the
+robot seeing itself. The old comment in `mapper_params` advising *against* 0.12
+because it "throws away 2 cm of range" had it backwards — 0.1 was claiming 2 cm
+the sensor does not have.
+
+### ⚠ What the correction did NOT do — three same-spot A/B runs, 11 Sep
+
+**Dropout has now read 27.9 % (9 Sep), 25.7 % (10 Sep) and ~19 % (11 Sep), and
+that downward trend is NOT the config fix.** All three were measured in
+different places. Position dominates this figure — the worst sector has already
+moved from +75° LEFT to −15° AHEAD between two of those runs. Only a same-spot
+A/B says anything about a parameter, so that is what was run:
+
+| Configuration | Dropout | Live returns/scan | Per-scan spread |
+|---|---|---|---|
+| `range_max` **8.0**, `sample_rate` **4** | **19.0 %** | 284 | 17.1–21.7 % |
+| `range_max` **8.0**, `sample_rate` **3** | **18.3 %** | 286 | 15.7–22.6 % |
+| `range_max` **12.0**, `sample_rate` **4** | **19.5 %** | 282 | 16.3–22.6 % |
+
+**All three are indistinguishable** — the differences are far inside the
+per-scan spread of any one run. Two conclusions, both worth having:
+
+1. **`sample_rate` is genuinely inert on a single-channel unit**, confirmed by
+   measurement rather than by reading the code. The SDK measures the rate at
+   startup and overwrites the configured value. It is set to 4 because it is
+   the number a human reasons from, not because the driver needs it.
+2. **`range_max: 8.0` buys nothing in this room**, because the longest return
+   here is **6.30 m** — no bearing ever fell in the 8–12 m band, so the declared
+   ceiling could not matter. The correction is about being right *where it will
+   matter*: a corridor, or the far side of a larger room, where declaring 12 m
+   counts genuinely out-of-range bearings as dropouts and tells Nav2 and
+   `slam_toolbox` to trust ranges the hardware cannot deliver.
+
+> **The honest summary:** the model was wrong, the config now tells the truth,
+> and the demo room is too small for it to show. Do not quote a dropout
+> improvement from this change.
 
 ## Scan timing and drive speed — **MEASURED 2026-09-09**
 

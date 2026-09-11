@@ -80,7 +80,12 @@ changes. Either way, write down which.
 
 ## 2 · Afternoon — lidar — **DONE 9 Sep**
 
-The X2 is **not in apt**. Build the SDK, then the driver.
+The X3 Pro is **not in apt**. Build the SDK, then the driver.
+
+> ⚠ **The sensor is an X3 Pro, not an X2** (corrected 11 Sep). Upstream's
+> `X2.yaml` and `X3.yaml` are identical, so the transport settings are
+> unaffected — but `range_max` is **8.0**, not 12.0. See
+> `records/calibration.md`.
 
 - [x] SDK — built at `01cdda4`, installed to `/usr/local`
       (`libydlidar_sdk.a`, static):
@@ -125,7 +130,8 @@ cmake -DCMAKE_BUILD_TYPE=Release .. && make -j$(nproc) && sudo make install
 
 - [ ] In RViz, the scan matches the room's actual shape (`make rviz`). **If it
       is mirrored, that is `invert` / `reversion` / `angle_min` in
-      `ydlidar.yaml`** — verify against the driver's own X2 example.
+      `ydlidar.yaml`** — verify against the driver's own X3 example.
+      *Settled 11 Sep: both flags verified with `check_scan_bearing.py`.*
       *An ASCII top-down of 20 scans on 9 Sep showed a wall ~4 m left and ~1 m
       behind with open floor ahead, which matched the room. Confirm by eye.*
 - [ ] `check_scan_world_fixed.py` — **drives the robot ~90°, needs clear space**
@@ -181,7 +187,7 @@ make slam                 # ros2 launch my_bot slam.launch.py
 > `map → odom` at **exactly identity** is normal *before you move* and a red
 > flag *after*. `tf_check.py` warns either way — read it in context.
 
-- [ ] Drive a closed loop around one room, **slowly** — the X2 sweeps 360° over
+- [ ] Drive a closed loop around one room, **slowly** — the X3 Pro sweeps 360° over
       a full 100 ms, so fast rotation smears the scan
 
 ---

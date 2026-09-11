@@ -558,12 +558,16 @@ This is the quick-reference mirror.
 | `wheel_offset_x / _y` | **0.255 / 0.125** m | recovered |
 | Lidar height above ground | **0.22** m | recovered |
 | `laser_frame` in `base_link` | **(−0.034, 0, 0.186)** | recovered |
-| X2 rays per scan | **350** | **measured 9 Sep** — recovered "400" was never counted |
-| X2 dropout fraction | **25.7%** of 350 rays | **re-measured 10 Sep** (was 27.9% on 9 Sep) — stable across two spots |
-| X2 dropout, worst sector | **43.8%** at −15° AHEAD | measured 10 Sep — was +75° LEFT at 69.6% on 9 Sep |
-| X2 dropout, best sector | **2.3%** at −165° BEHIND | measured 10 Sep |
-| X2 left-side deficit | ✅ **was the room, not the sensor** | settled 10 Sep — it did not follow the robot |
-| X2 measured rate | **11.57 Hz** | **confirmed 9 Sep**; recovered ~11.6 Hz was right |
+| **Lidar model** | **YDLidar X3 Pro** | ⚠ **corrected 11 Sep** — every doc said X2. No software route to the model; read the label |
+| X3 Pro rays per scan | **350** | **measured 9 Sep** — recovered "400" was never counted. `m_FixedSize` is measured, not configured |
+| X3 Pro `range_max` | **8.0** m | ⚠ **corrected 11 Sep** from 12.0, which was the X2's. Propagated to slam, Nav2 and the Gazebo sensor |
+| X3 Pro `range_min` | **0.12** m | corrected 11 Sep from 0.1 |
+| X3 Pro sample rate | **~4.07K** | **measured 11 Sep** — SDK prints 4.57K, less its +0.5 rounding term. X2/X3 are 3K; this is what flagged the model |
+| X3 Pro dropout fraction | **~19%** of 350 rays | measured 11 Sep. ⚠ **Position dominates** — 27.9% (9 Sep), 25.7% (10 Sep), all different spots. Not a trend, and NOT the range fix |
+| X3 Pro dropout, worst sector | **43.8%** at −15° AHEAD | measured 10 Sep — was +75° LEFT at 69.6% on 9 Sep |
+| X3 Pro left-side deficit | ✅ **was the room, not the sensor** | settled 10 Sep — it did not follow the robot |
+| X3 Pro measured rate | **11.57–11.60 Hz** | **confirmed 9 and 11 Sep**; config's `frequency: 10.0` is not what it does |
+| Longest return seen | **6.30 m** | measured 11 Sep — the room is smaller than either range rating, so the 8 vs 12 m fix shows nothing here |
 | `reversion` flag | **true** | ✅ **verified on this board 11 Sep** — front object read ~0°, not 180° |
 | `inverted` flag | **true** | ✅ **verified on this board 11 Sep** — left object read ~+90°, not −90° |
 | `camera.fx` | — | ⚠ **still lost** |
