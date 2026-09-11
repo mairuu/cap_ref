@@ -124,6 +124,14 @@ run time the lens keeps drifting away from whatever was calibrated.
       `make camera` now does this (`FOCUS`, default 51). `make camera FOCUS=auto`
       puts it back, and should never be used for a calibration run.
 
+> **Expect the RMS to get slightly WORSE when you lock it, and accept that.**
+> `FOCUS=51` focuses far, so boards closer than ~0.3 m are soft and carry almost
+> all the residual — measured 11 Sep: 0.628 px under 0.30 m against 0.271 px
+> beyond 0.65 m, `corr(rms, depth) = −0.735`. The 0.3651 → 0.4464 px rise
+> between the two runs is **blur, not a worse camera model**, and 51 is the
+> right choice for a robot that looks across a room. Want a tighter number? Keep
+> the board beyond ~0.35 m. Do **not** unlock the focus to chase it.
+
 **A depth-degenerate capture.** If every view is at roughly the same distance,
 `fx` and board distance trade off against each other almost freely — the solver
 can be 15–20% wrong about `fx` and still fit its own images beautifully.
@@ -177,13 +185,24 @@ make calib-report      # scores the tarball, writes config/ when it passes
   **fx ______ · fy ______ · cx ______ · cy ______ · reproj err ______ px**
 
 - [ ] Board **depth ratio ≥ 2.5×**, and `cx`/`cy` near (320, 240)
-- [ ] Implied HFOV compared against the C615's **~62°** — as a smell test, not
+- [ ] Implied HFOV near the **~51° measured on this camera** — a smell test, not
       a gate. It cannot detect a mis-scaled board (see 4.1); a large gap points
       at `fx` itself being wrong.
-- [ ] Over 0.5 px? `calib-report` lists the per-image error worst-first. **Drop
-      the two or three bad frames and re-run** — a failed run is usually one
-      tilted-past-60° or motion-blurred frame, not the whole set. Do not
-      recapture blind.
+
+> ⚠ **~51°, not the ~62° this project carried until 11 Sep.** That figure was a
+> pre-dump guess and it was wrong — the calibration says 50.9° and the tape says
+> 51.4°, independently. Anything still assuming ~62°, or `fx` near the semantic
+> node's `554.0` default, is about 20% out.
+- [ ] Over 0.5 px, or `cx`/`cy` off centre? `calib-report` lists the per-image
+      error worst-first, and `--min-depth 0.30` refits without the soft near
+      frames. A failed run is usually a handful of bad frames, not a bad set —
+      do not recapture blind.
+
+> **Trim by depth, not by score, and stop early.** On 11 Sep dropping boards
+> under 0.30 m took RMS 0.4464 → 0.3403 and `cx` 331.19 → 321.57. Going on to
+> 0.35 m scored better again (0.3156) and was **worse**: `cx` swung out to
+> 308.4, because the near views are what constrain the wide end of the
+> distortion model. **RMS will not tell you where to stop — `cx` will.**
 - [ ] Written to `my_bot/config/c615_640x480.yaml` (`calib-report` does this,
       and **refuses** over the gate unless you pass `--force`)
 - [ ] Values copied into `robot_params.yaml`
@@ -209,6 +228,13 @@ why it asks for more than one distance rather than trusting any single one.
 
 - [ ] Slope within **2%** of 1.000
 - [ ] Slope recorded in `records/calibration.md` alongside `fx`
+
+> ✅ **Passed 11 Sep: slope 1.0117 over three distances**, residuals ±9 mm,
+> intercept 19.3 mm — giving the tape's own `fx = 664.87`. That is what makes
+> the installed **fx 667.874 · fy 669.846 · cx 321.569 · cy 234.502**
+> trustworthy, at **+0.45%**. The reprojection error alone was not, and the
+> first attempt proves it: it scored *better* (0.3651 px) while being 17.5%
+> unstable in `fx`.
 - [ ] Off by more than that? **Recalibrate — do not scale `fx` by the ratio.**
       Fix the cause (focus lock, depth spread), then recapture.
 

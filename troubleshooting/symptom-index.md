@@ -761,7 +761,24 @@ printed board cannot corrupt a bearing either; `atan((u − cx)/fx)` carries no
 length. An earlier version of this entry said the opposite.
 
 **To settle it, measure against a tape:** `make calib-scale`. That is the only
-check with an absolute length in it.
+check with an absolute length in it. On 11 Sep it returned slope 1.0117 over
+three distances, pinning the true `fx` at **664.87** and confirming the camera
+at **~51° HFOV, not the ~62° this project had assumed**.
+
+### Every landmark is offset by a constant angle, but the map scale looks right
+Suspect `cx`, not `fx`. `cx` enters `atan((u − cx)/fx)` as a constant bearing
+bias, so it rotates every detection the same way rather than distorting the
+layout. **10 px of `cx` error is ~0.85° on this camera.**
+
+A wandering `cx` is the fingerprint of a fit that is paying for something else —
+too few views at one end of the depth range, or a focus that moved. Seen twice
+on 11 Sep: `cx` 391.7 from a depth-degenerate subset, and 308.4 from
+over-trimming the near frames away. The installed value, 321.57, sits on the
+frame centre where a webcam's principal point belongs.
+
+`calib-report --min-depth 0.30` refits without the soft near frames. **Trim by
+depth and watch `cx`, not the RMS** — the RMS keeps improving past the point
+where `cx` starts to go wrong.
 
 ### `v4l2-ctl -c focus_automatic_continuous=0 -c focus_absolute=51` fails
 `VIDIOC_S_EXT_CTRLS: failed: Invalid or incomplete multibyte or wide character`

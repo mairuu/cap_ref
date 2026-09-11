@@ -628,107 +628,205 @@ do; ad-hoc `rclpy` snippets are where this bites.
 
 ---
 
-## Camera intrinsics — ⚠ **MEASURED 11 Sep, PROVISIONAL. Do not build on `fx` yet.**
+## Camera intrinsics — ✅ **SETTLED 11 Sep 2026, validated against a tape measure**
 
 `robot_params.yaml` and `camera_info.yaml` were in `semantic_objects/config/`,
-which the dump did not reach — the one calibration that had to be redone.
-A 48-image run on 11 Sep passed the reprojection gate and is installed at
-`my_bot/config/c615_640x480.yaml`. **It is not yet trustworthy**; see the
-open question below.
+which the dump did not reach — the one calibration that had to be redone. Done,
+and cross-checked against a physical length, which is the part that matters.
 
-### The run, 2026-09-11
+### The installed calibration — `my_bot/config/c615_640x480.yaml`
 
 | | Value |
 |---|---|
 | Resolution | 640 × 480 |
-| `fx` | **714.6267** |
-| `fy` | **718.0089** |
-| `cx` | **321.1510** |
-| `cy` | **241.4172** |
-| Distortion coefficients | `[-0.066309, 0.159328, -0.000798, 0.00086, 0.0]` |
-| **Reprojection error** | **0.3651 px** — passes the < 0.5 gate |
-| Implied FOV | **48.2° H / 37.0° V** (C615 spec ~62° H) |
-| Board depth range | 0.20 – 1.07 m (**5.5×** — well conditioned) |
-| Checkerboard | **9×6, 20 mm** |
-| Images used | 48 of 48, none rejected |
-| Autofocus during capture | ⚠ **ON** |
-| Method | `make camera` + `make calib` + `make calib-report` |
+| `fx` | **667.8740** |
+| `fy` | **669.8458** |
+| `cx` | **321.5690** |
+| `cy` | **234.5015** |
+| Distortion coefficients | `[-0.062931, 0.057181, -0.001224, 0.000858, 0.0]` |
+| **Reprojection error** | **0.3403 px** — passes the < 0.5 gate |
+| **Tape-measure check** | `fx` is **+0.45%** above the tape's 664.87 |
+| Measured HFOV | **51.2°** H / 39.4° V (independently 51.4° from the tape) |
+| Board depth range | 0.30 – 0.83 m (2.7×) |
+| Checkerboard | 9×6, 20 mm |
+| Images used | **59** — an 80-image capture, refit with boards closer than 0.30 m excluded |
+| **Autofocus** | **LOCKED**, `focus_absolute=51`, `focus_automatic_continuous=0` |
+| Method | `make camera` + `make calib` + `make calib-report --min-depth 0.30 --write`, verified by `make calib-scale` |
+| Date | 2026-09-11 |
 
-`cx`/`cy` land within 1.5 px of the frame centre and the depth range is 5.5×,
-so on its own face the fit is healthy.
+> **Reproduce with:** `ros2 run my_bot camera_calib_report.py --min-depth 0.30 --write`
+> against the same `/tmp/calibrationdata.tar.gz`. Without `--min-depth` the
+> script only scores what `cameracalibrator` shipped; the flag opts into a refit.
 
-### ⚠ Open: `fx` is 17.5% unstable across the capture, and the FOV is 22% under spec
+#### Why 59 images and not the 80 that were captured
 
-Splitting the same 48 images by capture order and fitting each half separately:
+A locked focus makes near boards soft, and the soft ones carry the residual.
+Trimming them is strictly better on every axis — including the one that is not
+self-referential, the tape:
 
-| Subset | n | RMS | `fx` | `cx` | board depths |
+| fit | n | RMS | `fx` | `cx` | vs tape 664.87 |
+|---|---|---|---|---|---|
+| all 80, as shipped | 80 | 0.4464 | 672.65 | 331.19 | **+1.17%** |
+| **refit, ≥ 0.30 m** | **59** | **0.3403** | **667.87** | **321.57** | **+0.45%** |
+| refit, ≥ 0.35 m | 54 | 0.3156 | 663.30 | 308.4 | −0.23% ⚠ |
+
+**`cx` is the reason this was worth doing, not the RMS.** `cx` offsets every
+bearing by a constant: the 9.6 px it moved is `atan(9.6/668)` = **0.82° of
+systematic pointing bias** removed from every landmark the semantic layer ever
+places. 321.57 also sits where a webcam's principal point ought to, on the frame
+centre.
+
+> ⚠ **Do not trim further.** The 0.35 m cut scores better again and is worse:
+> `cx` swings out to 308.4. The near views are what constrain the wide end of
+> the distortion model, and starved of them the fit starts paying for it with
+> the principal point — the same failure as run 1's `391.7`, in the other
+> direction. Trimming is not monotonic and RMS will not tell you where to stop.
+
+> The refit pins **`k3 = 0`** (`CALIB_FIX_K3`) to match the model
+> `cameracalibrator` shipped. Left free on the reduced set it came out at
+> **−0.398**, a large high-order term fitted from fewer near-edge views — a
+> different camera model smuggled in under the name of a trim.
+
+### The tape-measure check is what makes this trustworthy
+
+`scripts/camera_check_scale.py`, three distances, board flat-on:
+
+```
+Z = 1.0117 * D + 0.0193
+residuals  [-4.5, 9.0, -4.5] mm
+fx in config      672.65   (HFOV 50.9 deg)
+fx from the tape  664.85   (HFOV 51.4 deg)   -> config is +1.2% off. PASS.
+```
+
+**That was measured against the 80-image fit.** The tape's own answer,
+`fx_true = fx_config / slope = 672.6463 / 1.0117 = **664.87**`, does not depend
+on which config it was compared against — so the installed refit's 667.87 is
+**+0.45%**, comfortably inside the 2% gate. Worth re-running `make calib-scale`
+against the installed file when the board is next to hand, but the arithmetic
+does not need it.
+
+±9 mm of residual over a 0.4–1.0 m span is a straight line, and the 19.3 mm
+intercept is a believable entrance-pupil offset — the regression absorbs it so
+it never enters `fx`. **Nothing inside a chessboard calibration can do this
+check**: reprojection error is computed in pixels against the same
+self-consistent fit, and a chessboard carries no absolute length.
+
+### ⚠ The C615's HFOV is ~51°, not the ~62° this project assumed
+
+Three independent numbers agree and the spec figure is the odd one out:
+
+| Source | HFOV |
+|---|---|
+| Installed 59-image refit | **51.2°** |
+| 80-image focus-locked calibration | 50.9° |
+| Tape measure, three distances | **51.4°** |
+| `reference/hardware-inventory.md`, pre-dump | ~62° ✗ |
+| `semantic_objects_node.py` default `fx: 554.0` | ~60° ✗ |
+
+**The ~62° was a guess written before the dump and it was wrong.** It fired a
+false warning on two good calibrations in a row, so `camera_calib_report.py`'s
+reference is now **51.0°, measured**, not a vendor figure. A diagonal FOV quoted
+for a 16:9 mode does not survive the crop to 4:3 at 640×480.
+
+The node's built-in `554.0` defaults are **21% off the real value** and must be
+deleted when the September `semantic_objects` tree is rebuilt — a missing params
+file has to fail loudly. (The `fx: 528.1` in the lost `robot_params.yaml` was
+marked `← YOUR VALUE`: a template placeholder, never a measurement. Neither
+figure conflicts with 672.65 because neither was ever measured.)
+
+### Run 1 (11 Sep, autofocus ON) — kept because it is the diagnostic
+
+The first attempt passed the reprojection gate at **0.3651 px** and was wrong.
+
+| Subset | n | RMS | `fx` | `cx` | depths |
 |---|---|---|---|---|---|
 | all | 48 | 0.3640 | 715.95 | 323.3 | 0.20–1.07 m |
-| first 29 (`0000`–`0028`) | 29 | **0.1528** | **819.74** | **391.7** | 0.70–1.23 m |
-| last 19 (`0029`–`0047`) | 19 | 0.5302 | **676.30** | 322.1 | 0.18–1.01 m |
+| first 29 | 29 | **0.1528** | **819.74** | **391.7** | 0.70–1.23 m |
+| last 19 | 19 | 0.5302 | **676.30** | 322.1 | 0.18–1.01 m |
 
-**17.5% apart, and the group with the *better* RMS is the more suspect one.**
-That is the whole lesson: reprojection error is computed in pixels against the
-same self-consistent fit, so it ranks a badly-conditioned solution *above* a
-well-conditioned one. Two causes are consistent with this and they are not yet
-separated:
+**The half with the best RMS was the worst calibration.** Reprojection error
+ranks a badly-conditioned fit above a well-conditioned one, because it only ever
+asks whether the model explains its own images.
 
-1. **Autofocus was on.** The C615 is varifocal — refocusing moves the lens, so
-   `fx` is not a constant while `focus_automatic_continuous` is 1. Confirmed the
-   same day: left with AF enabled, the driver moved `focus_absolute` 51 → 85
-   unprompted. This also means the lens keeps drifting at *run* time.
-2. **The first 29 frames were depth-degenerate** on their own (0.70–1.23 m,
-   1.8×). Over a narrow depth range `fx` and board distance are nearly
-   interchangeable. `cx` running out to 391.7 — 72 px off centre — is the
-   fingerprint: the solver pays for a wrong `fx` by sliding the principal point.
+**And the resolution confirms autofocus was the cause.** The `last 19` subset —
+the frames after the lens had settled — gave **676.30**, against the
+focus-locked run's **672.65** and the tape's **664.85**. All three inside 1.7%.
+The outlier is the `first 29` at 819.74, captured at a different focus position
+*and* over a degenerate 1.8× depth range. Lock the focus and the disagreement
+disappears.
 
-The *combined* set is not degenerate (5.5×), which shifts weight toward (1).
+> **The C615 is varifocal: refocusing moves the lens, so `fx` is not a constant
+> while `focus_automatic_continuous` is 1.** Left enabled, the driver walked
+> `focus_absolute` 51 → 85 unprompted. It drifts at *run* time too, not only
+> during calibration — which is why the lock lives in `make camera` and must be
+> the same value for the demo as for the calibration.
 
-**Next:** lock focus (`make camera` now does, `FOCUS=51`), recapture, then
-`make calib-scale`. Until the slope comes back within 2% of 1.000, treat 714.63
-as provisional and do not tune anything downstream against it.
+### Why the focus-locked run scores *worse* (0.4464 vs 0.3651), and why that is fine
 
-### What is settled
+`FOCUS=51` focuses far. Boards closer than ~0.3 m are out of focus, their
+corners are soft, and they carry almost all the residual:
+
+| board depth | mean RMS | mean sharpness (Laplacian var) | n |
+|---|---|---|---|
+| < 0.30 m | 0.6280 px | 46 | 21 |
+| 0.30–0.40 m | 0.4763 px | 94 | 11 |
+| 0.40–0.50 m | 0.3110 px | 99 | 2 |
+| 0.50–0.65 m | 0.3317 px | 266 | 9 |
+| > 0.65 m | **0.2711 px** | **574** | 37 |
+
+`corr(rms, depth) = −0.735`, `corr(sharpness, depth) = +0.775`. The RMS rise is
+**blur from the focus lock, not a worse camera model** — and `fx` is validated
+against the tape regardless.
+
+**This makes `FOCUS=51` the right choice for the demo**, which detects objects
+across a room, not at arm's length. It is sharp from roughly 0.4 m to far.
+If a future run wants a tighter RMS, keep the board beyond ~0.35 m; do not
+unlock the focus to chase it.
+
+### What is settled about the method
 
 **`fx` is exactly invariant to square size.** Scale the squares by any factor
 and the solver scales every board distance by the same factor and returns the
-identical camera matrix. Measured: seven significant figures of agreement across
-`--square` 0.020 / 0.030 / 0.050, with the reported board distance moving
-0.42 → 0.63 → 1.05 m and the RMS identical to six decimals.
+identical camera matrix — seven significant figures across `--square` 0.020 /
+0.030 / 0.050, board distance moving 0.42 → 0.63 → 1.05 m, RMS identical to six
+decimals.
 
-> **This reverses a claim made earlier the same day** in this file, the Day 4
-> checklist and `camera_calib_report.py`'s warning text — all of which said the
-> implied HFOV was the guard against a mis-scaled printout. It is not, and there
-> is no such guard, because there is nothing to guard against: **a mis-scaled
-> board cannot corrupt a bearing.** `atan((u − cx)/fx)` carries no length.
-> Square size sets only the scale of the board's pose, which this project never
-> uses — range comes from the lidar. All three have been corrected.
+> **This reversed an earlier claim made the same day** in this file, the Day 4
+> checklist and the report script — all of which said implied HFOV was the guard
+> against a mis-scaled printout. It is not, and there is nothing to guard:
+> **a mis-scaled board cannot corrupt a bearing**, because `atan((u − cx)/fx)`
+> carries no length. Square size sets only the scale of the board's pose, which
+> this project never uses — range comes from the lidar. All three corrected.
 
 **`cameracalibrator` computes the reprojection error and discards it.**
 `calibrator.py:797` binds `reproj_err` from `cv2.calibrateCamera` and never
-stores it; the figure beside the CALIBRATE button is the *linear* error, a
-different measurement. `scripts/camera_calib_report.py` recovers the real one
-from the tarball by solvePnP-ing each board with `K` and `D` held at their
-published values. Validated against OpenCV's own RMS on a synthetic 12-image
-set: **0.3253 px both ways, agreeing to four decimals.**
+stores it; the figure beside the CALIBRATE button is the *linear* error.
+`scripts/camera_calib_report.py` recovers the real one by solvePnP-ing each
+board with `K` and `D` held at their published values. Validated against
+OpenCV's own RMS on a synthetic 12-image set: **0.3253 px both ways, four
+decimals.**
+
+**A depth-degenerate capture defeats reprojection error.** Over a narrow depth
+range `fx` and board distance are nearly interchangeable; `calib-report` now
+prints the ratio and wants **≥ 2.5×**. `cx`/`cy` wandering off the frame centre
+is the fingerprint.
 
 **`cam2image` defaults to 320×240**, and intrinsics do not transfer across
-resolutions. `make camera` sets the size explicitly; `calib-report` refuses a
-tarball that does not say 640×480.
+resolutions. `make camera` sets the size; `calib-report` refuses anything else.
 
 **`--no-service-check` is required** — `cam2image` offers no `set_camera_info`
 service, so without it `cameracalibrator` waits forever looking hung, and
-**COMMIT does nothing**. SAVE is what writes `/tmp/calibrationdata.tar.gz`.
+**COMMIT does nothing**. SAVE writes `/tmp/calibrationdata.tar.gz`.
 
-**`focus_automatic_continuous` and `focus_absolute` cannot be set in one
-`v4l2-ctl` call** — setting the focus value in the same `VIDIOC_S_EXT_CTRLS`
-transaction that still has AF enabled is rejected outright. Two calls, AF off
-first. The lock then survives `cam2image` opening the device (verified).
+**The two focus controls cannot be set in one `v4l2-ctl` call** — setting
+`focus_absolute` in the same `VIDIOC_S_EXT_CTRLS` transaction that still has AF
+enabled is rejected. Two calls, AF off first. The lock survives `cam2image`
+opening the device.
 
-**Recovered board, from `.bash_history`: 9×6 interior corners, 20 mm squares.**
-The recovered command reads `--square 20.0` because that lost tool took
-millimetres; `cameracalibrator` takes **metres**, so `--square 0.020`. The
-pre-dump `8x6` / `0.025` is wrong on both counts.
+**Board, from `.bash_history`: 9×6 interior corners, 20 mm.** The recovered
+command reads `--square 20.0` because that lost tool took millimetres;
+`cameracalibrator` takes **metres** → `--square 0.020`. The pre-dump `8x6` /
+`0.025` is wrong on both counts.
 
 **Saved to:** `my_bot/config/c615_640x480.yaml`
 

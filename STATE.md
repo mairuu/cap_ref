@@ -118,9 +118,17 @@ robot moves, and **`make teleop-nav` is the e-stop** (real again as of 10 Sep).
 3. ~~**Track B — camera intrinsics.**~~ ✅ **DONE 11 Sep, and validated against
    a tape measure.** Installed at `my_bot/config/c615_640x480.yaml`:
 
-   **fx 672.646 · fy 674.368 · cx 331.193 · cy 235.703**
-   reprojection **0.4464 px** over 80 images, focus **locked at 51**,
-   **tape-measure slope 1.0117 → `fx` is +1.2% high. PASS.**
+   **fx 667.874 · fy 669.846 · cx 321.569 · cy 234.502**
+   reprojection **0.3403 px**, focus **locked at 51**, **+0.45% against a tape
+   measure.** 80 images captured, refit on the 59 at or beyond 0.30 m —
+   `make calib-report` now takes `--min-depth` for exactly this.
+
+   > **The trim was worth it for `cx`, not for the RMS.** It moved 331.19 →
+   > 321.57, and `cx` biases *every* bearing by a constant: 9.6 px at fx 668 is
+   > **0.82° of systematic pointing error** taken out of every landmark. Do not
+   > trim further — the 0.35 m cut scores better still and throws `cx` out to
+   > 308.4. Trimming is not monotonic and the RMS will not tell you where to
+   > stop.
 
    > **The ~62° HFOV this project assumed was wrong.** The camera is **~51°** —
    > 50.9° from the calibration and 51.4° from the tape, independently. The 62°

@@ -71,7 +71,11 @@ A detection enters as a pixel rectangle. Its horizontal extent converts to an an
 | Loop-closure handling | Correcting stored positions when `map→odom` jumps. | Not started |
 | Nav2 / map_saver integration | Navigating to a named object; saving the semantic layer with the grid. | Not started |
 
-> The intrinsics in `robot_params.yaml` are still marked `← YOUR VALUE` (`fx: 528.1`), and the node's own defaults differ (`554.0`). Every bearing in the system is derived from these numbers, so a real `camera_calibration` run is a prerequisite for any of the accuracy work below — not a nice-to-have.
+> ✅ **Done 11 Sep 2026.** The C615 is calibrated at 640×480 and validated against a tape measure: **fx 667.874 · fy 669.846 · cx 321.569 · cy 234.502**, reprojection 0.3403 px, `fx` within +0.45% of the tape. Installed at `my_bot/config/c615_640x480.yaml`; method and derivation in `records/calibration.md`.
+>
+> ⚠ **Both figures this note quoted are ~20% wrong and must not be reinstated.** `robot_params.yaml`'s `fx: 528.1` was a `← YOUR VALUE` template placeholder, never a measurement; the node's `554.0` default implies a ~60° HFOV. **The camera is ~51°.** Every bearing in the system derives from these numbers, so when the September `semantic_objects` tree is rebuilt the defaults get **deleted**, not updated — a missing params file must fail loudly.
+>
+> **Autofocus must stay locked** (`focus_absolute=51`), and to the same value the calibration was taken at. The C615 is varifocal: with AF on, `fx` drifts at run time and the calibration stops describing the camera. `make camera` handles it.
 
 ---
 
@@ -161,7 +165,7 @@ Landmarks are stored as absolute `map`-frame coordinates. When `slam_toolbox` cl
 
 P1, P2, P3, P4 — everything that decides whether a point lands in the right place.
 
-- Calibrate the C615 and write the real intrinsics into `robot_params.yaml`; delete the node's differing defaults so a missing params file fails loudly rather than quietly using `554.0`.
+- ~~Calibrate the C615~~ ✅ **done 11 Sep** — `my_bot/config/c615_640x480.yaml`, tape-validated. Still to do when the node is rebuilt: point it at that file and **delete the `554.0` defaults** so a missing params file fails loudly rather than quietly running ~20% off.
 - Remove the `±0.1 rad` gate; derive any azimuth limit from the intrinsics.
 - Look TF up at the detection's `header.stamp`.
 - Gate on `|ω|` from `/odom`.
