@@ -70,14 +70,20 @@ Full pin table and the encoder-pin conflict: `reference/firmware-protocol.md`.
 | Resolution in use | 640 × 480 |
 | Driver | **`cam2image`** (`ros-humble-image-tools`) on `/image`, **RELIABLE** QoS |
 | Native mode | 480 × 640, 15 Hz |
-| Horizontal FOV | roughly 62° |
-| `fx / fy / cx / cy` | ⚠ **STILL LOST** — the one calibration not recovered |
+| Horizontal FOV | spec ~62°; **measured 48.2° at 640×480, 11 Sep** — unresolved, see below |
+| Autofocus | ⚠ **Varifocal, AF on by default — AF moves `fx`.** Lock it: `make camera` sets `focus_automatic_continuous=0` and `focus_absolute=51`. Use the same value for calibration and for the demo. |
+| `fx / fy / cx / cy` | **714.63 / 718.01 / 321.15 / 241.42** at 640×480, 11 Sep — **PROVISIONAL**, `fx` is 17.5% unstable across the capture. `records/calibration.md`. |
 | Checkerboard used | **9×6, 20 mm squares** — recovered from `.bash_history` |
-| Extrinsics from `base_link` | ⚠ **still lost** — measure, and put in the URDF |
+| Extrinsics from `base_link` | **Measured 9 Sep and in the URDF** — `camera_link` at (0.05, 0.03, 0.167), pitch −3°. `description/camera.xacro` is the single source (D-10); the semantic node reads TF, not params. ⚠ the +y (left) **side** was assumed, not measured — magnitude 3 cm is real. |
 
 Calibration is a **prerequisite, not a nicety**: every bearing in the semantic
 layer derives from `fx/fy/cx/cy`. A 5% error in `fx` is a 5% bearing error at
 the frame edge.
+
+> **Square size is not the risk.** `fx` is exactly invariant to the checkerboard
+> square size, so a mis-scaled printout cannot corrupt a bearing. The risks are
+> **autofocus** and a **depth-degenerate capture**, and reprojection error sees
+> neither. `make calib-scale` is the only check with an absolute length in it.
 
 ---
 

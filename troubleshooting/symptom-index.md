@@ -727,16 +727,46 @@ the *linear* error**, a different measurement — not the < 0.5 px gate.
 the worst ones it lists and re-run rather than recapturing blind.
 
 ### Intrinsics look plausible, bearings in the semantic layer are all off by a few percent
-Two candidates, and reprojection error catches **neither**.
+Three candidates. **Reprojection error catches none of them** — it is computed
+in pixels against the same self-consistent fit, so it cannot see a wrong `fx`.
 
-- **The printed board is not 20 mm.** Verified 11 Sep: re-scoring the same
-  images with `--square 0.030` instead of `0.020` changed the RMS by **zero** —
-  a uniform scale error is absorbed by the board-to-camera distance. Measure ten
-  squares; the span must be 200 mm. The one automatic guard is the implied HFOV
-  against the C615's ~62°, which `calib-report` prints.
+- **Autofocus was on during the capture.** The C615 is varifocal: refocusing
+  moves the lens, so `fx` is not constant while `focus_automatic_continuous` is
+  1. Confirmed 11 Sep — left alone with AF on, the driver moved
+  `focus_absolute` 51 → 85 unprompted. The 48-image run that day split 17.5% in
+  `fx` between its first 29 and last 19 frames. Lock it: `make camera` does,
+  and it must be the **same** value at calibration and at run time.
+- **The capture was depth-degenerate.** Over a narrow depth range `fx` and board
+  distance are nearly interchangeable, so the solver can be 15–20% wrong about
+  `fx` and still fit perfectly. The fingerprint is `cx`/`cy` wandering off the
+  frame centre — in that same run the narrow subgroup put `cx` at 391.7 against
+  a true ~320, *and scored the better RMS* (0.15 px vs 0.53). `calib-report`
+  now prints the depth ratio and wants ≥ 2.5×.
 - **It was calibrated at 320×240.** `cam2image` **defaults** to that, and `fx`,
   `fy`, `cx`, `cy` all scale with resolution. `make camera` sets 640×480
   explicitly and `calib-report` refuses a tarball that says anything else.
+
+**It is NOT a mis-scaled printout.** `fx` is exactly invariant to square size —
+scale the squares and the solver scales the board distances and returns the same
+K, verified to seven significant figures across a 2.5× change. So a badly
+printed board cannot corrupt a bearing either; `atan((u − cx)/fx)` carries no
+length. An earlier version of this entry said the opposite.
+
+**To settle it, measure against a tape:** `make calib-scale`. That is the only
+check with an absolute length in it.
+
+### `v4l2-ctl -c focus_automatic_continuous=0 -c focus_absolute=51` fails
+`VIDIOC_S_EXT_CTRLS: failed: Invalid or incomplete multibyte or wide character`
+— which is errno noise, not a character-set problem. Setting `focus_absolute` in
+the same transaction that still has autofocus enabled is rejected. **Two calls,
+AF off first:**
+
+```bash
+v4l2-ctl -d /dev/video0 -c focus_automatic_continuous=0
+v4l2-ctl -d /dev/video0 -c focus_absolute=51
+```
+
+The lock survives `cam2image` opening the device — verified 11 Sep.
 
 ### `ros2 topic hz /image/compressed` shows nothing
 **The topic does not exist.** `cam2image` publishes with a plain `rclcpp`

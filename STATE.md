@@ -92,26 +92,44 @@ robot moves, and **`make teleop-nav` is the e-stop** (real again as of 10 Sep).
    > the scan, so the doubled wall stays drawn. Start from a fresh `make slam`.
 2. **Then Day 4 §3:** RViz `2D Goal Pose` → arrives and stops; block it with a
    chair → recovery behaviours fire. **That is the Day 4 gate.**
-3. **Track B, any gap — camera intrinsics. The tooling is ready as of 11 Sep;
-   only the capture is left, and it needs no robot.** Board is printed. Three
-   terminals' worth of work:
+3. **Track B — camera intrinsics: captured 11 Sep, PASSED the gate, and
+   `fx` is still not trustworthy.** Installed at
+   `my_bot/config/c615_640x480.yaml`: **fx 714.63 · fy 718.01 · cx 321.15 ·
+   cy 241.42, reprojection 0.3651 px over 48 images.** Full derivation and the
+   subset table are in `records/calibration.md`.
+
+   > ⚠ **Two things do not add up, and they point the same way.** The implied
+   > HFOV is **48.2°** against the C615's ~62° spec; and splitting the same 48
+   > images by capture order gives **fx 819.74** (first 29) against **676.30**
+   > (last 19) — **17.5% apart**, with the *better*-scoring half the more
+   > suspect one (RMS 0.15 vs 0.53, but `cx` adrift at 391.7).
+   >
+   > **Autofocus was on during the capture.** The C615 is varifocal, so `fx`
+   > moves when the lens refocuses — and with AF enabled the driver moved
+   > `focus_absolute` 51 → 85 on its own while we watched. That also means the
+   > lens keeps drifting at *run* time, not just during calibration.
+
+   **Next, in this order — all desk work, no robot:**
 
    ```bash
-   make camera        # cam2image 640x480 RELIABLE 15 Hz
-   make calib         # cameracalibrator 9x6 / 0.020, --no-service-check
-   make calib-report  # after pressing SAVE, not COMMIT
+   make camera        # now locks focus (FOCUS=51) before starting cam2image
+   make calib         # recapture, sweeping the board through a WIDE depth range
+   make calib-report  # wants depth ratio >= 2.5x and cx/cy near (320, 240)
+   make calib-scale   # the tape-measure check: slope must be 1.000 +/- 2%
    ```
 
-   > **Measure the printed board before capturing.** Ten squares must span
-   > 200 mm. A square-size error is **invisible** to the reprojection error —
-   > verified 11 Sep, re-scoring the same images at `--square 0.030` moved the
-   > RMS by zero. It is absorbed by the board distance and comes out as a
-   > straight percentage error on every bearing in the semantic layer.
+   > **`make calib-scale` is the only check with an absolute length in it.**
+   > Nothing inside a chessboard calibration can tell you `fx` is wrong —
+   > reprojection error is computed in pixels against the same self-consistent
+   > fit. It puts the board at tape-measured distances and regresses model
+   > against tape; the intercept absorbs the entrance-pupil offset, which is why
+   > it wants two or more distances.
 
-   > **The gate number is not on screen.** `cameracalibrator` computes the
-   > reprojection error and discards it (`calibrator.py:797`); the figure beside
-   > CALIBRATE is the *linear* error. `make calib-report` recovers the real one
-   > from the tarball, per image, and refuses to install over 0.5 px.
+   > ✅ **Settled, and it reverses what this file said earlier today:** `fx` is
+   > *exactly* invariant to square size (seven significant figures across a 2.5×
+   > change in `--square`). **A mis-scaled printout cannot corrupt a bearing** —
+   > `atan((u − cx)/fx)` has no length in it. Do not spend time measuring the
+   > board; spend it on focus lock and depth spread.
 
 > **The 0.2325 prediction is dead.** Day 2's eyeballed 90° implied a 7 % yaw
 > error; ten machine-counted turns say **0.61–0.67 %**, and in the opposite
@@ -682,5 +700,7 @@ report's methodology section.
 | 10 Sep | Day 4 §4's camera commands replaced | Checklist says `usb_cam` / `/camera/image_raw` / `8x6` / `0.025`. All four are wrong post-dump: it is `cam2image` on `/image`, board is **9×6 / 20 mm**, and `--no-service-check` is required because `cam2image` offers no `set_camera_info` service. |
 | 11 Sep | Day 4 §4 **rewritten in the file**, not only logged | The 10 Sep row above recorded the replacement but `checklists/day-4-nav2.md` still carried the `usb_cam` / `8x6` / `0.025` commands. Now rewritten, with `make camera` / `make calib` / `make calib-report` added to the Makefile so the corrected form is the one that runs. |
 | 11 Sep | Two scripts added rather than walking the calibration by hand | `camera_calib_report.py` exists because `cameracalibrator` computes the reprojection error and discards it — the Day 4 gate is otherwise unmeasurable. `make_checkerboard.py` exists because a mis-scaled printout is invisible to that error. Working agreement: a bring-up step that needs a measurement gets a script. |
+| 11 Sep | Focus lock folded into `make camera` rather than left as a checklist line | The C615 is varifocal and autofocus moves `fx`. A step that must hold identically at calibration time and at demo time is not a thing to remember — it belongs in the target that starts the camera. `FOCUS=auto` restores AF for anything that genuinely wants it. |
+| 11 Sep | `make calib-scale` added; the Day 4 gate gains a second camera condition | Reprojection error cannot see a wrong `fx` — it is pixels against a self-consistent fit. The 11 Sep run passed at 0.3651 px while being 17.5% unstable internally. A tape measure is the only independent length available, so the gate now requires it. |
 | 11 Sep | `/image/compressed` dropped as a Day 4 checkbox | It does not exist. `cam2image` uses a plain `rclcpp` publisher, not `image_transport`, so no transport plugin ever attaches — confirmed on the live node. Becomes a Day 6 decision: an `image_transport republish` node, or a different camera driver. |
 | 8 Sep | `cap_ws` created with only `Makefile` + `setup_udev.sh` | Day 1 needs no more than that. The rest of `my_bot` crosses over file by file on Day 2, re-verifying measured numbers as it goes (D-13). The recovered `99-my-bot-serial.rules` was **not** copied — its `KERNELS` paths are devkit-specific. |
