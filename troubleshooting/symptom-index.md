@@ -490,6 +490,46 @@ unknown space and need it `true`.
 Something other than `slam_toolbox` is publishing `map → odom` — usually an
 accidentally launched `amcl` or `map_server`.
 
+### The robot jerks forward and snaps back, and the map smears behind it
+**Rubber-banding. Four causes make this shape and they need different fixes.**
+Do not guess between them — the measurement is one command, run *while driving*:
+
+```bash
+ros2 run my_bot check_pose_stability.py --seconds 30 --check-peer ju@172.20.10.5
+```
+
+1. **Two TF broadcasters on one edge.** The only true rubber band: the pose
+   alternates between two answers frame by frame. Almost always **a second
+   `make real` left running in a forgotten terminal** — nothing in `cap_ws`
+   double-publishes (audited 11 Sep: no `amcl`, no `map_server`, no
+   `static_transform_publisher`, no `robot_localization`; `navigation.launch.py`
+   starts only `twist_mux` and `teleop_speed_guard`). Fix: kill every terminal
+   and bring up exactly one stack.
+2. **A scan arriving older than `transform_timeout` (0.2 s).** slam_toolbox
+   discards it outright, matches on a gappy history, and corrects hard when it
+   finally does match.
+3. **The scan matcher fighting odometry.** The correction *oscillates* rather
+   than drifts — it travels far more than it nets. That is the snap-back.
+4. **Clock skew to the RViz laptop.** Since 9 Sep RViz runs on the laptop, and
+   RViz resolves every transform against **its own** clock. Two clocks more than
+   ~50 ms apart draw the robot and the map at different instants. **This one is
+   purely a display artefact — the map on disk is fine.** `reference/ros2-network.md`
+   sets up discovery but says nothing about time sync; that gap is real.
+
+> ⚠ **`ros2 run tf2_ros tf_monitor` cannot settle (1), and does not exist.**
+> The executable is **`tf2_monitor`**. More importantly its authority column is
+> useless in ROS 2: ROS 1 read the publisher from the message's connection
+> header and DDS has no equivalent, so Humble hardcodes it —
+> `libtf2_ros.so` contains the literal string **`Authority undetectable`**, and
+> `tf2_monitor` prints `<no authority available>`. Every edge reports the same
+> invented authority however many nodes publish it. Use
+> `ros2 topic info /tf --verbose` (a real DDS endpoint census) or the script
+> above, which also catches the doubled edge rate and the backwards stamps.
+
+**If all four come back clean and the map still smears while the pose holds
+steady, it is not a rubber band at all** — it is motion shear, see "The map
+smears when driving forward" above.
+
 ### Nothing happens in simulation, and no error
 `SIM_TIME` was not passed to **every** layer. `use_sim_time` must match across
 slam, nav and explore or TF lookups fail silently.
