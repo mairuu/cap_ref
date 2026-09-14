@@ -161,7 +161,7 @@ Assert that `map → odom → base_link → laser_frame` and
 Catches the silent TF gap that makes SLAM look broken when the real fault is a
 node that did not start. Run it before blaming anything else.
 
-## `landmark_tape_measure.py <class>` — [ ] Day 7, still to write
+## `landmark_tape_measure.py <class>` — [x] **written 14 Sep (Day 6)**, `my_bot/scripts/`
 
 Subscribe to `/semantic_landmarks`. On each pass, log the named class's
 published position with a timestamp. At exit, report:

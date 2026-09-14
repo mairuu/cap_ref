@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import threading
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+
+# datetime.UTC is Python 3.11+; the Jetson (and rclpy) is 3.10. 14 Sep 2026.
+UTC = timezone.utc
 
 import pytest
 

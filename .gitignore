@@ -23,3 +23,5 @@ bin/
 # Editor
 .DS_Store
 *.swp
+# Vite build output (semantic_map_ui)
+**/dist/

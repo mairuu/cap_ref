@@ -62,11 +62,23 @@ class SemanticBridgeNode:
         node.create_timer(0.1, self._update_pose)
 
         # Subscriptions
+        from rclpy.qos import (DurabilityPolicy, HistoryPolicy, QoSProfile,
+                               ReliabilityPolicy, qos_profile_sensor_data)
+
+        # /map is latched (TRANSIENT_LOCAL) by slam_toolbox; ask for the same
+        # so the grid arrives on connect instead of at the next map update.
+        map_qos = QoSProfile(
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.TRANSIENT_LOCAL,
+            history=HistoryPolicy.KEEP_LAST, depth=1,
+        )
         node.create_subscription(String, "/semantic_landmarks", self._on_landmarks, 10)
-        node.create_subscription(OccupancyGrid, "/map", self._on_map, 1)
-        node.create_subscription(LaserScan, "/scan", self._on_scan, 10)
+        node.create_subscription(OccupancyGrid, "/map", self._on_map, map_qos)
+        # /scan is BEST_EFFORT from the ydlidar driver; a RELIABLE subscriber
+        # (the old depth-10 default) never connects and the UI shows no scan.
+        node.create_subscription(LaserScan, "/scan", self._on_scan, qos_profile_sensor_data)
         node.create_subscription(
-            CompressedImage, "/camera/image_raw/compressed", self._on_camera, 10
+            CompressedImage, self._config.camera_topic, self._on_camera, 10
         )
 
         # Service client

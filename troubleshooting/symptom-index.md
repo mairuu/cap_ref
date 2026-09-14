@@ -951,6 +951,54 @@ laptop's RViz.
 
 ## Semantic layer
 
+### Landmarks land on the wrong SIDE of where the object is (mirror image)
+The June extractor searched the scan at image azimuths (right-positive); the
+lidar is left-positive. Fixed 14 Sep (`lidar_range_extractor.py`, window is
+`[−az_right + yaw, −az_left + yaw]`) and covered by `test_day6_fixes.py::TestMirror`.
+If it ever comes back, an object 20° left of centre reads the range from 20°
+right — a centred object cannot show it, so **test off-axis**.
+
+### Every landmark is ~9 cm off along the bearing, constant
+The projector was adding the *camera's* offset to a range the *lidar*
+measured. Fixed 14 Sep: camera ray ∩ lidar range circle (D-19). The node logs
+both origins at startup; check they read `camera=(+0.050,-0.030)` and
+`lidar=(-0.034,+0.000)`.
+
+### Node exits at start: "tf.camera_frame=... has roll -90 deg"
+You pointed `tf.camera_frame` at `camera_optical_link`. The 2D projector needs
+the x-forward mount frame `camera_link`. Deliberate refusal — the optical
+frame's yaw would rotate every landmark by 90°.
+
+### Node exits at start: "camera.calibration_file is not set / not found"
+By design: there are **no built-in intrinsics** any more (the June `554.0` was
+17 % off). `semantic.launch.py` passes `my_bot`'s installed
+`c615_640x480.yaml`; if you ran the node bare, pass the parameter.
+
+### "no odometry on /diff_cont/odom -- motion gate CLOSED, nothing is fused"
+The P3 gate fails **closed**. `make real` is not up, or the odom topic name is
+wrong (it is `/diff_cont/odom`; there is no `/odom` on this robot).
+
+### "no paired scan+detections in 5 s"
+`/scan` or `/detections` is not publishing, or their stamps are more than
+`sync.slop` apart. Both are capture-time stamps, so the pair should be ≤ 33 ms
+apart; if `make yolo` is publishing with wall-clock stamps and the lidar with
+something else, that is the bug.
+
+### Every TF lookup at the detection stamp fails, node fuses nothing
+If `TransformListener` is constructed without `spin_thread=True`, the
+`lookup_transform(timeout=...)` wait inside a callback can never be satisfied
+(no `/tf` arrives while the executor is blocked) and only stalls the pipeline.
+The rebuilt node sets it. Otherwise: `map → odom` needs `make slam`.
+
+### Yesterday's landmarks appear in today's map, in the wrong places
+`landmark.restore_on_start` must stay `false`: one-session SLAM (D-05) gives a
+new map frame every run. The JSON is written for the report, not reloaded.
+
+### A landmark stays on RViz / the UI after clear_landmarks
+Fixed 14 Sep: the node now publishes an empty payload and a `DELETEALL`
+marker on every publish and after a clear. If it recurs, something is
+republishing the old latched message.
+
 ### Node dies immediately on startup
 **The parameter bug.** Five call sites read dotted parameters with slashes →
 `ParameterNotDeclaredError` in `__init__`. Lines 118, 119, 130, 131, 132.
@@ -989,6 +1037,31 @@ and do not follow a loop closure. Documented limitation.
 
 ### UI shows nothing / `ros_connected: false`
 `ROS_DOMAIN_ID` mismatch between the bridge and the robot.
+
+### UI shows the map but no scan halo
+The bridge subscribed `/scan` RELIABLE (depth 10); the ydlidar driver publishes
+best-effort and the pair never connects, with only an rclpy QoS warning.
+Fixed 14 Sep (`qos_profile_sensor_data`). If it recurs, check the bridge's QoS
+first, not the driver.
+
+### `make bridge` fails: `cannot import name 'UTC' from 'datetime'`
+`datetime.UTC` is Python 3.11+; the bridge must run under 3.10 for rclpy.
+Fixed 14 Sep in `state.py`. The bridge venv is pinned by `.python-version`.
+
+### Bridge tests: `PluginValidationError: Plugin 'launch_testing'`
+ROS's `launch_testing` pytest plugin (visible through system site-packages once
+ROS is sourced) is incompatible with pytest 8. Run
+`python -m pytest tests -p no:launch_testing`.
+
+### `make ui`: Vite fails to start, or `npm ci` complains about the Node version
+Ubuntu 22.04's apt `nodejs` is 12.22; Vite 5 needs 18+. Node 20 is installed
+from NodeSource (D-20): `node --version` should print v20.
+
+### The browser on the laptop shows "connecting…" forever
+`semantic_map_ui/.env` must carry the **Jetson's** address
+(`VITE_BACKEND_URL=http://192.168.160.106:8000`), not `localhost` — the browser
+runs on the laptop. Vite bakes it in at start, so restart `make ui` after
+editing it. Then `curl http://<jetson>:8000/api/health` from the laptop.
 
 ### Camera panel is blank
 The compressed topic does not exist — and installing

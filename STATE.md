@@ -3,7 +3,26 @@
 > **Update this at the end of every session and whenever a gate passes.**
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
-**Last updated:** 14 Sep 2026, evening — **Day 5 GATE PASSED (Track B, done ahead of the Day 3/4 gates because it needs no robot). `make yolo` publishes `vision_msgs` on `/detections` at 15.15 Hz, camera-limited, no throttling over five minutes, and a single cup held one track id for 457/457 frames on the real camera. D-11 closed on option B. Day 3 and Day 4 gates still open; everything left on Track A needs the robot driven.**
+**Last updated:** 14 Sep 2026, night — **Day 6 DESK WORK DONE on Track B: `semantic_objects` rebuilt as a package in `cap_ws`, all nine fixes in, 139 tests green, bridge and UI running on the Jetson. Two geometry defects the checklist did not know about are fixed (mirrored scan window, wrong range origin), and the camera is on the RIGHT — `camera.xacro` corrected. Day 5 gate passed earlier today. Day 3, 4 and 6 gates all need the robot: Day 6's needs a chair and a tape first (no driving), then the drive-past.**
+
+> **Day 6 at a glance (14 Sep).** `cap_ws/src/semantic_objects/` — node,
+> `launch/semantic.launch.py`, `config/robot_params.yaml`, `clear_landmarks`
+> service, 28 new tests. `make semantic` · `make bridge` · `make ui` in the
+> `cap_ws` Makefile; `make test` runs the 139 unit tests. Verified on the desk
+> with `robot_state_publisher` alone: intrinsics read from `c615_640x480.yaml`
+> (fx 667.874), camera (+0.050, −0.030) and lidar (−0.034, 0) from TF, bridge
+> `ros_connected: true`, `POST /api/clear` reaches the node, Vite answers at
+> `http://192.168.160.106:3000/`. **Next, needs a person but no driving — the
+> stationary bench check:**
+> ```
+> make real · make slam · make yolo · make semantic          # four terminals
+> ros2 run my_bot landmark_tape_measure.py chair --truth X Y # chair 20-25 deg OFF-AXIS, taped
+> ```
+> Expect one landmark within 0.25 m; move the chair to the other side and it
+> must follow. A centred chair cannot reveal a mirror or a camera-side error.
+> Then the Day 6 gate proper (drive past, marker stays, browser shows it) with
+> the Day 3/4 drive. Records: `records/calibration.md` "Semantic fusion",
+> D-19/D-20, symptom index "Semantic layer" and "Bridge and UI".
 
 > **Day 5 at a glance (14 Sep).** `scripts/yolo_detector.py` + `launch/yolo.launch.py`
 > + `scripts/detection_report.py` (the gate tool), all in `cap_ws`. `yolo26n.pt`
@@ -52,7 +71,7 @@
 > so a stray `q` can never reproduce the 10 Sep shear. Rebuilt; installed
 > copies verified; committed and pushed as `cap_ws` `257d4f1`. Both are untested on a moving robot: the next driving session
 > is the test.
-**Current day:** Day 4 on Track A, **Day 5 PASSED on Track B**; Day 6's desk work (the `semantic_objects` rebuild) is next on Track B. §1 (Nav2 port) **done and verified**; Day 3's gate is
+**Current day:** Day 4 on Track A; **Day 5 PASSED and Day 6 built on Track B** — Day 6's gate needs the bench check, then the drive-past. §1 (Nav2 port) **done and verified**; Day 3's gate is
 still the blocker and both remaining Track A items need the robot driven.
 ~~**Multi-machine ROS 2 is up (9 Sep)**~~ **DOWN since 11 Sep** — see the banner above. Until it is re-run on both machines, **RViz runs on the Jetson's HDMI display** (`:0`, confirmed present). `reference/ros2-network.md` and D-16.
 **Blocked on:** nothing technical — **the two remaining items both need the
@@ -529,7 +548,7 @@ failed gate.
 | 3 | A driven loop closes without a visible double wall | [ ] **§2 lidar and §3 SLAM config done 9 Sep**; the loop itself is undriven. `wheel_separation` must be settled first |
 | 4 | RViz goal → robot arrives; recovery behaviours fire when blocked | [ ] |
 | 5 | `/detections` stable; track IDs persist; no thermal throttle | **[x] PASSED 14 Sep.** 15.15 Hz sd 5 ms over 301 s; tj max 44.6 °C over 301 s (52 °C later in the evening); versions recorded; **one cup → id 1 in 457/457 frames** on the real camera |
-| 6 | Labelled marker appears at roughly the right place and stays; UI shows it | [ ] |
+| 6 | Labelled marker appears at roughly the right place and stays; UI shows it | [ ] **Built and desk-verified 14 Sep**; bench check (chair, tape, no driving) and the drive-past are open. Everything pushed |
 | 7 | Three clean end-to-end rehearsals; tape-measure numbers recorded | [ ] |
 
 ## Track status
@@ -537,7 +556,7 @@ failed gate.
 | Track | Scope | Where |
 |---|---|---|
 | **A** — needs the robot | foundation → drive → odometry → SLAM → Nav2 | Day 1 done, **Day 2 done**. **Day 3 part done**: lidar driver built, `/scan` live, SLAM running. **Day 4 §1 done 10 Sep** — Nav2 ported, all 7 lifecycle nodes active, e-stop restored. Remaining is all driving — `wheel_separation`, the loop, then goals |
-| **B** — needs only Jetson + camera | uv env → calibration → detector | **DONE through Day 5.** Venv (Day 2), intrinsics (11 Sep), detector + gate (14 Sep, D-11 → B). Next: Day 6's `semantic_objects` rebuild, which needs no robot until its own gate |
+| **B** — needs only Jetson + camera | uv env → calibration → detector → fusion | **DONE through Day 6's build.** Venv (Day 2), intrinsics (11 Sep), detector + gate (14 Sep), `semantic_objects` + bridge + UI (14 Sep night). Track B is finished; what remains on Day 6 needs the robot on the floor with the lidar up |
 
 Track B runs in the gaps of Track A. Start it Day 2, not Day 5 — it is the
 highest-variance item in the week and it needs no robot.
@@ -672,12 +691,12 @@ This is the quick-reference mirror.
 | Longest return seen | **6.30 m** | measured 11 Sep — the room is smaller than either range rating, so the 8 vs 12 m fix shows nothing here |
 | `reversion` flag | **true** | ✅ **verified on this board 11 Sep** — front object read ~0°, not 180° |
 | `inverted` flag | **true** | ✅ **verified on this board 11 Sep** — left object read ~+90°, not −90° |
-| `camera.fx` | — | ⚠ **still lost** |
-| `camera.fy` | — | ⚠ **still lost** |
-| `camera.cx` | — | ⚠ **still lost** |
-| `camera.cy` | — | ⚠ **still lost** |
+| `camera.fx` | **667.874** | ✅ calibrated 11 Sep — this row was stale until 14 Sep |
+| `camera.fy` | **669.846** | ✅ calibrated 11 Sep |
+| `camera.cx` | **321.569** | ✅ calibrated 11 Sep |
+| `camera.cy` | **234.502** | ✅ calibrated 11 Sep |
 | camera `dx` (forward of axle) | **+0.050** m | **measured 9 Sep**, tape |
-| camera `dy` (left of centre) | **+0.030** m | measured 9 Sep — ⚠ **sign assumed**, see below |
+| camera `dy` (left of centre) | **−0.030** m — the camera is on the **RIGHT** | magnitude 9 Sep; ✅ **side confirmed by the user 14 Sep**, `camera.xacro` corrected the same day |
 | camera `dz` (above floor) | **0.20** m | measured 9 Sep |
 | camera pitch | **−0.0524** rad (3° **up**) | measured 9 Sep |
 | torch / torchvision | **2.11.0 / 0.26.0** | JetPack cp310 aarch64 wheels, 9 Sep |
@@ -752,6 +771,14 @@ report's methodology section.
 | 11 Sep | Focus lock folded into `make camera` rather than left as a checklist line | The C615 is varifocal and autofocus moves `fx`. A step that must hold identically at calibration time and at demo time is not a thing to remember — it belongs in the target that starts the camera. `FOCUS=auto` restores AF for anything that genuinely wants it. |
 | 11 Sep | `make calib-scale` added; the Day 4 gate gains a second camera condition | Reprojection error cannot see a wrong `fx` — it is pixels against a self-consistent fit. The 11 Sep run passed at 0.3651 px while being 17.5% unstable internally. A tape measure is the only independent length available, so the gate now requires it. |
 | 11 Sep | `/image/compressed` dropped as a Day 4 checkbox | It does not exist. `cam2image` uses a plain `rclcpp` publisher, not `image_transport`, so no transport plugin ever attaches — confirmed on the live node. Becomes a Day 6 decision: an `image_transport republish` node, or a different camera driver. |
+| 14 Sep | Day 6 §1–§2 and §4 done **before** the Day 3/4/5 gates were all closed | Same Track B reasoning; desk work only. The gate itself is untouched. |
+| 14 Sep | Intrinsics read from `c615_640x480.yaml`, not copied into `robot_params.yaml` | One copy of the numbers; a missing file is fatal. **D-19.** |
+| 14 Sep | Projector intersects the camera ray with the lidar range circle | The June "camera + r·ray" was a 9 cm constant bias; the checklist did not list it. **D-19.** |
+| 14 Sep | Extractor's scan window mirrored into lidar angles | Image-right vs lidar-left sign convention; not in P1–P8; 5 tests. |
+| 14 Sep | `camera_offset_y` flipped to **−0.03** in `camera.xacro` | User confirmed the camera is on the right. Fixed in the URDF, never downstream, per the 9 Sep note. |
+| 14 Sep | Bridge edited (scan QoS, map QoS, camera topic, CORS, `datetime.UTC`) | Interfaces did not match this robot; the landmark schema did and is untouched. **D-20.** |
+| 14 Sep | Node 20 installed from NodeSource; UI served from the Jetson | User's choice; apt's Node 12 cannot run Vite 5. **D-20.** |
+| 14 Sep | `landmark_tape_measure.py` written on Day 6, not Day 7 | The stationary bench check is a measurement; working agreement. |
 | 14 Sep | Day 5 §2–§3 done **before** the Day 3 and Day 4 gates, inverting the checklist order | The detector needs only the Jetson and the camera (Track B by design, `RECOVERY.md`), while both open gates need a person driving the robot. Same reasoning as the 10 Sep Nav2 reorder: desk work that costs nothing to bring forward. The gates are still gates — Day 6's fusion is not started against them. |
 | 14 Sep | D-11 closed on **B** (custom `vision_msgs` node), not A (`yolo_ros` + TensorRT) | Measured 15.15 Hz camera-limited from `.pt` alone — the same rate A was recorded at — so the lost patch, the dead engines and `yolo_msgs` would have bought nothing visible. Engine export stays a one-line escape hatch. |
 | 14 Sep | Day 5's `imgsz 480` / `yolov8n` levers marked as not levers | Benchmarked: 480 is no faster than 640 (36.2 vs 34.9 ms), fp16 no faster on yolo26n. Pipeline is launch-bound at nano size. Recorded so nobody spends Day 6 pulling them. |

@@ -429,6 +429,58 @@ numbers, not from a driven A/B. The next driving session is the test; if
 it nets, the next step is `distance_variance_penalty: 0.05`, not a wider
 window.
 
+## D-19 · Fusion geometry: one copy of the intrinsics, and the range is the lidar's
+**Date:** 14 Sep 2026 · **Status:** adopted
+
+Three things the Day 6 checklist did not specify, decided while rebuilding
+`semantic_objects`:
+
+1. **Intrinsics are read from `my_bot/config/c615_640x480.yaml`** (a
+   `camera.calibration_file` parameter set by the launch file), not copied into
+   `robot_params.yaml`. The node has **no** fx/fy/cx/cy parameters and no
+   defaults; a missing file is fatal.
+2. **The camera's ray is intersected with the lidar's range circle.** The
+   June projector placed the point at range r from the *camera*; the range is
+   the *lidar's*. With the camera at (0.05, −0.03) and the lidar at (−0.034, 0)
+   that was a constant ~9 cm, and the 3 cm lateral offset is 1.7° of bearing at
+   1 m — more than a lidar ray. The intersection is exact for both and costs
+   one square root.
+3. **The camera mount frame (`camera_link`), not `camera_optical_link`, is
+   what the node reads from TF**, because its 2D projector wants the mount's
+   yaw; the optical frame's yaw is −90°. The node refuses a frame with |roll|
+   or |pitch| over 20°. `camera.xacro`'s D-10 comment said "optical" and has
+   been corrected.
+
+**Why:** one copy of every number, and the two systematic errors were larger
+than the design note's whole 0.25 m budget allows for slop.
+**Cost:** a `.pt`-style single source means the launch must resolve `my_bot`'s
+share directory; `ament_index` does that. The 2D model still drops z, the −3°
+pitch and lens distortion (≤ 2 cm and ≤ 1.3 cm at 3 m).
+**Limitation to report:** the scan window is computed at the camera's
+position, not the lidar's; `angular_padding` 0.035 rad covers the difference
+beyond ~1 m.
+
+## D-20 · Bridge interface edits, Node 20 on the Jetson, UI served from the robot
+**Date:** 14 Sep 2026 · **Status:** adopted (UI hosting: user decision)
+
+The bridge's landmark **schema** matched on all seven fields and is untouched;
+its **interfaces** did not match this robot: `/scan` subscribed RELIABLE
+(driver is best-effort — never connects), `/map` volatile, camera topic
+hard-coded to `usb_cam`'s `/camera/image_raw/compressed`, CORS localhost-only,
+and `datetime.UTC` needs Python 3.11 where rclpy needs 3.10. All five fixed in
+the bridge, logged as deviations.
+
+The UI runs on the **Jetson** (`make ui`, Vite on port 3000, browsed from the
+laptop) — the user's choice over running Vite on the laptop or serving a
+static build. Ubuntu 22.04's `nodejs` is 12.22; **Node 20 from NodeSource** was
+installed. `semantic_map_ui/.env` points the browser at the bridge on the
+Jetson's address, not `localhost`. Only HTTP crosses the subnet, so the broken
+DDS discovery (11 Sep) does not affect the UI.
+
+**Cost:** a NodeSource apt source on the robot; a rebuild-free dev server that
+must be running on demo day. **Reversal:** `make ui` on the laptop with the
+same `.env`, or `npm run build` and serve `dist/` from the bridge.
+
 ---
 
 ## Template

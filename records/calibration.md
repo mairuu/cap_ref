@@ -1547,6 +1547,69 @@ it recurs every few seconds it is something scheduling frames, not the model.
 > rewritten mid-run to judge on `tj` and print load alongside. The 301 s
 > numbers above were re-read from the raw samples with the corrected rule.
 
+## Semantic fusion — Day 6 desk work, **14 Sep 2026** (bench check still to run)
+
+`cap_ws/src/semantic_objects/` rebuilt from the June modules. Everything below
+was verified on the desk with `robot_state_publisher` only — no lidar, no
+camera, no map. The stationary bench check (chair at a taped position) and the
+Day 6 gate remain **open**; see STATE.md.
+
+### Camera side corrected — `camera_offset_y` is **−0.030 m (RIGHT)**
+
+The user confirmed on 14 Sep that the camera is mounted on the robot's
+**right**. `camera.xacro` carried `+0.03` (left, assumed) from 9 to 14 Sep.
+Resolved `camera_link` in `base_link` is now **(+0.050, −0.030, 0.167)**,
+read back from TF by the semantic node at startup. The lidar is at
+**(−0.034, 0.000)**. Nothing measured on Day 4 depended on the side (intrinsics
+and the tape check are internal to the camera).
+
+### Two geometry defects found by review, neither in P1–P8, both now tested
+
+| Defect | Effect | Fix |
+|---|---|---|
+| **Mirrored scan window.** `pixel_to_azimuth` is image-right-positive; the extractor searched the scan at those angles; the lidar is left-positive (verified 11 Sep) | a box on the image's right took its range from the robot's **left** — bearing right, range from the wrong side | window is `[−az_right + yaw, −az_left + yaw]` in lidar angles; 5 tests in `test_day6_fixes.py::TestMirror` including an extractor→projector round trip |
+| **Wrong range origin.** projector did `camera + r·ray` with a range measured from the lidar | constant bias: at 1 m, 20° left, **8.8 cm** | camera ray ∩ lidar range circle (one sqrt); 6 tests. Also handles the 3 cm lateral offset exactly: 1.7° at 1 m, more than one lidar ray |
+
+Both went unseen by the 111 June tests because every window they used was
+symmetric about the optical axis. Total after Day 6: **139 tests, all green**.
+
+### Node startup, desk, 14 Sep 17:39
+
+```
+intrinsics from .../my_bot/config/c615_640x480.yaml: fx 667.874 fy 669.846 cx 321.569 cy 234.502 @ 640x480
+base_link->camera_link: (+0.050,-0.030) yaw +0.00 deg, pitch -3.0 deg (ignored, 2D)
+base_link->laser_frame: (-0.034,+0.000) yaw +0.00 deg
+```
+
+So: the **554.0 defaults are gone** — the node has no intrinsics of its own and
+reads the one installed copy — and the extrinsics come from TF (D-10). Without
+`/scan` and `/detections` it says so every 5 s; with them but without odometry
+the motion gate stays **closed** and says that instead.
+
+### Bridge and UI, desk, 14 Sep 17:43
+
+| | |
+|---|---|
+| bridge venv | uv, `/usr/bin/python3.10`, system site-packages; `fastapi 0.141.1`; 37 bridge tests pass (`-p no:launch_testing` — the ROS pytest plugin is incompatible with pytest 8) |
+| `GET /api/health` | `ros_connected: true`, `landmark_count: 0` |
+| `POST /api/clear` | 200; the semantic node logged `clear_landmarks: dropped 0 landmark(s)` — the service exists now |
+| `GET /api/map` | 503 "not yet received" — correct without `make slam` |
+| Node | **20.19.x** via NodeSource (apt's 12.22 cannot run Vite 5); `npm ci` clean; `npm run build` 2.9 s |
+| UI | `npm run dev -- --host` answers at `http://192.168.160.106:3000/`; `.env` points it at the bridge on the Jetson |
+
+Three bridge edits, none to the landmark schema (which matched on all seven
+fields): `/scan` was subscribed RELIABLE and would never have connected to the
+best-effort driver; `/map` now transient-local; the camera topic is a setting
+(`/image/compressed`, fed by a `republish` node in `semantic.launch.py`); CORS
+open; `datetime.UTC` (3.11) replaced for 3.10.
+
+### `min_returns` against the measured dropout
+
+Left at **3**, per the 9–10 Sep analysis (27.9 % / 25.7 % dropout: a 0.3 m
+object at 3 m has ~4 live rays). `max_spread` **0.5 m**. `angular_padding`
+**0.035 rad**: the window is computed at the camera and the lidar is 3 cm
+beside it. All in `config/robot_params.yaml` with the reasoning.
+
 ## Final results — the tape-measure protocol (Day 7)
 
 Ground truth chair position, measured against two walls: x ______ y ______

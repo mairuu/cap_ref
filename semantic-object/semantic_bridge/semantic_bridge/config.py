@@ -11,7 +11,15 @@ class Settings(BaseSettings):
     camera_fps: int = 10
     ros_retry_interval_s: int = 5
     scan_downsample_rays: int = 180
-    cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    # The robot's camera is cam2image on /image; semantic.launch.py runs an
+    # image_transport republish that produces /image/compressed. The pre-dump
+    # default (/camera/image_raw/compressed) belonged to usb_cam, which this
+    # robot does not run. 14 Sep 2026.
+    camera_topic: str = Field(default="/image/compressed", validation_alias="CAMERA_TOPIC")
+    # The browser is on the laptop and the bridge on the Jetson, so the origin
+    # is http://<jetson-ip>:3000, which no fixed list anticipates. No
+    # credentials are used, so "*" costs nothing. 14 Sep 2026.
+    cors_origins: list[str] = ["*"]
 
 
 settings = Settings()
