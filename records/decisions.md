@@ -115,8 +115,8 @@ looks up `base_link → camera_link` at startup rather than reading
 **Why:** ten lines, and it removes a whole class of drift between the URDF and
 the params file. This is what the design note's WP1 asks for.
 
-## D-11 · YOLO stack — **OPEN, decide before Day 5**
-**Date raised:** 8 Sep 2026 · **Status:** open
+## D-11 · YOLO stack — **CLOSED 14 Sep: Option B, the custom `vision_msgs` node**
+**Date raised:** 8 Sep 2026 · **Status:** adopted (B), 14 Sep 2026
 
 The NVMe recovery changed the inputs to D-01. What actually ran was **`yolo_ros`
 nodes publishing `yolo_msgs/DetectionArray`** on `/yolo/detections` and
@@ -143,6 +143,30 @@ than the engine.
 of Option A's four prerequisites (the patch, the engines) are *lost or invalid*,
 so "restore what worked" is not actually a restore. Keep the recovered
 `yolo.launch.py` as the reference for the venv handling either way.
+
+### Closed 14 Sep 2026 — B, and it cost nothing that A would have bought
+
+Built and measured on this board the same afternoon: `my_bot/scripts/yolo_detector.py`
++ `launch/yolo.launch.py`, `yolo26n.pt` straight from torch (no engine), fp16,
+imgsz 640. **15.2 Hz on `/detections`, camera-limited** — the same figure the
+recovered `yolo_ros` + TensorRT stack was measured at — with inference+tracking
+at **45 ms p50** inside the 66 ms frame period and the GPU clock sitting at its
+**306 MHz floor** the whole time. So the engine, the lost patch and `yolo_msgs`
+would have bought back nothing visible: the camera is the ceiling either way.
+
+**What survives from A:** the venv `PYTHONPATH` trick and the "never `uv sync`"
+rule, both carried into the new launch file verbatim in spirit. The recovered
+`yolo.launch.py` stays in `recoverable/` as the reference for them.
+
+**Cost:** `.pt` inference is ~2× the recovered engine's 18 ms, which matters
+only if something else needs the GPU at the same time on Day 6. The escape
+hatch is one line — `YOLO("yolo26n.pt").export(format="engine", imgsz=640)` on
+this board — and the node already loads `.engine` files. Not done, not needed.
+
+**Limitation to report:** the `vision_msgs` node has been measured at rate and
+for latency, but the track-id persistence line of the gate needs a real object
+held still in front of the camera, and the camera was facing a blank wall when
+this was measured. See `records/calibration.md` for what is and is not proven.
 
 ## D-12 · JetPack 6.1 Advantech
 **Date:** 8 Sep 2026 · **Status:** adopted (user decision)

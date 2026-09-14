@@ -3,7 +3,22 @@
 > **Update this at the end of every session and whenever a gate passes.**
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
-**Last updated:** 14 Sep 2026 — **Day 4 in progress. Camera intrinsics DONE and tape-checked; SLAM retuned (D-18) but untested on a moving robot; multi-machine ROS 2 is DOWN. Day 3's gate and both Day 4 driving items are still open — everything left needs the robot driven.**
+**Last updated:** 14 Sep 2026, evening — **Day 5's detector is BUILT and MEASURED (Track B, done ahead of the Day 3/4 gates because it needs no robot). `make yolo` publishes `vision_msgs` on `/detections` at 15.15 Hz, camera-limited, 44 °C after five minutes. D-11 closed on option B. Day 5's gate has ONE line open — track-id persistence on the real camera — because the camera was facing a blank wall. Day 3 and Day 4 gates still open; everything else left needs the robot driven.**
+
+> **Day 5 at a glance (14 Sep).** `scripts/yolo_detector.py` + `launch/yolo.launch.py`
+> + `scripts/detection_report.py` (the gate tool), all in `cap_ws`. `yolo26n.pt`
+> straight from torch, fp16, no TensorRT engine and none needed: 44.5 ms p50
+> inference+tracking inside a 66.7 ms frame, GPU at its 306 MHz floor clock the
+> whole run. Track ids **proven on a still image** (5 ids, 893/893 frames) and
+> **not yet on the real camera**. Next time someone is at the robot:
+> ```
+> make yolo                                             # terminal 1
+> ros2 run my_bot detection_report.py --seconds 300     # terminal 2, with a chair in view
+> ```
+> Numbers in `records/calibration.md`; symptom entries under "Day 5 detector".
+> ⚠ The `lap` package was missing from the venv and ultralytics pip-installed it
+> at first `track()`; `setup_yolo_venv.sh` now installs it and the launch sets
+> `YOLO_OFFLINE=1` so that can never happen silently on demo day.
 
 > ⛔ **Multi-machine ROS 2 stopped working — found 11 Sep.** Both machines left
 > the hotspot and are on **different subnets** (Jetson `192.168.160.106/22`
@@ -36,8 +51,8 @@
 > so a stray `q` can never reproduce the 10 Sep shear. Rebuilt; installed
 > copies verified; committed and pushed as `cap_ws` `257d4f1`. Both are untested on a moving robot: the next driving session
 > is the test.
-**Current day:** Day 4. §1 (Nav2 port) **done and verified**; Day 3's gate is
-still the blocker and both remaining items need the robot driven.
+**Current day:** Day 4 on Track A, **Day 5 done on Track B** (all but one gate line). §1 (Nav2 port) **done and verified**; Day 3's gate is
+still the blocker and both remaining Track A items need the robot driven.
 ~~**Multi-machine ROS 2 is up (9 Sep)**~~ **DOWN since 11 Sep** — see the banner above. Until it is re-run on both machines, **RViz runs on the Jetson's HDMI display** (`:0`, confirmed present). `reference/ros2-network.md` and D-16.
 **Blocked on:** nothing technical — **the two remaining items both need the
 robot driven**, which needs you: §1(c) `calibrate_spin.py`, then the closed
@@ -512,7 +527,7 @@ failed gate.
 | 2 | `make teleop` drives the robot; `/odom` changes sanely; TF tree has no gaps | **[x] PASSED 9 Sep.** Teleop drives, `i` is forward; 1 m push → 0.980 m; 90° turn → −83.7°; 7 TF edges resolve; 30.0 Hz. Track B finished `day-5-yolo.md` §1 as well |
 | 3 | A driven loop closes without a visible double wall | [ ] **§2 lidar and §3 SLAM config done 9 Sep**; the loop itself is undriven. `wheel_separation` must be settled first |
 | 4 | RViz goal → robot arrives; recovery behaviours fire when blocked | [ ] |
-| 5 | `/detections` stable; track IDs persist; no thermal throttle | [ ] |
+| 5 | `/detections` stable; track IDs persist; no thermal throttle | [ ] **3 of 4 lines PASSED 14 Sep**: 15.15 Hz sd 5 ms over 301 s; tj max 44.6 °C; versions recorded. **Open:** id persistence on the *real* camera — proven only on a still image (5 ids, 100 % span). Needs an object in frame for one 300 s run |
 | 6 | Labelled marker appears at roughly the right place and stays; UI shows it | [ ] |
 | 7 | Three clean end-to-end rehearsals; tape-measure numbers recorded | [ ] |
 
@@ -521,7 +536,7 @@ failed gate.
 | Track | Scope | Where |
 |---|---|---|
 | **A** — needs the robot | foundation → drive → odometry → SLAM → Nav2 | Day 1 done, **Day 2 done**. **Day 3 part done**: lidar driver built, `/scan` live, SLAM running. **Day 4 §1 done 10 Sep** — Nav2 ported, all 7 lifecycle nodes active, e-stop restored. Remaining is all driving — `wheel_separation`, the loop, then goals |
-| **B** — needs only Jetson + camera | uv env → calibration → detector | **`day-5-yolo.md` §1 is DONE, on Day 2.** Venv built and verified end to end; CUDA/cuDNN/TensorRT installed after finding them absent entirely. Next: camera **intrinsics** (Day 4 work, needs no robot) and **D-11** |
+| **B** — needs only Jetson + camera | uv env → calibration → detector | **ALL DONE except one gate line.** Venv (Day 2), intrinsics (11 Sep), detector (14 Sep, D-11 → B). Remaining: the real-camera id-persistence run, then Day 6's `semantic_objects` rebuild — which also needs no robot until its own gate |
 
 Track B runs in the gaps of Track A. Start it Day 2, not Day 5 — it is the
 highest-variance item in the week and it needs no robot.
@@ -666,7 +681,7 @@ This is the quick-reference mirror.
 | camera pitch | **−0.0524** rad (3° **up**) | measured 9 Sep |
 | torch / torchvision | **2.11.0 / 0.26.0** | JetPack cp310 aarch64 wheels, 9 Sep |
 | CUDA / cuDNN / TensorRT | **12.6.68 / 9.3.0.75 / 10.3.0.30** | installed 9 Sep |
-| YOLO detection rate | 15 Hz on JP 6.2 | re-measure on 6.1 |
+| YOLO detection rate | **15.15 Hz**, camera-limited | ✅ **measured 14 Sep on 6.1**, `yolo26n.pt` torch fp16, no engine; 44.5 ms p50 inference+tracking; tj max 44.6 °C over 301 s |
 
 > ⚠ **The camera's `dy` magnitude is measured; its side is not.** 3 cm off the
 > centreline was measured, but not which side; `+0.03` in `camera.xacro` means
@@ -736,4 +751,8 @@ report's methodology section.
 | 11 Sep | Focus lock folded into `make camera` rather than left as a checklist line | The C615 is varifocal and autofocus moves `fx`. A step that must hold identically at calibration time and at demo time is not a thing to remember — it belongs in the target that starts the camera. `FOCUS=auto` restores AF for anything that genuinely wants it. |
 | 11 Sep | `make calib-scale` added; the Day 4 gate gains a second camera condition | Reprojection error cannot see a wrong `fx` — it is pixels against a self-consistent fit. The 11 Sep run passed at 0.3651 px while being 17.5% unstable internally. A tape measure is the only independent length available, so the gate now requires it. |
 | 11 Sep | `/image/compressed` dropped as a Day 4 checkbox | It does not exist. `cam2image` uses a plain `rclcpp` publisher, not `image_transport`, so no transport plugin ever attaches — confirmed on the live node. Becomes a Day 6 decision: an `image_transport republish` node, or a different camera driver. |
+| 14 Sep | Day 5 §2–§3 done **before** the Day 3 and Day 4 gates, inverting the checklist order | The detector needs only the Jetson and the camera (Track B by design, `RECOVERY.md`), while both open gates need a person driving the robot. Same reasoning as the 10 Sep Nav2 reorder: desk work that costs nothing to bring forward. The gates are still gates — Day 6's fusion is not started against them. |
+| 14 Sep | D-11 closed on **B** (custom `vision_msgs` node), not A (`yolo_ros` + TensorRT) | Measured 15.15 Hz camera-limited from `.pt` alone — the same rate A was recorded at — so the lost patch, the dead engines and `yolo_msgs` would have bought nothing visible. Engine export stays a one-line escape hatch. |
+| 14 Sep | Day 5's `imgsz 480` / `yolov8n` levers marked as not levers | Benchmarked: 480 is no faster than 640 (36.2 vs 34.9 ms), fp16 no faster on yolo26n. Pipeline is launch-bound at nano size. Recorded so nobody spends Day 6 pulling them. |
+| 14 Sep | `detection_report.py` written instead of `ros2 topic hz` + `tegrastats` | The gate's four lines are four measurements (rate *and* jitter, id lifetimes, temperature trend, versions) and the checklist gave a tool for one of them. Working agreement: a step that needs a measurement gets a script. |
 | 8 Sep | `cap_ws` created with only `Makefile` + `setup_udev.sh` | Day 1 needs no more than that. The rest of `my_bot` crosses over file by file on Day 2, re-verifying measured numbers as it goes (D-13). The recovered `99-my-bot-serial.rules` was **not** copied — its `KERNELS` paths are devkit-specific. |

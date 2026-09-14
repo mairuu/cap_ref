@@ -706,6 +706,59 @@ Thermal throttling. `tegrastats`. Check cooling, `nvpmodel -m 0`,
 
 ---
 
+### — Day 5 detector (`make yolo`) —
+
+### `make yolo` runs at 15 Hz but `dets/frame 0.0` and no track ids, forever
+It is detecting nothing because there is nothing to detect. Look at what the
+camera sees before blaming the model: `ros2 run rqt_image_view rqt_image_view
+/detections/image` (annotated) or `/image` (raw). On 14 Sep the robot was parked
+facing a blank wall and the detector was correct to publish empty arrays. Put a
+chair, a person or a bottle in frame — COCO classes — and hold it still. The
+model does not know "robot", "lidar" or "checkerboard".
+
+### `yolo_detector.py` dies at start: `Cannot import torch/ultralytics`
+It was run bare (`ros2 run my_bot yolo_detector.py`). The node runs under the
+system python and only finds torch because `launch/yolo.launch.py` prepends the
+venv's site-packages to `PYTHONPATH`. Use `make yolo`, or export the path the
+error message prints. Do **not** `source ~/yolo/venv/bin/activate` — it is the
+same interpreter, the activate just hides the mistake differently.
+
+### The launch shuts itself down right after `cam2image` starts
+Something else holds `/dev/video0` — usually a `make camera` still up from
+calibration, or a previous `make yolo`. `cam2image` cannot open the device, exits,
+and the launch is wired to take everything down with it rather than leave the
+detector up receiving nothing. Kill the other one, or `make yolo USE_CAMERA=false`
+to attach to the camera that is already running.
+
+### First `model.track()` call pauses for seconds and prints `requirements: ['lap>=0.5.12'] not found, attempting AutoUpdate`
+ByteTrack's linear assignment needs `lap`, which is **not** in ultralytics'
+dependency list, and `check_requirements` pip-installs it into the running
+python at first use — seen 14 Sep on the benchmark. `setup_yolo_venv.sh` now
+installs it, and the launch sets `YOLO_OFFLINE=1` so a demo-day machine without
+network fails loudly instead of hanging on pip. If you see this message the venv
+was rebuilt from the *old* script; add `lap` by hand:
+`uv pip install --python ~/yolo/venv/bin/python "lap>=0.5.12"`.
+
+### A wall of `WARNING ⚠️ 'half' is deprecated ... Use 'quantize' instead`
+ultralytics 8.4 renamed the flag. The node passes `quantize=16`; anything still
+passing `half=True` (old snippets, the recovered `yolo_ros` config) prints this
+once per frame. Harmless, but it is 15 lines a second in the log.
+
+### The GPU clock sits at 306 MHz while the detector runs — is it throttling?
+No. The devfreq governor is `nvhost_podgov` and raises the clock on GPU **load**,
+which reads 0–50 % bursty for a nano model at 15 Hz: the pipeline is
+launch-bound, not compute-bound, and the GPU idles between frames. Throttling is
+a clock that *falls* while load and `tj-thermal` *rise*; `detection_report.py`
+prints all three every 10 s and judges on temperature. If more GPU is ever
+needed (a bigger model, Day 6 contention), `sudo jetson_clocks` pins the clock
+at 625 MHz — measure before assuming it helps.
+
+### `/detections` publishes but the semantic node never fuses anything
+Check the stamps before the geometry. `header.stamp` on `/detections` is the
+image **capture** time by design (P2), so it is ~50 ms old at publish; the
+semantic node's `ApproximateTimeSynchronizer` against `/scan` needs `slop` at
+least that plus the scan's own ~88 ms age. A `slop` of 0.05 will pair nothing.
+
 ## Camera and calibration
 
 ### `cameracalibrator` starts and then sits there — no window, no corners

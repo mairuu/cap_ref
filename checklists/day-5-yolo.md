@@ -50,51 +50,51 @@ python -c "import rclpy; print('rclpy ok')"
 ```
 
 - [ ] `torch.cuda.is_available()` is **True**
-- [ ] **Exact working versions written into `records/calibration.md` the moment
-      they pass.** This is the knowledge that was lost last time and the most
+- [x] **Exact working versions written into `records/calibration.md` the moment
+      they pass.** ✅ 9 Sep, re-confirmed live 14 Sep This is the knowledge that was lost last time and the most
       expensive thing here to rediscover.
 
-  torch ________ · torchvision ________ · numpy ________ · ultralytics ________
-  cv2 ________ · JetPack ________
+  torch **2.11.0** · torchvision **0.26.0** · numpy **1.26.4** · ultralytics **8.4.144**
+  cv2 **4.5.4** · JetPack **6.1 (L4T 36.4.0)** · TensorRT 10.3.0 · **lap 0.5.13** (tracker; added 14 Sep)
 
-- [ ] `uv.lock` / requirements committed and pushed
+- [x] ~~`uv.lock`~~ `yolo/setup_yolo_venv.sh` + `requirements-frozen.txt` committed and pushed (a lock file cannot express order or exclusions — see the script header)
 
 ## 2 · The detection node
 
-- [ ] Custom node inside that venv, publishing `vision_msgs/Detection2DArray`
-      on `/detections`
+- [x] Custom node inside that venv, publishing `vision_msgs/Detection2DArray`
+      on `/detections` — ✅ **14 Sep, `scripts/yolo_detector.py`.** D-11 closed on B
 
 > **Message type decision (D-01):** `vision_msgs`, **not** `yolo_msgs`. It is
 > apt-installable (`ros-humble-vision-msgs`) and the surviving `semantic_objects`
 > already parses it. Do not build `yolo_msgs`.
 
-- [ ] Uses ultralytics' own tracker — no separate tracking node:
+- [x] Uses ultralytics' own tracker — no separate tracking node:
 
 ```python
 results = model.track(frame, persist=True, verbose=False)
 ```
 
-- [ ] **Track ID written into `Detection2D.id`** — this is what satisfies P5
-- [ ] `header.stamp` carries the **image capture time**, not publish time. The
-      semantic node's TF lookup depends on it (P2).
-- [ ] Subscribes to the same `/camera` namespace the calibration used
-- [ ] `launch/yolo.launch.py` written
+- [x] **Track ID written into `Detection2D.id`** — this is what satisfies P5. ✅ Proven 14 Sep: 5 ids, each 893/893 frames on a still image
+- [x] `header.stamp` carries the **image capture time**, not publish time. The
+      semantic node's TF lookup depends on it (P2). ✅ Header copied from the image; age at publish p50 48 ms confirms it
+- [x] Subscribes to the same ~~`/camera` namespace~~ **`/image` topic** the calibration used (`cam2image`, RELIABLE — the node's subscriber matches it)
+- [x] `launch/yolo.launch.py` written — starts `cam2image` with focus **locked at 51**, same as the calibration; `make yolo`
 
 ## 3 · Rate and thermals
 
 Two levers if the Jetson cannot hold 15 Hz:
 
-- [ ] `imgsz` down to 480
-- [ ] `yolov8n`, not `yolov8m` — a demo does not need the bigger model
+- [x] ~~`imgsz` down to 480~~ **measured 14 Sep: buys nothing** (36.2 vs 34.9 ms; launch-bound)
+- [x] ~~`yolov8n`, not `yolov8m`~~ **`yolo26n`**, the nano model the old stack used; `yolov8n` is 6 ms faster and available as `make yolo MODEL=~/yolo/yolov8n.pt` if ever needed
 
 ```bash
 ros2 topic hz /detections
 tegrastats                    # watch for throttling over several minutes
 ```
 
-  **rate ______ Hz · model ________ · imgsz ______ · temp after 5 min ______ °C**
+  **rate 15.15 Hz · model yolo26n.pt (torch fp16) · imgsz 640 · tj after 5 min 44.1 °C (max 44.6)**
 
-- [ ] Recorded
+- [x] Recorded — `records/calibration.md`, 14 Sep. Replace `ros2 topic hz` + `tegrastats` above with **`ros2 run my_bot detection_report.py --seconds 300`**, which measures all four gate lines at once
 
 > **Fallback if CUDA never comes up:** run detection at 5 Hz on CPU. Ugly, but
 > demoable. Log it in `STATE.md` deviations and keep going — do not spend Day 6
@@ -104,9 +104,9 @@ tegrastats                    # watch for throttling over several minutes
 
 ## GATE — do not start Day 6 until all of these hold
 
-- [ ] `ros2 topic hz /detections` is **stable**
-- [ ] Track IDs **persist across frames** for a stationary object
-- [ ] The Jetson is **not thermally throttling** after five minutes
-- [ ] Working dependency versions recorded and pushed
+- [x] `ros2 topic hz /detections` is **stable** — ✅ 15.15 Hz over 301 s, jitter sd 5.2 ms, every frame processed
+- [ ] Track IDs **persist across frames** for a stationary object — **proven on a still image** (5 ids, 100 % span, 14 Sep) but **not yet with the real camera**: it was facing a blank wall. Put a chair/person/bottle in frame and run the report for 300 s
+- [x] The Jetson is **not thermally throttling** after five minutes — ✅ tj 42.8 → 44.1 °C over 301 s at 15 Hz, GPU clock at its 306 MHz floor throughout (headroom, not throttle)
+- [x] Working dependency versions recorded and pushed
 
 **Then update `STATE.md`.**

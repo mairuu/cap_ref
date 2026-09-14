@@ -1449,6 +1449,85 @@ it can drift between polls, so **re-measure rather than assume it holds.**
 > `Asia/Bangkok` on the laptop. UTC agrees, which is all ROS uses. Not a bug,
 > but it makes side-by-side `date` output look alarming.
 
+## YOLO detector — **MEASURED 2026-09-14** (Day 5, D-11 option B)
+
+`my_bot/scripts/yolo_detector.py` + `launch/yolo.launch.py`, `make yolo`.
+Measured with `my_bot/scripts/detection_report.py`, which is the gate tool.
+
+### Environment — all versions confirmed live in the node, 14 Sep
+
+| | |
+|---|---|
+| model | `~/yolo/yolo26n.pt` (5.3 MB, ultralytics release v8.4.0), **torch, no engine** |
+| precision / imgsz | fp16 (`quantize=16`) / 640, letterboxed from 640×480 |
+| torch / torchvision | **2.11.0 / 0.26.0** (JetPack cp310 wheels, unchanged from 9 Sep) |
+| ultralytics | **8.4.144** — `half` is deprecated for `quantize` in this version |
+| tracker | ByteTrack (`bytetrack.yaml`), needs **`lap` 0.5.13** — was missing from the venv, now in `setup_yolo_venv.sh` |
+| numpy / cv2 | 1.26.4 / 4.5.4 (system, no CUDA) |
+| power mode | nvpmodel **15 W**; GPU devfreq governor `nvhost_podgov`, floor 306 MHz, ceiling 624.75 MHz |
+| camera | `cam2image` 640×480 @ 15 Hz, RELIABLE, focus locked 51, `frame_id` `camera_link` |
+
+### Bench — synthetic 640×480 frame, GPU, 30-frame mean after 5 warm-up (14 Sep)
+
+| model | predict 640 fp32 | predict 640 fp16 | predict 480 fp32 | predict 480 fp16 | **track 640** (wall, incl. ByteTrack) |
+|---|---|---|---|---|---|
+| `yolo26n.pt` | 34.9 ms | 35.9 ms | 36.2 ms | 37.9 ms | **53.3 ms** |
+| `yolov8n.pt` | 29.2 ms | 25.0 ms | 27.8 ms | 27.7 ms | **47.9 ms** |
+
+Two things the table settles: **imgsz 480 buys nothing** (the pipeline is
+launch-bound, not pixel-bound, at nano size) and **fp16 buys nothing on
+yolo26n**. The checklist's two "levers" are therefore not levers on this board.
+The recovered engine figure (18 ms for yolo26n) is ~2× faster than `.pt`, and is
+the only lever left if one is ever needed.
+
+### Live — `make yolo` against the real camera, 301 s, 14 Sep 16:00
+
+| | |
+|---|---|
+| `/detections` rate | **15.15 Hz**, 4556 msgs; inter-arrival 66.0 ms, **sd 5.2 ms**, max 96 ms |
+| inference + tracking, in-node | **p50 44.5 ms**, max ~50 ms typical, one 62.6 ms outlier |
+| age at publish (capture → publish) | p50 48 ms, max 79 ms |
+| age at receipt (capture → subscriber) | p50 49 ms, p95 60 ms, max 80 ms |
+| GPU clock through the run | **306 MHz the whole time** (floor); load bursty 0–50 % |
+| `tj-thermal` | 42.8 → 44.1 °C, **max 44.6 °C** |
+| `gpu-thermal` | 42.3 → 44.1 °C |
+| detections | **0.00 per frame** — the camera was facing a blank wall |
+
+**Camera-limited, same as the recovered stack.** 44.5 ms of work fits inside
+the 66.7 ms frame with 22 ms spare, and the node processed every frame (4556
+in 301 s = 15.13 Hz against cam2image's 15.15). The GPU never left its floor
+clock and the chip warmed by 1.3 °C in five minutes. Nothing here is near a limit.
+
+### Track-id persistence — still image on `/image`, 60 s, 14 Sep 16:06
+
+The real camera had nothing in view, so the tracker was proven against a
+stand-in: a still 640×480 frame (ultralytics' `bus.jpg`, four people and a bus)
+published on `/image` at 15 Hz RELIABLE with capture-time stamps, exactly as
+`cam2image` would. `make yolo USE_CAMERA=false`.
+
+| | |
+|---|---|
+| rate | 14.83 Hz, 893 msgs; sd 14.5 ms (the Python stand-in publisher jitters more than cam2image) |
+| detections | **5.00 per frame, 893/893 frames**, 0 frames with a detection but no id |
+| track ids | **5 distinct, each in 893/893 frames, span 100 %** — person 0.88 / bus 0.87 / person 0.86 / 0.82 / 0.79 |
+| GPU load | mean 37 %, max 73 %, clock still 306 MHz |
+| `tj-thermal` | max 45.4 °C |
+
+**What this proves:** the id is written into `Detection2D.id`, ByteTrack holds
+it across every frame for a static scene, and the message layout is what the
+June `semantic_objects` parses (`class_id` is the class *name*, bbox is
+centre+size in original pixels). **What it does not prove:** persistence under
+the real camera's noise, exposure flicker and a slightly moving robot. That
+needs a real object held still in frame for the five-minute run — which is
+what the gate line says, and it remains **open** until someone is at the robot.
+
+> ⚠ **Read `detection_report.py`'s thermal verdict on temperature, not clock.**
+> The first version of the script called "clock below max while at rate"
+> throttling and failed the 301 s run on it. A 306 MHz clock at 15 Hz is the
+> podgov governor idling a launch-bound GPU, not a throttle; the script was
+> rewritten mid-run to judge on `tj` and print load alongside. The 301 s
+> numbers above were re-read from the raw samples with the corrected rule.
+
 ## Final results — the tape-measure protocol (Day 7)
 
 Ground truth chair position, measured against two walls: x ______ y ______
