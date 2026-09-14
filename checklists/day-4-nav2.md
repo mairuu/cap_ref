@@ -283,12 +283,14 @@ ros2 topic hz /image/compressed
 
 - [ ] `make nav` → RViz goal → robot arrives and stops
 - [ ] Recovery behaviours fire when you block it
-- [ ] Camera calibrated with **focus locked**, reprojection error < 0.5 px,
-      board depth ratio ≥ 2.5×, values in `robot_params.yaml` and
-      `records/calibration.md`
-- [ ] **`make calib-scale` slope within 2% of 1.000.** The reprojection error is
-      not sufficient on its own — it cannot see a wrong `fx`.
-- [ ] Extrinsics measured and in the URDF
-- [ ] Everything pushed
+- [x] Camera calibrated with **focus locked**, reprojection error < 0.5 px,
+      board depth ratio ≥ 2.5×, values in `records/calibration.md` —
+      **✅ 11 Sep: 0.3403 px, 2.7×, focus 51.** (`robot_params.yaml` does not
+      exist yet — it belongs to the semantic node, rebuilt on Day 6; the
+      installed source of truth is `my_bot/config/c615_640x480.yaml`.)
+- [x] **`make calib-scale` slope within 2% of 1.000** — **✅ 11 Sep, twice:
+      1.0117 and 0.9933.** Read the SE caveat in §4.5 before quoting decimals.
+- [x] Extrinsics measured and in the URDF — **✅ 9 Sep**, `camera.xacro`
+- [x] Everything pushed — as of 14 Sep, both repos clean
 
 **Then update `STATE.md`.**

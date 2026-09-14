@@ -3,7 +3,7 @@
 > **Update this at the end of every session and whenever a gate passes.**
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
-**Last updated:** 11 Sep 2026 (evening) — **Day 4 in progress: SLAM retuned to trust odometry (D-18), ready for the driving session; camera recapture outstanding; multi-machine ROS 2 is DOWN**
+**Last updated:** 14 Sep 2026 — **Day 4 in progress. Camera intrinsics DONE and tape-checked; SLAM retuned (D-18) but untested on a moving robot; multi-machine ROS 2 is DOWN. Day 3's gate and both Day 4 driving items are still open — everything left needs the robot driven.**
 
 > ⛔ **Multi-machine ROS 2 stopped working — found 11 Sep.** Both machines left
 > the hotspot and are on **different subnets** (Jetson `192.168.160.106/22`
@@ -38,8 +38,7 @@
 > is the test.
 **Current day:** Day 4. §1 (Nav2 port) **done and verified**; Day 3's gate is
 still the blocker and both remaining items need the robot driven.
-**Multi-machine ROS 2 is up (9 Sep)** — RViz and teleop can run off-board on
-the laptop. See `reference/ros2-network.md` and D-16.
+~~**Multi-machine ROS 2 is up (9 Sep)**~~ **DOWN since 11 Sep** — see the banner above. Until it is re-run on both machines, **RViz runs on the Jetson's HDMI display** (`:0`, confirmed present). `reference/ros2-network.md` and D-16.
 **Blocked on:** nothing technical — **the two remaining items both need the
 robot driven**, which needs you: §1(c) `calibrate_spin.py`, then the closed
 loop for the gate. ~~building `ydlidar_ros2_driver`~~ **resolved 9 Sep.**
