@@ -1521,6 +1521,25 @@ the real camera's noise, exposure flicker and a slightly moving robot. That
 needs a real object held still in frame for the five-minute run — which is
 what the gate line says, and it remains **open** until someone is at the robot.
 
+### Track-id persistence — **REAL CAMERA, PASSED 14 Sep evening**
+
+One cup placed in front of the camera and left alone; `make yolo` +
+`detection_report.py --seconds 30`, run by the user.
+
+| | |
+|---|---|
+| rate | 15.18 Hz, 457 msgs; sd 17.5 ms, **one 356 ms stall**, otherwise 66 ms |
+| detections | 1.00 per frame, **457/457 frames**, class `cup`, conf 0.69 |
+| track ids | **1 distinct, id 1, in 457/457 frames, span 100 %** |
+| age at receipt | p50 66 ms, p95 93 ms, max 419 ms (the same stall) |
+| GPU | 306 MHz floor, load mean 37 % max 66 % |
+| `tj-thermal` | 52.0 → 52.0 °C, max 52.3 (board warmer than the afternoon's 44 °C; ambient/uptime) |
+
+**Day 5 gate closed.** A single low-contrast object at 0.69 confidence held one
+id for the whole window with no re-acquisition; this is the case the still-image
+run could not prove. The one stall is worth a glance in the next 300 s run — if
+it recurs every few seconds it is something scheduling frames, not the model.
+
 > ⚠ **Read `detection_report.py`'s thermal verdict on temperature, not clock.**
 > The first version of the script called "clock below max while at rate"
 > throttling and failed the 301 s run on it. A 306 MHz clock at 15 Hz is the

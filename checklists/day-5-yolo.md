@@ -105,7 +105,7 @@ tegrastats                    # watch for throttling over several minutes
 ## GATE — do not start Day 6 until all of these hold
 
 - [x] `ros2 topic hz /detections` is **stable** — ✅ 15.15 Hz over 301 s, jitter sd 5.2 ms, every frame processed
-- [ ] Track IDs **persist across frames** for a stationary object — **proven on a still image** (5 ids, 100 % span, 14 Sep) but **not yet with the real camera**: it was facing a blank wall. Put a chair/person/bottle in frame and run the report for 300 s
+- [x] Track IDs **persist across frames** for a stationary object — ✅ **14 Sep evening, real camera: one cup, id 1 in 457/457 frames, span 100 %** (after a still-image proof of 5 ids earlier the same day)
 - [x] The Jetson is **not thermally throttling** after five minutes — ✅ tj 42.8 → 44.1 °C over 301 s at 15 Hz, GPU clock at its 306 MHz floor throughout (headroom, not throttle)
 - [x] Working dependency versions recorded and pushed
 
