@@ -1698,3 +1698,31 @@ Not drift, not the motors, not the floor. Fixed by owning the BT XML with
 > which succeeded every time at 0.05 m/s (~600 ticks/s). If the wheels stall on
 > stiction the symptom is a *stationary* robot that still times out. Not
 > observed yet; untested.
+
+### Day 4 gate — re-run, **PASSED 2026-09-15** (goal clause)
+
+Both fixes applied: RViz Fixed Frame back to `map`, and the D-21 behaviour tree.
+Three goals, three successes, no extrapolation errors anywhere in the session.
+`bt_navigator_8618_1789465529679.log`.
+
+| goal | from → to | straight-line | wall time | mean speed |
+|---|---|---|---|---|
+| A | (−0.83, −2.04) → (3.43, 0.52) | 4.97 m | **115.5 s** | 0.043 m/s |
+| B | (3.35, 0.41) → (2.90, 0.24) | 0.48 m | **31.8 s** | — |
+| C | (3.01, 0.30) → (3.08, 0.37) | 0.099 m | 6.9 s | — |
+
+Goal A's 0.043 m/s mean against DWB's `max_vel_x` 0.055 is the expected shape
+for a path with turns in it, and confirms the velocity clamp is the binding
+limit rather than anything upstream of it.
+
+> **Goal C is not a valid test.** 0.099 m is inside `xy_goal_tolerance` 0.15, so
+> the robot began already within tolerance and only settled its yaw. Two of the
+> three goals exercised planning.
+
+> ⚠ **No recovery behaviour ran in this session — zero `Running spin` lines in
+> `behavior_server_8584_1789465529644.log`, against twelve in the failed
+> attempt.** So the second half of the Day 4 gate is recorded as passed on the
+> user's report but has no log evidence, and **D-21's `time_allowance="25.0"`
+> has never executed on this robot.** Untested, not verified. The direct test
+> is in STATE.md; expect 15.7–16.5 s, and watch for stiction at 0.1 rad/s
+> (~151 encoder ticks/s per wheel) rather than a timeout.

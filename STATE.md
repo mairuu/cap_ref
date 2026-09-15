@@ -3,7 +3,40 @@
 > **Update this at the end of every session and whenever a gate passes.**
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
-**Last updated:** 15 Sep 2026 — **DAY 3 GATE PASSED.** The loop was driven and
+**Last updated:** 15 Sep 2026, evening — **DAY 3 AND DAY 4 GATES PASSED. Track A
+is complete through Nav2.** The re-run with Fixed Frame `map` and the D-21
+behaviour tree was clean: three goals, three successes, no stale-frame timeouts
+(115.5 s / 31.8 s / 6.9 s; `bt_navigator_8618_1789465529679.log`).
+
+> ⚠ **One clause of the Day 4 gate is ticked but not evidenced, and it is the
+> half that matters on demo day.** "Recovery behaviours fire when you block it"
+> has **zero `Running spin` lines** in the successful session's
+> `behavior_server_8584_1789465529644.log` — against twelve in the failed
+> attempt. No recovery ran, so **the D-21 Spin fix has never executed on this
+> robot.** If the chair was replanned around without a recovery firing, that is
+> good navigation and a weak test of the recovery path.
+>
+> **Close it in about a minute, no chair needed, with the stack up and clear
+> space around the robot** — hand on `make teleop-nav`:
+> ```
+> ros2 action send_goal /spin nav2_msgs/action/Spin "{target_yaw: 1.57, time_allowance: {sec: 25}}"
+> ```
+> **`time_allowance` must be passed explicitly** — the CLI default is 0 s and
+> Spin would fail instantly for the wrong reason. Expect completion in
+> **15.7–16.5 s** at `max_rotational_vel: 0.1`. Two ways it can still fail, and
+> they look alike: over 25 s means the fix is too tight; a robot that does not
+> visibly turn at all means **stiction** — 0.1 rad/s is only ~151 encoder
+> ticks/s per wheel, four times slower than the `BackUp` that succeeded every
+> time at 0.05 m/s. That is the open question flagged in D-21.
+
+> ⚠ **Goal C was not a real test** — (3.01, 0.30) → (3.08, 0.37) is 0.099 m,
+> inside `xy_goal_tolerance` 0.15, so the robot was already at the goal and only
+> settled its yaw. Two of the three goals were real. The doorway and
+> unknown-space cases in the Day 4 checklist §3 are not distinguishable in the
+> log either; if they were driven, they passed, but nothing records which goal
+> was which.
+
+**DAY 3 GATE PASSED.** The loop was driven and
 `~/maps/day3-reference` is a valid artefact at last (271×488 @ 0.05 m =
 13.6 × 24.4 m, origin [−6.82, −9.80], saved 17:16). **The Day 4 gate was
 attempted and FAILED — four goals, four failures — and both causes are found,
@@ -596,7 +629,7 @@ failed gate.
 | 1 | `e` returns changing counts by hand; `m 20 20` spins both wheels forward and auto-stops after 2 s | **[x] PASSED 8 Sep.** §5.8 closed on 50/50 EN resets; manual cycles cut, D-14 |
 | 2 | `make teleop` drives the robot; `/odom` changes sanely; TF tree has no gaps | **[x] PASSED 9 Sep.** Teleop drives, `i` is forward; 1 m push → 0.980 m; 90° turn → −83.7°; 7 TF edges resolve; 30.0 Hz. Track B finished `day-5-yolo.md` §1 as well |
 | 3 | A driven loop closes without a visible double wall | **[x] PASSED 15 Sep.** Loop driven at 0.10 m/s; `~/maps/day3-reference` saved 17:16, 271×488 @ 0.05 m, origin [−6.82, −9.80]. Supersedes the invalid 10 Sep file. `wheel_separation` settled 10 Sep at 0.25168 |
-| 4 | RViz goal → robot arrives; recovery behaviours fire when blocked | [ ] **ATTEMPTED AND FAILED 15 Sep, 4 goals.** Two causes, both proven: goals sent in the `odom` frame (RViz Fixed Frame — no code fix, set it to `map`), and Spin's `time_allowance` 10 s against the 15.7 s the spin needs (**fixed, D-21**). Re-run needs `make nav` restarted only |
+| 4 | RViz goal → robot arrives; recovery behaviours fire when blocked | **[x] PASSED 15 Sep on the goal clause** — 3 goals, 3 successes, no stale-frame timeouts. ⚠ **The recovery clause has no log evidence: zero `Running spin` lines in the session.** D-21 is therefore still untested on the robot. ~~ATTEMPTED AND FAILED earlier that day, 4 goals.~~ Two causes, both proven: goals sent in the `odom` frame (RViz Fixed Frame — set it to `map`), and Spin's `time_allowance` 10 s against the 15.7 s the spin needs (**fixed, D-21**). Both fixes confirmed by the re-run |
 | 5 | `/detections` stable; track IDs persist; no thermal throttle | **[x] PASSED 14 Sep.** 15.15 Hz sd 5 ms over 301 s; tj max 44.6 °C over 301 s (52 °C later in the evening); versions recorded; **one cup → id 1 in 457/457 frames** on the real camera |
 | 6 | Labelled marker appears at roughly the right place and stays; UI shows it | [ ] **Built and desk-verified 14 Sep**; bench check (chair, tape, no driving) and the drive-past are open. Everything pushed |
 | 7 | Three clean end-to-end rehearsals; tape-measure numbers recorded | [ ] |
