@@ -483,6 +483,47 @@ same `.env`, or `npm run build` and serve `dist/` from the bridge.
 
 ---
 
+## D-21 · `my_bot` owns the Nav2 behaviour tree XML
+**Date:** 2026-09-15 · **Status:** adopted
+
+`bt_navigator.default_nav_to_pose_bt_xml` now points at
+`my_bot/behavior_trees/navigate_to_pose_w_replanning_and_recovery.xml`, a copy
+of `nav2_bt_navigator`'s tree of the same name, byte-identical except that
+`Spin` carries `time_allowance="25.0"`.
+
+**Why:** upstream's tree hard-codes `<Spin spin_dist="1.57"/>` and leaves
+`time_allowance` at its BT **port default of 10.0 s**. This robot's
+`behavior_server.max_rotational_vel` is 0.1 rad/s, so 1.57 rad needs 15.7 s.
+The spin recovery was mathematically incapable of succeeding — measured
+15 Sep, four failures out of four, each at exactly 10.000 s. `time_allowance`
+is a BT port and has **no ROS parameter**, so there was no way to fix it
+without owning the file. Same reasoning that already applies to
+`nav2_params.yaml` and `mapper_params_online_async.yaml`: a package upgrade
+must not be able to retune the robot.
+
+Considered and rejected: raising `max_rotational_vel` to fit 1.57 rad into
+10 s (needs ≥0.157 rad/s, above DWB's `max_vel_theta` of 0.125 — a recovery
+spin would become the fastest the robot ever moves, at exactly the moment the
+map is most confused, and the lidar does not deskew); and shortening
+`spin_dist` (hides the contradiction rather than fixing it, and the number
+that is wrong is the allowance).
+
+**Cost:** one more upstream file we now track by hand. If nav2 changes the
+default tree, ours does not follow. The file carries the full arithmetic in a
+comment so the next person can re-derive whether the copy is still needed.
+
+**Depends on a launch-file detail:** the `$(find-pkg-share my_bot)/...` form in
+`nav2_params.yaml` resolves only because `nav2_bringup`'s
+`navigation_launch.py` wraps the params in `ParameterFile(..., allow_substs=True)`.
+`bt_navigator` reads the parameter as a plain string. Verified 15 Sep by
+evaluating the real `RewrittenYaml` → `ParameterFile` chain. A future launch
+path without `allow_substs=True` breaks configuration outright.
+
+**Limitation to report:** none. The recovery behaves as upstream intends; only
+the timeout was wrong for this robot's speed.
+
+---
+
 ## Template
 
 ```

@@ -3,7 +3,57 @@
 > **Update this at the end of every session and whenever a gate passes.**
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
-**Last updated:** 14 Sep 2026, night — **Day 6 DESK WORK DONE on Track B: `semantic_objects` rebuilt as a package in `cap_ws`, all nine fixes in, 139 tests green, bridge and UI running on the Jetson. Two geometry defects the checklist did not know about are fixed (mirrored scan window, wrong range origin), and the camera is on the RIGHT — `camera.xacro` corrected. Day 5 gate passed earlier today. Day 3, 4 and 6 gates all need the robot: Day 6's needs a chair and a tape first (no driving), then the drive-past.**
+**Last updated:** 15 Sep 2026 — **DAY 3 GATE PASSED.** The loop was driven and
+`~/maps/day3-reference` is a valid artefact at last (271×488 @ 0.05 m =
+13.6 × 24.4 m, origin [−6.82, −9.80], saved 17:16). **The Day 4 gate was
+attempted and FAILED — four goals, four failures — and both causes are found,
+proven from the logs, and one of them is already fixed in the repo.** Neither
+was navigation tuning. See "Day 4 gate, attempt 1" below before re-running it.
+
+> **Day 4 gate, attempt 1 (15 Sep) — the two causes.**
+>
+> **1. The goals were published in the `odom` frame, not `map`.** RViz stamps a
+> goal in its **Fixed Frame**, and a goal already in `map` needs no TF lookup at
+> all, so a wrong Fixed Frame is silent until it isn't. `nav.rviz` ships with
+> `Fixed Frame: map` and `make rviz` loads it; it had been changed — most
+> likely during the Day 3 drive, before a map existed. **Fix: set Fixed Frame
+> back to `map`. No code change.**
+>
+> The signature to recognise: `planner_server: Could not transform the start or
+> goal pose in the costmap frame`, with the requested time **pinned** at one
+> value across every retry while "earliest data" marches forward. The BT keeps
+> the original goal on its blackboard and replans at 1 Hz **keeping the
+> original stamp**, so the first ~10 s of plans succeed — the robot starts and
+> moves briefly and looks fine — and then every replan fails forever.
+>
+> ⚠ **Do not read the printed gap as the TF buffer depth.** "earliest is 1.34 s
+> after requested" does **not** mean the buffer holds 1.3 s. It holds a healthy
+> **10 s** — measured on this board 15 Sep. The printed gap is
+> `request_age − 10 s`, so those requests were **~11 s stale**. `map → odom`
+> itself measured clean at the same time: 46.1 Hz, zero backwards steps, stamps
+> +70 ms. Chasing `transform_tolerance` or `tf_buffer_duration` is chasing the
+> wrong number.
+>
+> **2. The Spin recovery can never succeed — arithmetic, not drift.** Upstream's
+> BT hard-codes `<Spin spin_dist="1.57"/>` and leaves `time_allowance` at its
+> **port default of 10.0 s**; at `max_rotational_vel: 0.1` rad/s, 1.57 rad needs
+> **15.7 s**. Measured: `Turning 1.57` → `Exceeded time allowance` at exactly
+> **10.000 s**, four times out of four. `time_allowance` is a **BT port, not a
+> ROS parameter**, so this is unfixable from `nav2_params.yaml`.
+>
+> ✅ **FIXED AND BUILT** — `my_bot/behavior_trees/navigate_to_pose_w_replanning_and_recovery.xml`
+> with `time_allowance="25.0"`, selected by `bt_navigator.default_nav_to_pose_bt_xml`.
+> **D-21.** The `$(find-pkg-share my_bot)/...` form was *verified* to resolve
+> (it works only because `nav2_bringup` wraps the params in
+> `ParameterFile(allow_substs=True)`). `max_rotational_vel` deliberately left at
+> 0.1, below DWB's `max_vel_theta`.
+>
+> **To re-run the gate: restart `make nav` ONLY.** `make real` and `make slam`
+> must keep running or the Day 3 map is lost from `slam_toolbox` and Nav2 has
+> nothing to plan on. Numbers in `records/calibration.md` "Day 4 gate — first
+> attempt"; both symptoms in the index under **Nav2**.
+
+> **Day 6 desk work, 14 Sep — Track B: `semantic_objects` rebuilt as a package in `cap_ws`, all nine fixes in, 139 tests green, bridge and UI running on the Jetson. Two geometry defects the checklist did not know about are fixed (mirrored scan window, wrong range origin), and the camera is on the RIGHT — `camera.xacro` corrected. Day 5 gate passed earlier today. Day 3, 4 and 6 gates all need the robot: Day 6's needs a chair and a tape first (no driving), then the drive-past.**
 
 > **Day 6 at a glance (14 Sep).** `cap_ws/src/semantic_objects/` — node,
 > `launch/semantic.launch.py`, `config/robot_params.yaml`, `clear_landmarks`
@@ -545,8 +595,8 @@ failed gate.
 |---|---|---|
 | 1 | `e` returns changing counts by hand; `m 20 20` spins both wheels forward and auto-stops after 2 s | **[x] PASSED 8 Sep.** §5.8 closed on 50/50 EN resets; manual cycles cut, D-14 |
 | 2 | `make teleop` drives the robot; `/odom` changes sanely; TF tree has no gaps | **[x] PASSED 9 Sep.** Teleop drives, `i` is forward; 1 m push → 0.980 m; 90° turn → −83.7°; 7 TF edges resolve; 30.0 Hz. Track B finished `day-5-yolo.md` §1 as well |
-| 3 | A driven loop closes without a visible double wall | [ ] **§2 lidar and §3 SLAM config done 9 Sep**; the loop itself is undriven. `wheel_separation` must be settled first |
-| 4 | RViz goal → robot arrives; recovery behaviours fire when blocked | [ ] |
+| 3 | A driven loop closes without a visible double wall | **[x] PASSED 15 Sep.** Loop driven at 0.10 m/s; `~/maps/day3-reference` saved 17:16, 271×488 @ 0.05 m, origin [−6.82, −9.80]. Supersedes the invalid 10 Sep file. `wheel_separation` settled 10 Sep at 0.25168 |
+| 4 | RViz goal → robot arrives; recovery behaviours fire when blocked | [ ] **ATTEMPTED AND FAILED 15 Sep, 4 goals.** Two causes, both proven: goals sent in the `odom` frame (RViz Fixed Frame — no code fix, set it to `map`), and Spin's `time_allowance` 10 s against the 15.7 s the spin needs (**fixed, D-21**). Re-run needs `make nav` restarted only |
 | 5 | `/detections` stable; track IDs persist; no thermal throttle | **[x] PASSED 14 Sep.** 15.15 Hz sd 5 ms over 301 s; tj max 44.6 °C over 301 s (52 °C later in the evening); versions recorded; **one cup → id 1 in 457/457 frames** on the real camera |
 | 6 | Labelled marker appears at roughly the right place and stays; UI shows it | [ ] **Built and desk-verified 14 Sep**; bench check (chair, tape, no driving) and the drive-past are open. Everything pushed |
 | 7 | Three clean end-to-end rehearsals; tape-measure numbers recorded | [ ] |
@@ -564,6 +614,19 @@ highest-variance item in the week and it needs no robot.
 ---
 
 ## Network
+
+> ⚠ **The Jetson's address moved again — read 15 Sep: `enP8p1s0` is
+> `10.228.103.105/24`.** Not the `192.168.160.106` recorded below, and not the
+> `172.20.10.2` in the tables further down. **Nothing in this file is a valid
+> address; re-derive with `ip -4 addr` every session.**
+>
+> **Consequence for Day 6/7, not for Day 4:** `semantic-object/semantic_map_ui/.env`
+> is currently uncommitted and set to `VITE_BACKEND_URL=http://172.20.10.2:8000`,
+> which is two addresses out of date. Vite bakes it in at start, so it must be
+> corrected and `make ui` restarted before the browser will ever show a
+> landmark. Left uncommitted deliberately — committing an address is the
+> mistake this box exists to prevent.
+
 
 Set up 9 Sep, verified both directions. **`reference/ros2-network.md` is the
 full account**; this is the quick-reference mirror. Reproduce with `make net`.

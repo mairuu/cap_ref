@@ -187,22 +187,25 @@ make slam                 # ros2 launch my_bot slam.launch.py
 > `map → odom` at **exactly identity** is normal *before you move* and a red
 > flag *after*. `tf_check.py` warns either way — read it in context.
 
-- [ ] Drive a closed loop around one room, **slowly** — the X3 Pro sweeps 360° over
-      a full 100 ms, so fast rotation smears the scan
+- [x] Drive a closed loop around one room, **slowly** — the X3 Pro sweeps 360° over
+      a full 100 ms, so fast rotation smears the scan. **DONE 15 Sep at 0.10 m/s.**
 
 ---
 
 ## GATE — do not start Day 4 until this holds
 
-- [ ] A driven loop closes **without a visible double wall**
+- [x] A driven loop closes **without a visible double wall** — **15 Sep.**
 
 > **If it does not close, the fault is almost always odometry.** Go back to §1
 > and re-calibrate. Do **not** tune SLAM parameters to hide an odometry error —
 > you will pay for it on Day 4 and again on Day 7.
 
-- [ ] Map saved as a reference artefact for comparison later
-      (`make save-map MAP=~/maps/day3-reference`)
-- [ ] The `wheel_separation` question from §1(c) settled and recorded, whichever
-      way it goes
+- [x] Map saved as a reference artefact for comparison later
+      (`make save-map MAP=~/maps/day3-reference`) — **15 Sep 17:16, 271×488 @
+      0.05 m = 13.6 × 24.4 m, origin [−6.82, −9.80].** This supersedes the
+      10 Sep file, which was driven above 0.10 m/s and was never a valid gate
+      artefact.
+- [x] The `wheel_separation` question from §1(c) settled and recorded, whichever
+      way it goes — **0.25168, settled 10 Sep without driving.**
 
 **Then update `STATE.md`.**

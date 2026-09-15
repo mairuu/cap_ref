@@ -49,6 +49,16 @@ large fraction of its returns, so be generous.
 
 ## 3 · Drive to goals
 
+> ⚠ **Check RViz's Fixed Frame is `map` before you click anything.** This cost
+> the whole of attempt 1 on 15 Sep. RViz stamps a "2D Goal Pose" in its **Fixed
+> Frame**; a goal already in `map` needs no TF lookup, so a wrong frame is
+> completely silent until it isn't. With Fixed Frame `odom` every goal starts
+> normally, the robot moves for a few seconds, and then *every replan fails
+> forever* with `planner_server: Could not transform the start or goal pose in
+> the costmap frame`. `make rviz` loads `nav.rviz`, which sets `map` — but the
+> setting is easy to change by hand while teleop-driving on Day 3, before a map
+> exists, and easy to forget. See the symptom index under **Nav2**.
+
 - [ ] Simple goal in open space → arrives and stops
 - [ ] Goal requiring a turn → arrives
 - [ ] Goal through a doorway → arrives, or tells you the inflation is too big
@@ -282,7 +292,12 @@ ros2 topic hz /image/compressed
 ## GATE — do not start Day 5 until all of these hold
 
 - [ ] `make nav` → RViz goal → robot arrives and stops
-- [ ] Recovery behaviours fire when you block it
+- [ ] Recovery behaviours fire when you block it **and the spin one actually
+      completes** — attempt 1 (15 Sep) failed here too, separately: upstream's
+      BT leaves `Spin`'s `time_allowance` at 10 s while 1.57 rad at
+      `max_rotational_vel: 0.1` needs 15.7 s, so it timed out 4 times out of 4
+      at exactly 10.000 s. Fixed by owning the tree (**D-21**); re-check it
+      here rather than assuming.
 - [x] Camera calibrated with **focus locked**, reprojection error < 0.5 px,
       board depth ratio ≥ 2.5×, values in `records/calibration.md` —
       **✅ 11 Sep: 0.3403 px, 2.7×, focus 51.** (`robot_params.yaml` does not

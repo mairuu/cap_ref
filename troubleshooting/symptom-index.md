@@ -598,6 +598,82 @@ Costmap footprint vs. `robot_radius` — it thinks it is already in collision.
 Cross-check the dropout sector from Day 3. Widen inflation on that bearing or
 accept it as a documented limitation.
 
+### Every goal fails after ~10 s with "Could not transform the start or goal pose in the costmap frame"
+**Found 15 Sep, and it cost the first Day 4 gate attempt.** The full error is
+from `transformPoseInTargetFrame`:
+
+```
+Extrapolation Error looking up target frame: Lookup would require
+extrapolation into the past.  Requested time 1789463888.599865 but the
+earliest data is at time 1789463889.943999, when looking up transform
+from frame [odom] to frame [map]
+```
+
+**The goal was published in the `odom` frame** — i.e. RViz's **Fixed Frame was
+`odom`, not `map`** when "2D Goal Pose" was clicked. RViz stamps the goal in
+whatever the Fixed Frame is. A goal already in `map` needs no lookup at all
+(`Costmap2DROS::transformPoseToGlobalFrame` short-circuits when
+`frame_id == global_frame`), which is why this is invisible until the frame is
+wrong. **Fix: set Fixed Frame to `map`.** `make rviz` already does; someone had
+changed it, most likely while teleop-driving on Day 3 before a map existed.
+
+> **Read the two numbers correctly — the gap is NOT the buffer depth.** It is
+> tempting to read "earliest is 1.34 s after requested" as "the TF buffer only
+> holds 1.3 s". It holds a healthy **10 s** — verified on this board 15 Sep by
+> filling a default `tf2_ros.Buffer` and probing: lookups at 9.5 s of age
+> succeed, 11.0 s fails **and prints the same shape of gap, 1.158 s**. The
+> printed gap is `request_age − 10 s`. So these requests were **~11 s stale**,
+> not 1.3 s. Chasing `transform_tolerance`, `tf_buffer_duration` or
+> slam_toolbox's publish rate is chasing the wrong number.
+
+**Why it never recovers, and why it looks intermittent.** The requested time is
+*pinned* across every retry while "earliest" marches forward:
+
+```
+requested  1789463888.599865   (never moves)
+earliest   889.943 -> 890.705 -> 891.636 -> 892.651
+```
+
+The BT keeps the original goal on its blackboard and replans against it at
+1 Hz, **keeping the original stamp**. So the first ~10 s of plans succeed — the
+robot starts, moves briefly, and looks fine — and then every subsequent replan
+fails forever as that one stamp ages out of the buffer. Recoveries then fire,
+burn another 15–20 s, and make the stamp even more stale. One wrong Fixed Frame
+reads as "Nav2 is broken".
+
+### Spin recovery always fails: "Exceeded time allowance before reaching the Spin goal"
+**Not drift, not the motors, not the floor — arithmetic.** Upstream's
+`navigate_to_pose_w_replanning_and_recovery.xml` uses `<Spin spin_dist="1.57"/>`
+and leaves `time_allowance` at its BT **port default of 10.0 s**. At this
+robot's `behavior_server.max_rotational_vel: 0.1` rad/s, 1.57 rad needs
+**15.7 s** before any acceleration ramp. The spin could never finish. Measured
+15 Sep: `Turning 1.57 for spin behavior` → `Exceeded time allowance` at
+**exactly 10.000 s**, four times out of four.
+
+`time_allowance` is a **BT port, not a ROS parameter** — there is nowhere in
+`nav2_params.yaml` to set it. The only fix is to own the XML, which we now do:
+`my_bot/behavior_trees/navigate_to_pose_w_replanning_and_recovery.xml`, with
+`time_allowance="25.0"`, selected by `bt_navigator.default_nav_to_pose_bt_xml`.
+Decision **D-21**.
+
+> **`$(find-pkg-share my_bot)/...` in `nav2_params.yaml` does work**, but only
+> because `nav2_bringup`'s `navigation_launch.py` wraps the params in
+> `ParameterFile(..., allow_substs=True)`. `bt_navigator` itself reads the
+> parameter as a plain string. Verified 15 Sep by evaluating the real
+> `RewrittenYaml` → `ParameterFile` chain: it resolved to an existing absolute
+> path. **If a future launch file loads this params file without
+> `allow_substs=True`, bt_navigator will fail to configure on a literal
+> `$(find-pkg-share ...)` string.**
+
+> **Do not fix this by raising `max_rotational_vel` instead.** It is
+> deliberately below DWB's `max_vel_theta` (0.125) so a recovery spin is never
+> the fastest the robot ever moves. See the deskew note in `nav2_params.yaml`.
+> Watch instead for the opposite problem: 0.1 rad/s is only ~151 encoder
+> ticks/s per wheel, four times slower than the `BackUp` recovery, so if the
+> spin stalls on stiction the symptom will be a *stationary* robot that still
+> times out. That has not been observed; it is the next thing to check if 25 s
+> is also exceeded.
+
 ---
 
 ## YOLO / Jetson

@@ -1628,3 +1628,73 @@ Ground truth chair position, measured against two walls: x ______ y ______
 | Duplicate landmarks per object | 1.0 | |
 | Ghosts surviving a second pass | 0 | |
 | Detections mapped / received | > 0.6 | |
+
+---
+
+## Day 4 gate — first attempt, **FAILED 2026-09-15**, two causes both found
+
+Four RViz goals, all failed. Neither cause was navigation tuning; both were
+config contradictions with exact, reproducible signatures. Raw evidence in
+`~/.ros/log/planner_server_7209_1789463847748.log` and
+`behavior_server_7211_1789463847821.log`.
+
+### Cause 1 — goals were published in the `odom` frame
+
+| | |
+|---|---|
+| Error | `Extrapolation Error ... when looking up transform from frame [odom] to frame [map]` |
+| Logger | `transformPoseInTargetFrame`, then `planner_server: Could not transform the start or goal pose in the costmap frame` |
+| Requested time | `1789463888.599865` — **pinned, identical on every retry** |
+| "earliest data" | `889.944 → 890.705 → 891.636 → 892.652` — marches forward |
+| Error first logged | `1789463899.851` — **11.25 s after the pinned stamp** |
+| Goal accepted by `bt_navigator` | `1789463888.635` — 35 ms after the stamp, i.e. it is the RViz click |
+
+The goal's `frame_id` was `odom`. RViz stamps a goal in its **Fixed Frame**, and
+a goal already in `map` needs no lookup at all, so this is silent until the
+frame is wrong. `nav.rviz` ships with `Fixed Frame: map`; it had been changed.
+
+**Method for reading the gap — the buffer was never the problem.** Measured the
+same day by filling a default `tf2_ros.Buffer` from the live stack for 12 s and
+probing `lookup_transform('map','odom', now − age)`:
+
+| age | result |
+|---|---|
+| 0.0 – 9.5 s | OK |
+| 11.0 s | FAIL, and prints `earliest` **1.158 s** after `requested` |
+
+So the buffer holds a healthy **10 s**, and the printed gap is
+`request_age − 10 s`, not the buffer depth. The gate's 1.344 s and 0.673 s gaps
+therefore mean requests **~10.7 s and ~11.3 s stale**.
+
+`map → odom` itself measured healthy at the same time, robot stationary:
+
+| | |
+|---|---|
+| publish rate | **46.1 Hz** (`transform_publish_period: 0.02`) |
+| stamp − now | min −0.109, median **+0.070**, max +0.113 s |
+| stamp step | median **0.000 s**, max 0.086 s — the transform is *scan*-stamped and republished ~4× per scan, so stamps advance at the 11.6 Hz scan rate |
+| backwards steps | **0** in 369 samples |
+| arrival gap | median 20.0 ms, max 22.9 ms |
+| stamp span held | 7.365 s over 7.206 s of wall time — the buffer fills 1:1 |
+
+### Cause 2 — the Spin recovery can never finish
+
+| | |
+|---|---|
+| `spin_dist` (upstream tree) | 1.57 rad |
+| `behavior_server.max_rotational_vel` | 0.1 rad/s |
+| Time the geometry needs | **15.7 s**, before any acceleration ramp |
+| `time_allowance` (BT **port** default) | **10.0 s** |
+| Measured | `Turning 1.57` → `Exceeded time allowance` at **exactly 10.000 s**, 4 of 4 |
+
+Timestamps: 902.631→912.631, 927.630→937.630, 976.630→986.630, 1001.630→…
+
+Not drift, not the motors, not the floor. Fixed by owning the BT XML with
+`time_allowance="25.0"` — **D-21**. `max_rotational_vel` deliberately left at
+0.1 (below DWB's `max_vel_theta` 0.125).
+
+> **Next thing to check if 25 s is also exceeded:** 0.1 rad/s is only ~151
+> encoder ticks/s per wheel — four times slower than the `BackUp` recovery,
+> which succeeded every time at 0.05 m/s (~600 ticks/s). If the wheels stall on
+> stiction the symptom is a *stationary* robot that still times out. Not
+> observed yet; untested.
