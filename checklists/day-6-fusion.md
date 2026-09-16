@@ -88,21 +88,37 @@ nothing is lost — and the alternative is a scan-deskewing project.
 ## 3 · Run it
 
 - [x] `launch/semantic.launch.py` written — node + `image_transport republish` for `/image/compressed`
-- [ ] Everything up: `make real` · `make slam` · `make yolo` · `make semantic`
+- [x] Everything up: `make real` · `make slam` · `make yolo` · `make semantic` — ✅ 16 Sep (plus `make nav` for teleop, since `twist_mux` and the speed guard live in `navigation.launch.py`)
 
 ```bash
 ros2 topic echo /semantic_landmarks --once
 ros2 topic hz /semantic_markers
 ```
 
-- [ ] Markers appear in RViz at roughly the right place
-- [ ] Drive past a chair → a labelled marker appears and **stays** after you
-      drive away
-- [ ] Watch the node's own `Fused n/m detections` log line — the ratio should be
+- [ ] Markers appear in RViz at roughly the right place — ⚠ **STILL NOT
+      CONFIRMED.** Not a GATE clause, so it does not block Day 7, but the
+      `Semantic Landmarks` display added to `nav.rviz` on 16 Sep (MarkerArray on
+      `/semantic_markers`, **Transient Local**) has never been exercised. With
+      multi-machine ROS 2 down, RViz on the Jetson is a likely demo display.
+      If the display is present but empty while the node reports landmarks, the
+      durability match is wrong, not the fusion.
+- [x] Drive past a chair → a labelled marker appears and **stays** after you
+      drive away — ✅ **16 Sep, user-confirmed. The marker persisted correctly
+      after driving away.** This is the clause the whole semantic layer exists
+      for.
+- [x] Watch the node's own `Fused n/m detections` log line — the ratio should be
       well above zero. Near zero means the geometry chain is broken, not the
       fusion.
 
-  **fused ratio ______ / ______**
+  **fused ratio ~25 / 57 per 5 s window (~45 %)**, steady, `tf miss 0`,
+  `gate: no-odom 0 turning 0`. Every rejection was `max_spread` — the scan
+  window straddling the chair and the background, i.e. the chair sitting
+  closer than ideal, **not** a geometry fault. For contrast the stationary
+  bench check at 1.64 m managed 94.3 %.
+
+  ⚠ **Below Day 7's target.** Day 7 scores *detections mapped / detections
+  received* against **> 0.6**. Backing the robot off further should recover
+  most of the gap; do that before the tape-measure protocol.
 
 ## 4 · Bridge and UI
 
@@ -132,11 +148,31 @@ make ui          # vite --host
 
 ---
 
-## GATE — do not start Day 7 until all of these hold
+## GATE — ✅ **PASSED 16 Sep 2026.** Day 7 may start
 
-- [ ] A labelled marker appears at roughly the right place and **stays**
-- [ ] The browser UI shows it
-- [ ] Fused-detections ratio is well above zero
-- [ ] Everything pushed — build pushed 14 Sep; gate items above still open
+- [x] A labelled marker appears at roughly the right place and **stays** — ✅ confirmed after driving away
+- [x] The browser UI shows it — ✅ after three UI defects were fixed the same day (see below); the ROS side and the bridge were correct throughout
+- [x] Fused-detections ratio is well above zero — ✅ **~45 %** (~25/57 per window)
+- [x] Everything pushed — ✅ both repos
 
-**Then update `STATE.md`.**
+> **Three UI defects were found and fixed reaching this gate, and none of them
+> were fusion or geometry faults** — worth remembering for the Day 7 write-up,
+> because each one presented as if the robot were wrong:
+>
+> 1. **`NO SIGNAL` was rendered unconditionally.** Nothing tracked whether a
+>    frame had arrived, so the placeholder sat over a working feed forever.
+>    `/image/compressed` was publishing at 15.3 Hz the whole time.
+> 2. **The map was fetched once at page load and never refreshed.** `slam_toolbox`
+>    keeps extending the grid, so the browser froze while RViz showed it live.
+>    The bridge's grid was verified byte-identical to `/map`.
+> 3. **Landmark class labels were invisible** — `#e8e8e8` on mapped free space
+>    `#f0f0f0` is **1.08:1** contrast. They read fine over unknown grey (4.83:1),
+>    so labels vanished exactly where the robot had already mapped.
+>
+> Also fixed on the way: a **fatal startup race in `semantic_objects_node.py`**
+> — stats were initialised after the subscribers, so starting `semantic` while
+> `/detections` was already flowing killed the executor silently, leaving the
+> process alive and the node registered while nothing was ever processed. The
+> natural bring-up order was the failing one.
+
+**Then update `STATE.md`.** ✅ done 16 Sep.

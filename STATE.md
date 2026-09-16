@@ -3,7 +3,40 @@
 > **Update this at the end of every session and whenever a gate passes.**
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
-**Last updated:** 16 Sep 2026, later — **DAY 6 STATIONARY BENCH CHECK PASSED**
+**Last updated:** 16 Sep 2026, evening — ✅ **DAY 6 GATE PASSED. Track A and
+Track B are merged and the committed demo is complete.** All four clauses:
+a labelled marker appears in roughly the right place and **stays after driving
+away** (user-confirmed), the browser UI shows it, the fused ratio is **~45 %**
+(~25/57 per 5 s window, `tf miss 0`, all rejections `max_spread`), and both
+repos are pushed. **Day 7 may start.**
+
+> ⚠ **Two things carried forward, neither blocking.**
+>
+> **1. "Markers appear in RViz" is still not confirmed** — it is a §3 item, not
+> a GATE clause, so Day 7 is not blocked. But the `Semantic Landmarks` display
+> added to `nav.rviz` on 16 Sep (MarkerArray on `/semantic_markers`, **Transient
+> Local**) has never been exercised, and with multi-machine ROS 2 down RViz on
+> the Jetson is a likely demo display. If it is present but empty while the node
+> reports landmarks, the durability match is wrong, not the fusion.
+>
+> **2. The fused ratio is below Day 7's target.** Day 7 scores *detections
+> mapped / detections received* against **> 0.6** and this run gave ~0.45. Every
+> rejection was `max_spread` — the chair sitting closer than ideal, so the scan
+> window straddles it and the background. The stationary bench check at 1.64 m
+> managed **94.3 %**. **Back the robot off further before the tape-measure
+> protocol.**
+
+> **Four defects were found and fixed reaching this gate. Not one was a fusion
+> or geometry fault** — each presented as if the robot were wrong:
+> a **fatal startup race** in `semantic_objects_node.py` (stats initialised
+> after the subscribers, so starting `semantic` into a live `/detections` killed
+> the executor silently — the natural bring-up order was the failing one);
+> **`NO SIGNAL` rendered unconditionally** over a working 15.3 Hz feed; **the map
+> fetched once and never refreshed** while `slam_toolbox` kept extending it; and
+> **class labels at 1.08:1 contrast** against mapped free space. Worth citing in
+> the Day 7 write-up.
+
+**Earlier, 16 Sep — DAY 6 STATIONARY BENCH CHECK PASSED**
 (error **0.08 m**, spread **0.04 m**, duplicates **1**, fused **132/140 = 94.3 %**).
 The geometry chain is verified end to end: the chair was 18.4° off-axis on the
 right, where a mirrored window would have missed by ~1.06 m. **The Day 6 gate
