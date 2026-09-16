@@ -1844,6 +1844,126 @@ validation**, and it holds to a hundredth of a millimetre. The 2.30 % left/right
 rotation asymmetry is consistent with the radius multipliers already installed
 (`left 1.002982` / `right 0.997018`).
 
+## Day 6 gate — **PASSED 2026-09-16.** Fusion live, end to end
+
+`make real` · `make slam` · `make nav` · `make yolo` · `make semantic`, driven on
+`make teleop-nav`. Detector is `yolo26s.onnx` fp16 (D-22).
+
+### The gate
+
+| clause | result |
+|---|---|
+| marker appears in roughly the right place and **stays** after driving away | ✅ **user-confirmed** |
+| browser UI shows it | ✅ (after four defects fixed, below) |
+| fused ratio well above zero | ✅ **~45 %** |
+| everything pushed | ✅ both repos |
+
+### Fused ratio — four consecutive 5 s windows
+
+| fused / detections | frames | tf miss | gate no-odom / turning | rejections |
+|---|---|---|---|---|
+| 20 / 57 | 57 | 0 | 0 / 0 | max_spread 37 |
+| 28 / 57 | 57 | 0 | 0 / 0 | max_spread 29 |
+| 26 / 57 | 57 | 0 | 0 / 0 | max_spread 31 |
+| 25 / 57 | 57 | 0 | 0 / 0 | max_spread 32 |
+
+**Every single rejection was `max_spread`.** `tf miss 0` and both motion-gate
+counters at 0 across all four windows — so P2 (TF at the capture stamp) and P3
+(the motion gate) were clean, and the geometry chain was not implicated at all.
+
+> ⚠ **Provenance, stated precisely.** These four windows were captured by Claude
+> shortly after the robot was repositioned, with the robot **largely stationary**.
+> The drive-past that satisfied the "stays" clause was run separately by the
+> user, and **its fused ratio was not captured.** Do not read ~45 % as a
+> while-driving figure.
+
+### `max_spread` against range — the placement envelope
+
+Three points from the same day, same parameters (`max_spread: 0.5`,
+`min_returns: 3`):
+
+| chair range | fused | note |
+|---|---|---|
+| **~0.7 m** (computed from bbox) | **0 %** — all 57/57 rejected | bbox 473×477 px in a 640×480 frame; scan spread within ±20° measured **0.62 m** against the 0.5 m limit |
+| drive-past distance | **~45 %** | after backing the robot off |
+| **1.64 m** (tape-measured) | **94.3 %** | the stationary bench check |
+
+At ~0.7 m the chair subtends roughly 39°, so the lidar window across the bbox
+inevitably catches the chair *and* the background. **This is the guard working
+as designed** (§2.4, "reject, do not fall back", D-09) — not a defect, and
+**not** a reason to lower `max_spread`. The fix is physical: put the object
+further away.
+
+⚠ **Day 7 scores this metric at > 0.6** (detections mapped / detections
+received). ~0.45 is short of it. **Back the robot off toward the 1.64 m figure
+before the tape-measure protocol.**
+
+### Detector under fusion load
+
+| | |
+|---|---|
+| `/detections` rate | 14.4–15.2 Hz |
+| infer + track, in-node p50 | 47.9 → 56.1 ms |
+| age at publish p50 | 53 → 88 ms |
+| detections per frame | 1.0 (one chair, one track id) |
+| detection confidence | 0.90 |
+
+### Bridge and UI, verified live
+
+| | |
+|---|---|
+| `/api/health` | `ros_connected: true`, `landmark_count: 18`, robot pose present |
+| bridge map | 249×216, res 0.05, origin (−7.696, −9.237) — **verified identical to live `/map`** |
+| `/image/compressed` | **15.3 Hz** |
+| `/map` | 0.5 Hz |
+
+### Landmark persistence — resolved, cause not established
+
+`~/maps/landmarks.json` was written at **17:35:22**, the moment a landmark was
+confirmed. It had been stale since **14 Sep 19:16** despite the bench check
+producing a confirmed landmark that morning. **The staleness is not
+reproducing and no cause was established**; it is recorded as resolved-not-
+explained rather than attributed to a guess.
+
+### Four defects fixed reaching this gate — **none of them fusion or geometry**
+
+Every one presented as though the robot were wrong. Worth citing in the Day 7
+limitations write-up.
+
+1. **Fatal startup race**, `semantic_objects_node.py` — `self._stats` was
+   initialised *after* `_setup_subscribers()`. With
+   `TransformListener(spin_thread=True)` a background executor exists, so
+   starting `semantic` while `/detections` was **already flowing** raised
+   `AttributeError` in `_on_synced` and **killed the executor**: process alive,
+   node still listed, nothing ever processed again. Order-dependent — starting
+   `semantic` before `yolo` hid it completely, which is why it survived until
+   now, and the natural bring-up order is the failing one.
+2. **`NO SIGNAL` rendered unconditionally** over a working 15.3 Hz feed —
+   nothing tracked whether a frame had arrived.
+3. **The map was fetched once at page load**, never refreshed, while
+   `slam_toolbox` kept extending the grid. RViz live, browser frozen.
+4. **Class labels invisible** — `#e8e8e8` on mapped free space `#f0f0f0` is
+   **1.08:1** contrast (4.83:1 over unknown grey), so labels vanished exactly
+   where the robot had already mapped. The scale bar had the same defect,
+   unreported.
+
+### Not confirmed by this gate
+
+- **Markers in RViz.** A §3 item, not a GATE clause. The `Semantic Landmarks`
+  display added to `nav.rviz` (MarkerArray on `/semantic_markers`, **Transient
+  Local** to match the publisher) **has never been exercised.**
+- **Wheel-slip heading recovery.** Reported by the user after the gate: a robot
+  wedged on an obstacle slips, and wheel odometry reports rotation that did not
+  happen. `slam_toolbox` corrects this into `map → odom` by design, but the
+  matcher's angular search window is `coarse_search_angle_offset: 0.175 rad`
+  = **±10°**, narrowed deliberately by D-18 on the premise that odometry is
+  trustworthy. At `diff_cont`'s 0.5 rad/s ceiling, **0.35 s of full-speed slip
+  exhausts that window.** Untested and unmeasured.
+  ⚠ Second-order: the semantic motion gate reads ω from `/diff_cont/odom`
+  (`semantic_objects_node.py:421`), so during a slip it sees phantom rotation
+  and drops every detection — the fusion goes blind exactly when the robot is
+  physically still.
+
 ## Final results — the tape-measure protocol (Day 7)
 
 Ground truth chair position, measured against two walls: x ______ y ______
