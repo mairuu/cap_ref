@@ -3,7 +3,18 @@
 > **Update this at the end of every session and whenever a gate passes.**
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
-**Last updated:** 16 Sep 2026 — **`make yolo` runs `yolo26s` as an fp16 `.onnx`
+**Last updated:** 16 Sep 2026, later — **DAY 6 STATIONARY BENCH CHECK PASSED**
+(error **0.08 m**, spread **0.04 m**, duplicates **1**, fused **132/140 = 94.3 %**).
+The geometry chain is verified end to end: the chair was 18.4° off-axis on the
+right, where a mirrored window would have missed by ~1.06 m. **The Day 6 gate
+proper — the drive-past — is still open**, as is P2 under rotation and the
+motion gate, neither of which a stationary robot exercises.
+
+**And the Day 4 Spin recovery was finally run, and it FAILS — see the block
+below.** Stack was brought up and taken back down cleanly in the same session;
+nothing is running now.
+
+**Earlier, 16 Sep — `make yolo` runs `yolo26s` as an fp16 `.onnx`
 (D-22), and the DAY 5 GATE IS RE-PASSED on it.** 301 s, real scene: **15.13 Hz,
 4553 msgs, every frame processed; id 37 (laptop) held 4459/4553 = 100.0 %; tj
 max 52.0 °C.** The swap cost 1.2 ms on the bench — this board is launch-bound,
@@ -41,8 +52,30 @@ is complete through Nav2.** The re-run with Fixed Frame `map` and the D-21
 behaviour tree was clean: three goals, three successes, no stale-frame timeouts
 (115.5 s / 31.8 s / 6.9 s; `bt_navigator_8618_1789465529679.log`).
 
-> ⚠ **One clause of the Day 4 gate is ticked but not evidenced, and it is the
-> half that matters on demo day.** "Recovery behaviours fire when you block it"
+> ⛔ **RESOLVED 16 Sep, AND IT FAILS — THE SPIN RECOVERY DOES NOT WORK.** Run
+> twice by Claude with the full stack up: **ABORTED at 25.000 s both times.**
+> The D-21 fix itself is proven good (the abort is at 25 s, not the old 10 s
+> port default, so the behaviour tree loads and is used) — but **the robot never
+> moved.** `/cmd_vel` and `/diff_cont/cmd_vel_unstamped` both carried 502
+> samples at `angular.z 0.1`, so the command reaches the hardware; `/joint_states`
+> wheel positions stayed at **`0.0` and `0.0`** and odom at exact identity.
+> **The encoders recorded nothing: this is STICTION**, the second of the two
+> possibilities D-21 flagged. Nothing is misconfigured — 0.1 rad/s is ~0.015 m/s
+> per wheel and the drivetrain does not break away.
+>
+> ⚠ **`FollowPath.max_vel_theta` is 0.125 rad/s**, only 25 % above the speed
+> that failed to move the robot at all, so whether Nav2 can rotate in place
+> under its own limits is now open too. Day 3/4 turns all happened *while
+> translating* (rolling friction, not static) — that does not contradict this.
+>
+> **Next, and deliberately not guessed at:** the minimum ω that breaks the robot
+> away from standstill has never been measured, so any new `max_rotational_vel`
+> is a guess. A `calibrate_breakaway.py` that ramps ω and watches `/joint_states`
+> is the honest way to get it. Full evidence table in `records/calibration.md`
+> "Spin recovery".
+
+> ~~⚠ **One clause of the Day 4 gate is ticked but not evidenced, and it is the
+> half that matters on demo day.**~~ (superseded by the block above) "Recovery behaviours fire when you block it"
 > has **zero `Running spin` lines** in the successful session's
 > `behavior_server_8584_1789465529644.log` — against twelve in the failed
 > attempt. No recovery ran, so **the D-21 Spin fix has never executed on this

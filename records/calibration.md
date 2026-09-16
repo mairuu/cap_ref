@@ -1654,12 +1654,13 @@ object, and the Day 6 bench check (`landmark_tape_measure.py chair --truth X Y`,
 one taped chair, no driving) is exactly the test that would expose it. Do that
 before reading anything into the drive-past.
 
-## Semantic fusion — Day 6 desk work, **14 Sep 2026** (bench check still to run)
+## Semantic fusion — Day 6 desk work, **14 Sep 2026** (bench check ✅ passed 16 Sep, below)
 
 `cap_ws/src/semantic_objects/` rebuilt from the June modules. Everything below
 was verified on the desk with `robot_state_publisher` only — no lidar, no
-camera, no map. The stationary bench check (chair at a taped position) and the
-Day 6 gate remain **open**; see STATE.md.
+camera, no map. ~~The stationary bench check (chair at a taped position) and the
+Day 6 gate remain **open**~~ — **the bench check PASSED 16 Sep**, recorded
+immediately below; the Day 6 gate (drive-past) is still open. See STATE.md.
 
 ### Camera side corrected — `camera_offset_y` is **−0.030 m (RIGHT)**
 
@@ -1716,6 +1717,112 @@ Left at **3**, per the 9–10 Sep analysis (27.9 % / 25.7 % dropout: a 0.3 m
 object at 3 m has ~4 live rays). `max_spread` **0.5 m**. `angular_padding`
 **0.035 rad**: the window is computed at the camera and the lidar is 3 cm
 beside it. All in `config/robot_params.yaml` with the reasoning.
+
+## Stationary bench check — **PASSED 2026-09-16**, the geometry chain is verified
+
+The first live run of the whole fusion chain: `make real` · `make slam` ·
+`make yolo` · `make semantic`, robot stationary, one chair at a tape-measured
+position. Scored with `my_bot/scripts/landmark_tape_measure.py`.
+
+### Setup
+
+| | |
+|---|---|
+| object | one chair, **on the robot's RIGHT** (confirmed by the user) |
+| measured | 1.50 m ahead of the **camera**, 0.50 m right of the **camera** |
+| converted to `base_link` | **X 1.55, Y −0.53** — camera sits at (+0.05, −0.03), and REP-103 makes the robot's right **negative** Y |
+| bearing off the camera axis | **18.4°**, projecting to pixel x ≈ 544 of 640 (half-FOV 25.5°) |
+| range, axle → chair | 1.64 m |
+| detector | `yolo26s.onnx` fp16 (D-22) |
+
+### Result — all three targets met, with margin
+
+| | measured | target | |
+|---|---|---|---|
+| absolute error | **0.08 m** | < 0.25 m | ✅ 3× inside |
+| spread | **0.04 m** | < 0.15 m | ✅ |
+| duplicates within 1 m | **1** | exactly 1 | ✅ |
+| fused ratio | **132/140 = 94.3 %** | well above zero | ✅ |
+
+**What this actually proves.** These three numbers fail for different reasons,
+which is why all three are scored: error is the geometry chain, spread is the
+fusion, duplicates is the association. All three passing at once means the whole
+chain is right end to end —
+
+- **intrinsics** read from `c615_640x480.yaml` (fx 667.87), one copy, D-19;
+- **the mirrored scan window is fixed** — this is the decisive one. The chair
+  was 18.4° off-axis on the **right**. A mirrored window would have placed the
+  landmark at Y **+0.53** instead of −0.53, an error of ~1.06 m. Measured error
+  was 0.08 m, so the mirror defect found on 14 Sep is genuinely gone;
+- **the camera is on the right** (`camera_offset_y −0.03`), for the same reason;
+- **the range origin is the lidar, not the camera** (D-19) — an 8.4 cm error
+  would eat a third of the budget on its own, and 0.08 m total leaves no room
+  for it;
+- **TF is looked up at the detection's capture stamp** (P2) — less strained by a
+  stationary robot than it will be while driving, so this one is confirmed but
+  not yet stressed;
+- **association on track id** (P5) held one chair to one landmark.
+
+**94.3 % fused** means the lidar-window extraction is not fighting the chair's
+legs: the anticipated `max_spread` / `min_returns` rejection against thin chair
+legs with a wall behind did not materialise at this range.
+
+> ⚠ **Not yet tested by this run:** P2 under rotation (the robot never moved),
+> the motion gate (`max_omega` 0.3 rad/s never approached), and landmark
+> persistence after driving away. Those are the drive-past gate.
+
+## Spin recovery — **RUN AT LAST, 2026-09-16, AND IT FAILS: STICTION**
+
+The Day 4 clause that was ticked-but-unevidenced since 15 Sep. Executed twice by
+Claude with the full stack up (`make real` · `make slam` · `make nav`).
+
+```
+ros2 action send_goal /spin nav2_msgs/action/Spin "{target_yaw: 1.57, time_allowance: {sec: 25}}"
+```
+
+| | attempt 1 | attempt 2 |
+|---|---|---|
+| result | **ABORTED** | **ABORTED** |
+| `total_elapsed_time` | 25.000396 s | 25.000421 s |
+| wall time | 27.5 s | — |
+
+### The D-21 open question is answered — it is **stiction**, not a tight allowance
+
+D-21 left two indistinguishable failure modes. The measurement separates them:
+
+| evidence | value | meaning |
+|---|---|---|
+| `behavior_server` log | `Running spin` → `Turning 1.57 for spin behavior.` → `Exceeded time allowance` | **The D-21 behaviour tree IS loaded and used.** `time_allowance` 25 s was honoured — the abort is at 25 s, not the old port default of 10 s |
+| `/cmd_vel` during the spin | **502 samples, `angular.z 0.1`** | the behaviour commanded correctly |
+| `/diff_cont/cmd_vel_unstamped` | **502 samples, `angular.z 0.1`** | **`twist_mux` passed it through — the command reaches the hardware interface** |
+| `/diff_cont/odom` orientation | `(0, 0, 0, 1)` — **exactly identity** | the robot did not rotate |
+| `/joint_states` wheel positions | **`0.0` and `0.0`** after 50 s of commanding | **the encoders recorded nothing at all. The wheels never turned.** |
+
+**So the chain is correct end to end and the motors simply do not break away at
+0.1 rad/s.** That is ~0.015 m/s at each wheel. Nothing is misconfigured; the
+commanded speed is below the drivetrain's static friction.
+
+### What this does and does not threaten
+
+**It does not contradict the Day 3/4 drives.** Those turns happened *while
+translating*, where the wheels are already rolling and only rolling friction
+applies. A pure in-place rotation **from standstill** is the hard case, and it
+is the only case the Spin recovery ever exercises. *(Mechanism inferred from the
+two results, not separately measured.)*
+
+⚠ **`FollowPath.max_vel_theta` is 0.125 rad/s** (read live, 16 Sep), only 25 %
+above the speed that just failed to move the robot at all. Whether Nav2 can
+rotate in place *at all* under its own controller limits is therefore an open
+question, not just a recovery-behaviour one.
+
+### Not yet measured — the number the fix needs
+
+**The minimum ω that actually breaks the robot away from standstill.** Until
+that is measured, any new `max_rotational_vel` is a guess. D-21's old objection
+(that 0.157 rad/s exceeds DWB's 0.125) was reasoning about fitting 1.57 rad into
+a **10 s** allowance; with 25 s the arithmetic needs only ≥ 0.0628 rad/s, so the
+binding constraint is no longer time — **it is breakaway torque**, a higher and
+different bar.
 
 ## Final results — the tape-measure protocol (Day 7)
 

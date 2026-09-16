@@ -836,6 +836,31 @@ prints all three every 10 s and judges on temperature.
 > ceiling unaided. If more GPU is ever needed the remaining levers are a smaller
 > model or `nvpmodel` above 15 W.
 
+### `/spin` aborts at exactly the time allowance and the robot never visibly turns
+**Stiction — measured 16 Sep, twice.** Do not chase `time_allowance`, the
+behaviour tree, or `twist_mux`; all three were cleared. The distinguishing test
+is **`/joint_states`, not odom**:
+
+```bash
+ros2 topic echo /joint_states --once        # wheel positions
+ros2 topic echo /diff_cont/cmd_vel_unstamped --field angular.z
+```
+
+If `cmd_vel_unstamped` carries the commanded `angular.z` but the wheel positions
+do **not** change, the command is reaching the hardware and the motors are not
+breaking away. At `max_rotational_vel` 0.1 rad/s each wheel sees only ~0.015 m/s.
+Odom alone cannot tell you this apart from a TF fault — the encoders read zero,
+so odom simply stays at identity.
+
+Distinguish from the *other* D-21 failure: an abort at **10.000 s** means the
+behaviour tree override is not loaded and you are getting upstream's port
+default; an abort at the allowance you passed means the tree IS loaded and the
+problem is mechanical.
+
+⚠ This does not contradict turns during normal navigation. Those happen while
+the robot is translating, where only rolling friction applies. In-place rotation
+from standstill is the hard case and the only one Spin exercises.
+
 ### — ONNX model path (`make yolo-onnx`, D-22) —
 
 ### Detection rate collapses to a few Hz and nothing in the log says why

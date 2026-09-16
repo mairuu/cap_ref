@@ -519,8 +519,24 @@ comment so the next person can re-derive whether the copy is still needed.
 evaluating the real `RewrittenYaml` → `ParameterFile` chain. A future launch
 path without `allow_substs=True` breaks configuration outright.
 
-**Limitation to report:** none. The recovery behaves as upstream intends; only
-the timeout was wrong for this robot's speed.
+**Limitation to report:** ~~none. The recovery behaves as upstream intends; only
+the timeout was wrong for this robot's speed.~~
+
+⛔ **AMENDED 16 Sep — the decision is correct but insufficient.** The tree was
+finally executed, twice. `time_allowance="25.0"` demonstrably works: the abort
+comes at **25.000 s**, not upstream's 10 s port default, so this file is loaded
+and used. **But the robot does not rotate at all.** `/cmd_vel` and
+`/diff_cont/cmd_vel_unstamped` both carried 502 samples at `angular.z 0.1` while
+`/joint_states` wheel positions stayed at exactly `0.0` — the command reaches
+the hardware and the motors never break away. **The second of the two
+possibilities this decision flagged is the real one: stiction.**
+
+So the limitation to report is real and currently open: **the Spin recovery
+cannot succeed on this robot at `max_rotational_vel` 0.1 rad/s.** Raising it is
+the obvious fix, but the breakaway threshold has never been measured and
+`FollowPath.max_vel_theta` is only 0.125 — a guess here risks either not moving
+or making a recovery spin the fastest the robot ever moves. Evidence table in
+`records/calibration.md` "Spin recovery"; symptom in the index under Nav2.
 
 ---
 
