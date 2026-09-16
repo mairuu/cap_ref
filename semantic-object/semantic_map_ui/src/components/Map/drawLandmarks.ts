@@ -29,8 +29,19 @@ export function drawLandmarks(
     ctx.lineWidth = 1
     ctx.stroke()
 
-    // label
-    ctx.fillStyle = '#e8e8e8'
+    // Label: white with a dark halo, because the canvas has BOTH light and
+    // dark regions and one flat colour cannot serve both. The old '#e8e8e8'
+    // scored 1.08:1 against mapped free space (#f0f0f0) -- invisible -- while
+    // reading fine at 4.83:1 over unknown grey (#646464). The effect was that
+    // class labels disappeared exactly where the robot had already mapped,
+    // which is most of the map by the end of a run. Reported 16 Sep as markers
+    // showing without their class. Stroke first, then fill over it.
+    ctx.lineJoin = 'round'
+    ctx.miterLimit = 2
+    ctx.lineWidth = 3
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)'
+    ctx.strokeText(lm.class_label, sx, sy + LABEL_OFFSET_Y)
+    ctx.fillStyle = '#ffffff'
     ctx.fillText(lm.class_label, sx, sy + LABEL_OFFSET_Y)
   }
 

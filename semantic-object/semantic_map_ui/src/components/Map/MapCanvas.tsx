@@ -19,14 +19,25 @@ function drawScaleBar(ctx: CanvasRenderingContext2D, scale: number) {
   const y = ctx.canvas.height - 24
   const h = 4
 
-  ctx.fillStyle = '#e8e8e8'
+  // Same light-on-light trap as the landmark labels: this is drawn in SCREEN
+  // space, so it sits over whatever the map happens to show there -- and
+  // '#e8e8e8' on mapped free space '#f0f0f0' is 1.08:1, i.e. invisible.
+  // Dark halo, light fill, legible over both.
+  ctx.lineJoin = 'round'
+  ctx.miterLimit = 2
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)'
+
+  ctx.lineWidth = 3
+  ctx.strokeRect(x, y, barPx, h)
+  ctx.fillStyle = '#ffffff'
   ctx.fillRect(x, y, barPx, h)
   ctx.fillRect(x, y - 4, 2, h + 4)
   ctx.fillRect(x + barPx - 2, y - 4, 2, h + 4)
 
   ctx.font = '10px "JetBrains Mono", monospace'
   ctx.textAlign = 'left'
-  ctx.fillStyle = '#e8e8e8'
+  ctx.strokeText(`${rounded} m`, x, y - 8)
+  ctx.fillStyle = '#ffffff'
   ctx.fillText(`${rounded} m`, x, y - 8)
 }
 
