@@ -232,8 +232,9 @@ was navigation tuning. See "Day 4 gate, attempt 1" below before re-running it.
 > so a stray `q` can never reproduce the 10 Sep shear. Rebuilt; installed
 > copies verified; committed and pushed as `cap_ws` `257d4f1`. Both are untested on a moving robot: the next driving session
 > is the test.
-**Current day:** Day 4 on Track A; **Day 5 PASSED and Day 6 built on Track B** — Day 6's gate needs the bench check, then the drive-past. §1 (Nav2 port) **done and verified**; Day 3's gate is
-still the blocker and both remaining Track A items need the robot driven.
+**Current day:** **Day 7.** Gates 1–6 are all passed as of 16 Sep; the committed
+demo (drive · map · Nav2 goal · live semantic markers) is complete end to end.
+Day 7 is measure · rehearse · write.
 ~~**Multi-machine ROS 2 is up (9 Sep)**~~ **DOWN since 11 Sep** — see the banner above. Until it is re-run on both machines, **RViz runs on the Jetson's HDMI display** (`:0`, confirmed present). `reference/ros2-network.md` and D-16.
 **Blocked on:** nothing technical — **the two remaining items both need the
 robot driven**, which needs you: §1(c) `calibrate_spin.py`, then the closed
@@ -707,9 +708,9 @@ failed gate.
 | 1 | `e` returns changing counts by hand; `m 20 20` spins both wheels forward and auto-stops after 2 s | **[x] PASSED 8 Sep.** §5.8 closed on 50/50 EN resets; manual cycles cut, D-14 |
 | 2 | `make teleop` drives the robot; `/odom` changes sanely; TF tree has no gaps | **[x] PASSED 9 Sep.** Teleop drives, `i` is forward; 1 m push → 0.980 m; 90° turn → −83.7°; 7 TF edges resolve; 30.0 Hz. Track B finished `day-5-yolo.md` §1 as well |
 | 3 | A driven loop closes without a visible double wall | **[x] PASSED 15 Sep.** Loop driven at 0.10 m/s; `~/maps/day3-reference` saved 17:16, 271×488 @ 0.05 m, origin [−6.82, −9.80]. Supersedes the invalid 10 Sep file. `wheel_separation` settled 10 Sep at 0.25168 |
-| 4 | RViz goal → robot arrives; recovery behaviours fire when blocked | **[x] PASSED 15 Sep on the goal clause** — 3 goals, 3 successes, no stale-frame timeouts. ⚠ **The recovery clause has no log evidence: zero `Running spin` lines in the session.** D-21 is therefore still untested on the robot. ~~ATTEMPTED AND FAILED earlier that day, 4 goals.~~ Two causes, both proven: goals sent in the `odom` frame (RViz Fixed Frame — set it to `map`), and Spin's `time_allowance` 10 s against the 15.7 s the spin needs (**fixed, D-21**). Both fixes confirmed by the re-run |
+| 4 | RViz goal → robot arrives; recovery behaviours fire when blocked | **[x] FULLY PASSED — goal clause 15 Sep, recovery clause 16 Sep.** 3 goals, 3 successes, no stale-frame timeouts. ~~The recovery clause has no log evidence.~~ **`/spin` SUCCEEDED 16 Sep in 16.4007 s** (1.5762 rad vs 1.57), so D-21 is executed and proven; the stiction risk it flagged is disproven at the same `max_rotational_vel: 0.1`. ~~ATTEMPTED AND FAILED earlier that day, 4 goals.~~ Two causes, both proven: goals sent in the `odom` frame (RViz Fixed Frame — set it to `map`), and Spin's `time_allowance` 10 s against the 15.7 s the spin needs (**fixed, D-21**). Both fixes confirmed by the re-run |
 | 5 | `/detections` stable; track IDs persist; no thermal throttle | **[x] PASSED 14 Sep.** 15.15 Hz sd 5 ms over 301 s; tj max 44.6 °C over 301 s (52 °C later in the evening); versions recorded; **one cup → id 1 in 457/457 frames** on the real camera |
-| 6 | Labelled marker appears at roughly the right place and stays; UI shows it | [ ] **Built and desk-verified 14 Sep**; bench check (chair, tape, no driving) and the drive-past are open. Everything pushed |
+| 6 | Labelled marker appears at roughly the right place and stays; UI shows it | **[x] PASSED 16 Sep.** Bench check: error **0.08 m**, spread 0.04, duplicates 1, fused 94.3 % at 1.64 m. Drive-past: marker persisted after driving away; browser shows it; fused **~45 %** (all rejections `max_spread`, chair too close — below Day 7's 0.6 target, back the robot off). ⚠ RViz markers still unconfirmed (a §3 item, not a gate clause) |
 | 7 | Three clean end-to-end rehearsals; tape-measure numbers recorded | [ ] |
 
 ## Track status

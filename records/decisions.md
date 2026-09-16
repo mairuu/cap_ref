@@ -618,6 +618,59 @@ run, and not blocking.
 
 ---
 
+## D-23 · Wheel slip during a stuck spin: documented, not corrected
+**Date:** 2026-09-16 · **Status:** adopted — **limitation, untested**
+
+Reported by the user after the Day 6 gate: when the robot wedges on an obstacle
+and spins, the wheels slip. Wheel odometry reports rotation that did not happen.
+**Decision: document this as a limitation and change nothing.**
+
+**Why nothing needs building.** `slam_toolbox`'s scan matcher already *is* LiDAR
+heading correction. When odometry claims rotation the scans do not support, the
+difference is absorbed into `map → odom`, so the robot's pose in the **`map`**
+frame stays right. `/diff_cont/odom` keeps the error forever — that edge is raw
+wheel odometry by construction — but nothing downstream uses it for global pose;
+Nav2 reads TF.
+
+**Why it may nonetheless fail, and this is the part worth reporting.** The
+matcher's angular search window is `coarse_search_angle_offset: 0.175 rad`
+= **±10°**, narrowed by **D-18** on the explicit premise that odometry is
+trustworthy (measured ~1 cm / 0.01° per 0.2 m keyframe). **Wheel slip is exactly
+the case that violates that premise.** At `diff_cont`'s 0.5 rad/s ceiling,
+**0.35 s of full-speed slip exhausts the window**; beyond it the matcher cannot
+search far enough to find the truth and will fail the match
+(`link_match_minimum_response_fine: 0.1`) or lock onto a wrong one.
+
+⚠ **Second-order, and worse for the demo than the heading error.** The semantic
+layer's motion gate reads ω from `/diff_cont/odom`
+(`semantic_objects_node.py:421`). During a slip it sees phantom rotation and
+drops every detection at `motion.max_omega: 0.3` — **the fusion goes blind
+exactly when the robot is physically still and would give its cleanest
+observations.**
+
+**Cost:** none paid; the risk is accepted rather than closed.
+
+**Considered and rejected for this week:** widening
+`coarse_search_angle_offset` or raising `angle_variance_penalty` — both reverse
+part of D-18 and give back the precision it bought, and neither should be done
+without measuring first. An **IMU** is the textbook answer and is not in this
+build. Gating the semantic layer on scan-matched motion instead of odom ω would
+fix the blindness but is a real change to the fusion path.
+
+**Limitation to report:** *"Heading is corrected by scan matching rather than by
+an IMU, and the matcher searches ±10° about the odometry prior. A wheel slip
+larger than that — roughly 0.35 s of stall at full rotational speed — is outside
+the search window and would not be recovered. The semantic layer additionally
+gates on wheel-odometry angular velocity, so it discards detections during a
+slip. Neither behaviour was measured on the robot."*
+
+⚠ **UNTESTED.** The mechanism above is derived from the configuration and from
+D-18's reasoning, **not** from an experiment on this robot. The measurement that
+would settle it is cheap — induce a slip and log `map → base_footprint` yaw
+against `odom → base_link` yaw — and was deliberately not run, per constraint 3.
+
+---
+
 ## Template
 
 ```

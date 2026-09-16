@@ -12,7 +12,25 @@ The design note's §08 validation. Run it **once, properly**. Even mediocre
 numbers are worth far more in a report than no numbers, because they show you
 knew what to measure.
 
-- [ ] Write `landmark_tape_measure.py` (`reference/scripts-to-rebuild.md`)
+- [x] ~~Write `landmark_tape_measure.py`~~ — **written 14 Sep (Day 6)** and used
+      for the bench check that passed
+- [x] **Extend it for four passes** — ✅ 16 Sep. The design note wants spread
+      **across** four passes; the script only measured spread *within* one run,
+      and keyed it on the nearest landmark id, so a mid-loop association split
+      silently dropped history and **understated** the number. Both fixed:
+
+```bash
+ros2 run my_bot landmark_tape_measure.py chair --truth X Y --pass-label front
+#   ... right, back, left ...
+ros2 run my_bot landmark_tape_measure.py chair --truth X Y --summary
+```
+> ⚠ **Back the robot off to ~1.6 m before starting.** Day 6 measured the
+> detections-mapped metric at **~0.45** against this day's **> 0.6** target.
+> Every rejection was `max_spread` — the chair close enough that the scan window
+> straddles it and the background. The bench check at **1.64 m got 94.3 %**.
+> Set up at that range or the metric scores against you for a reason that has
+> nothing to do with the fusion.
+
 - [ ] Place a chair at a position measured against **two walls** with a tape
 
   ground truth: x ______ m · y ______ m
@@ -49,13 +67,20 @@ knew what to measure.
 
 ```bash
 make ports      # devices first, always
+make bag        # optional; start it whenever, /tf_static is latched
 make real
 make slam
 # drive the loop
+make nav        # REQUIRED: twist_mux and the speed guard live here, so
+                # `make teleop-nav` (the e-stop) does nothing without it
 make yolo
 make semantic
 make bridge     # + make ui
 ```
+
+> **`make nav` was missing from this block.** It is not optional: the e-stop
+> depends on it, and the §3 stretch goal needs `NavigateToPose`. Rehearsing
+> without it rehearses a startup you will not use.
 
 | Run | Time | Failed at | Note |
 |---|---|---|---|
@@ -69,7 +94,11 @@ make bridge     # + make ui
 - [ ] **One run on a half-charged battery** — find the step that fails when the
       pack sags
 - [ ] `make bag` recorded on the best run — insurance if live hardware fails on
-      the day
+      the day. ✅ **Target written 16 Sep** (it did not exist). Replay with
+      `make bag-play BAG=...`. Note the `RECOVERY.md` draft of this target
+      records `/odom`, which is **not a topic on this robot** — use the Makefile's
+      version. Latched topics need no special handling: rosbag2 stores each
+      publisher's offered QoS and reproduces it (verified 16 Sep)
 - [ ] Startup order written down as a one-page demo script
 
 ## 3 · Stretch — navigate to a named object
@@ -86,9 +115,15 @@ make bridge     # + make ui
 
 ## 4 · Evening — write the limitations section
 
-Write it while it is fresh. `RECOVERY.md` §9 already has the sentences drafted
-for each cut item — Gazebo, P6, P7, P8, P4's size-prior fallback, AMCL,
-multi-session persistence.
+Write it while it is fresh. `RECOVERY.md` §9 has drafted sentences for
+**Gazebo, P6, P7, P8 and P4's size-prior fallback**.
+
+> ⚠ **Two of the items named here have no drafted sentence**, contrary to what
+> this line used to claim: **AMCL** (§9 has rationale, not a limitation
+> sentence — raw material in D-05 and `navigation.launch.py`) and
+> **multi-session persistence** (no decision record of its own; it rides on
+> D-05, and the reasoning is in `semantic_objects_node.py`'s header). P4 *does*
+> have one, so it was a false alarm in the other direction.
 
 - [ ] Each cut item has a sentence saying what is missing and what would fix it
 - [ ] Deviations from `STATE.md` folded into a methodology note
