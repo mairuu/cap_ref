@@ -3,19 +3,38 @@
 > **Update this at the end of every session and whenever a gate passes.**
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
-**Last updated:** 16 Sep 2026 — **`make yolo` now runs `yolo26s` as an fp16
-`.onnx` (D-22), built on this board by `cap_ws/yolo/export_onnx.py`.** Desk work
-done and benched; the venv gained onnxruntime-gpu 1.24.0 (the **Jetson** wheel).
-**This re-opens three of the four Day 5 gate clauses** — they were evidence
-about `yolo26n.pt` on torch, and both the weights and the backend changed. The
-re-run is two terminals and a cup, no robot, no driving:
-```
-make yolo                                          # terminal 1
-ros2 run my_bot detection_report.py --seconds 300  # terminal 2
-```
-Expect ~46 ms p50 in a 66.7 ms budget, i.e. still camera-limited. Numbers and
-the caveat on them are in `records/calibration.md` "YOLO model swap"; the new
-failure modes are in the symptom index under "ONNX model path".
+**Last updated:** 16 Sep 2026 — **`make yolo` runs `yolo26s` as an fp16 `.onnx`
+(D-22), and the DAY 5 GATE IS RE-PASSED on it.** 301 s, real scene: **15.13 Hz,
+4553 msgs, every frame processed; id 37 (laptop) held 4459/4553 = 100.0 %; tj
+max 52.0 °C.** The swap cost 1.2 ms on the bench — this board is launch-bound,
+so the bigger model is nearly free, but **ONNX fp32 is a 9 ms regression against
+torch and only the fp16 export pays for itself** (`ONNX_HALF=true`; do not ship
+false). The venv gained onnxruntime-gpu 1.24.0 — the **Jetson** wheel, by direct
+URL; PyPI's is CPU-only, imports under the same name, and would cost a silent
+10× with nothing in any log.
+
+> ⚠ **Two things that run raises, neither of which blocks Day 6.**
+>
+> **1. The GPU is no longer idling.** 14 Sep had it pinned at its 306 MHz floor,
+> 0–50 % bursty. 16 Sep: **625 MHz ceiling, 57 % mean load, tj 52 °C** (was
+> 44.6). Still far from the ~90 °C limit and still camera-limited — but
+> `sudo jetson_clocks` is no longer a lever in reserve, because the clock now
+> reaches its ceiling on its own. **The run changed two variables at once**
+> (model+backend *and* blank wall → 4.41 dets/frame), so this cannot be pinned
+> on the model. 60 s of `make yolo MODEL=~/yolo/yolo26n.pt` in the same scene
+> would separate them. Not run.
+>
+> **2. 144 distinct track ids in 301 s**, with several classes holding more than
+> one (laptop 37 and 107; chair 329 and 230). The gate only asks for one
+> persistent id and got a perfect one. But **P5 uses the track id as the
+> semantic layer's "same object again" key**, so a chair that picks up a second
+> id becomes two landmarks. The report cannot tell two chairs from one chair
+> twice. **The Day 6 bench check settles it** — one taped chair, no driving —
+> and should be run before reading anything into the drive-past.
+
+Also fixed: `detection_report.py` ended every run with `terminate called without
+an active exception` / `[ros2run]: Aborted` — a spin-thread/exit race, after the
+report had already printed. Clean exit now.
 
 **Previously, 15 Sep 2026, evening** — **DAY 3 AND DAY 4 GATES PASSED. Track A
 is complete through Nav2.** The re-run with Fixed Frame `map` and the D-21

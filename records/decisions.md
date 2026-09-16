@@ -581,11 +581,18 @@ nothing.
 **Reversal:** `make yolo MODEL=$HOME/yolo/yolo26s.pt` skips the export and runs
 the Day 5 torch path unchanged. `yolo26n.pt` is still on disk.
 
-**Limitation to report:** the Day 5 gate was passed on 14 Sep with
-`yolo26n.pt` on torch. **Changing both the weights and the backend invalidates
-that evidence.** The bench above is a synthetic frame and proves neither the
-15 Hz end-to-end rate nor track-id persistence. Both gate clauses need a live
-`detection_report.py` run before this is a passed gate again.
+**Limitation to report:** ~~the Day 5 gate was passed on 14 Sep with
+`yolo26n.pt` on torch, and changing both the weights and the backend invalidates
+that evidence.~~ ✅ **Re-passed 16 Sep** — 301 s on a real scene: 15.13 Hz,
+4553/4553 frames carried detections, id 37 (laptop) held 100.0 %, tj max
+52.0 °C. Full numbers in `records/calibration.md`.
+
+What remains open is **not** a limitation of this decision but of the evidence
+for it: that run changed the scene as well as the model (blank wall → 4.41
+detections/frame), so the GPU going from its 306 MHz floor to its 625 MHz
+ceiling at 57 % load **cannot be attributed to `yolo26s.onnx`**. A 60 s
+`make yolo MODEL=~/yolo/yolo26n.pt` in the same scene would separate them. Not
+run, and not blocking.
 
 ---
 

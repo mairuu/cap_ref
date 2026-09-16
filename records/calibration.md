@@ -1592,16 +1592,67 @@ for this reason — see D-22.
 > it is not evidence about absolute end-to-end rate. Treat 14 Sep's live 44.5 ms
 > p50 as the only measured in-node figure until a new live run replaces it.
 
-### Still to measure — the Day 5 gate, against the real camera
+### Live — `make yolo` against the real camera, 301 s, 16 Sep — **GATE RE-PASSED**
 
-```
-make yolo                                          # terminal 1
-ros2 run my_bot detection_report.py --seconds 300  # terminal 2
-```
-Needs a COCO object held still in frame (the cup worked on 14 Sep). Two gate
-clauses depend on it and a synthetic frame proves neither: **15 Hz sustained**
-and **track ids persisting across frames**. Expected from the bench: ~46 ms p50
-in-node against a 66.7 ms budget, i.e. still camera-limited.
+`yolo26s.onnx` fp16, imgsz 640, CUDAExecutionProvider. User-run, real scene
+(people, a laptop, chairs, a phone, a cup), unlike 14 Sep's blank wall.
+
+| | 14 Sep — `yolo26n.pt` torch, blank wall | 16 Sep — `yolo26s.onnx` fp16, busy scene |
+|---|---|---|
+| `/detections` rate | 15.15 Hz, 4556 msgs | **15.13 Hz, 4553 msgs** |
+| inter-arrival sd / max | 5.2 ms / 96 ms | **9.8 ms / 180 ms** |
+| age at receipt p50 / p95 / max | 48 / 60 / 80 ms | **65 / 80 / 246 ms** |
+| detections per frame | 0.00 | **4.41** (4553/4553 frames had ≥1) |
+| frames with a det but no track id | — | **0** |
+| GPU clock | **306 MHz floor** throughout | **625 MHz ceiling**, 510 at the end |
+| GPU load | 0–50 % bursty | **mean 57 %, max 99 %** |
+| `tj-thermal` | 42.8 → 44.1 °C, max 44.6 | **49.5 → 51.9 °C, max 52.0** |
+
+**Still camera-limited.** 4553 messages in 301 s is 15.13 Hz against cam2image's
+15.15, and every published frame carried detections — the node did not drop
+frames. That is the thing the gate asks and it holds.
+
+> ⚠ **This run changed TWO variables against 14 Sep, not one.** The model and
+> backend changed *and* the scene went from a blank wall to 4.41 detections per
+> frame with 144 tracked ids. **The GPU, thermal and latency rises above cannot
+> be attributed to the model** — postprocess, NMS and ByteTrack all scale with
+> detection count, and 14 Sep's baseline did none of that work. The honest read
+> is that the numbers are fine, not that `yolo26s.onnx` caused the difference.
+>
+> Separating them is cheap and takes 60 s in the same scene:
+> `make yolo MODEL=~/yolo/yolo26n.pt` then `detection_report.py --seconds 60`.
+> Not run.
+
+**The 306 MHz-floor observation from 14 Sep no longer describes this workload.**
+The `nvhost_podgov` governor did exactly what the symptom index says it does —
+it raised the clock on load, to the 625 MHz ceiling. The end-of-run 510 MHz is
+the governor coming back down as load fell, not throttling: tj peaked at 52.0 °C
+against a ~90 °C limit, and the clock's maximum and its mean load both rose
+together. **`sudo jetson_clocks` is no longer a lever in reserve here** — the
+clock is already reaching its ceiling on its own.
+
+### Track-id churn — 144 distinct ids in 301 s, **a Day 6 risk, not a Day 5 failure**
+
+The gate wants one id spanning ≥80 % of the window and got it: **id 37, laptop,
+4459/4553 frames = 100.0 %, conf 0.92** — a stationary object held perfectly,
+which is the same result the 14 Sep cup gave.
+
+What the gate does not judge is the other 143. Several classes carry more than
+one id: laptop 37 (100 %) **and** 107 (27.8 %, conf 0.60); chair 329 (17.8 %)
+**and** 230 (7.6 %); cell phone 322 and 374.
+
+**This output cannot distinguish "two chairs in the room" from "one chair, two
+ids".** Both are consistent with what was printed, and people walking in and out
+legitimately produce many short-lived person ids. So this is recorded as a thing
+to watch, not a proven defect.
+
+It matters because **P5 gives the semantic layer track id as its "same object
+again" key**. If one physical chair acquires a second id, the semantic node has
+no way to know, and the result is two landmarks for one chair — already in the
+symptom index as "Duplicate landmarks for one object". A chair is the Day 6 test
+object, and the Day 6 bench check (`landmark_tape_measure.py chair --truth X Y`,
+one taped chair, no driving) is exactly the test that would expose it. Do that
+before reading anything into the drive-past.
 
 ## Semantic fusion — Day 6 desk work, **14 Sep 2026** (bench check still to run)
 

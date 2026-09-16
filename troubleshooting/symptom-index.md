@@ -825,9 +825,16 @@ No. The devfreq governor is `nvhost_podgov` and raises the clock on GPU **load**
 which reads 0–50 % bursty for a nano model at 15 Hz: the pipeline is
 launch-bound, not compute-bound, and the GPU idles between frames. Throttling is
 a clock that *falls* while load and `tj-thermal` *rise*; `detection_report.py`
-prints all three every 10 s and judges on temperature. If more GPU is ever
-needed (a bigger model, Day 6 contention), `sudo jetson_clocks` pins the clock
-at 625 MHz — measure before assuming it helps.
+prints all three every 10 s and judges on temperature.
+
+> **Updated 16 Sep: on a real scene the clock is no longer at the floor.** With
+> `yolo26s.onnx` and 4.41 detections per frame it ran at the **625 MHz ceiling,
+> 57 % mean load, tj 52 °C** — the governor doing exactly what is described
+> above. A 510 MHz reading at the *end* of a run is the governor coming back
+> down as load falls, not throttling. **`sudo jetson_clocks` is therefore no
+> longer a lever held in reserve**, because the clock already reaches its
+> ceiling unaided. If more GPU is ever needed the remaining levers are a smaller
+> model or `nvpmodel` above 15 W.
 
 ### — ONNX model path (`make yolo-onnx`, D-22) —
 
@@ -885,6 +892,31 @@ writes beside the weights at `<stem>.onnx` and cannot be redirected, so
 `export_onnx.py --out /somewhere/else.onnx` used to clobber `~/yolo/yolo26s.onnx`
 and then move the result away. The script now stashes and restores the canonical
 file around the export. Recovery is just `make yolo-onnx`.
+
+### `detection_report.py` prints its verdicts, then `terminate called without an active exception` / `[ros2run]: Aborted`
+**Fixed 16 Sep; harmless when you see it in an older checkout.** The report had
+already printed in full — the measurement is unaffected and the PASS/FAIL lines
+above the abort are valid. Cause: `rclpy.spin()` runs in a daemon thread, and
+calling `sys.exit()` straight after `rclpy.shutdown()` races it, so the process
+can reach static-destructor time with the C++ executor thread still live. The
+tool now joins the spinner and destroys the node before exiting.
+
+### The gate passes but there are far more track ids than there are objects
+Expected in a busy scene, and **not** a Day 5 failure — the gate asks for one id
+spanning ≥80 % of the window, which a stationary object supplies (16 Sep: a
+laptop, 4459/4553 frames). People walking in and out legitimately produce many
+short-lived ids.
+
+It matters for **Day 6**, because P5 hands the semantic layer the track id as
+its "same object again" key. If one physical chair picks up a second id, the
+semantic node cannot tell, and you get two landmarks for one chair — see
+"Duplicate landmarks for one object" below.
+
+The report cannot settle it: two ids of the same class are equally consistent
+with two real objects and with one object re-acquired. The test that *does*
+settle it is the Day 6 bench check — one taped chair, no driving:
+`ros2 run my_bot landmark_tape_measure.py chair --truth X Y`. Run that before
+reading anything into a drive-past.
 
 ### `/detections` publishes but the semantic node never fuses anything
 Check the stamps before the geometry. `header.stamp` on `/detections` is the
