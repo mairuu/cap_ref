@@ -9,6 +9,15 @@ import { CameraPanel } from './components/CameraPanel'
 import { ConnectionBanner } from './components/ConnectionBanner'
 
 const HEALTH_POLL_MS = 5_000
+// The map is FETCHED REPEATEDLY, not once. slam_toolbox keeps extending the
+// grid for the whole session, so a map fetched at page load goes stale the
+// moment the robot drives anywhere new: RViz shows the live map and the
+// browser shows whatever existed when the tab was opened. Reported 16 Sep as
+// "the map on the UI does not match the map RViz sees" -- the bridge was
+// serving the correct grid all along (verified identical to /map: 249x216,
+// origin -7.696,-9.237), the UI simply never asked again.
+// Slower than health because the payload is the whole grid, not a status line.
+const MAP_POLL_MS = 3_000
 
 export function App() {
   const setWsConnected   = useStore((s) => s.setWsConnected)
@@ -19,6 +28,7 @@ export function App() {
   // Bootstrap: fetch health + map, start WebSockets
   useEffect(() => {
     let healthInterval: ReturnType<typeof setInterval>
+    let mapInterval: ReturnType<typeof setInterval>
 
     async function fetchHealth() {
       try {
@@ -42,6 +52,7 @@ export function App() {
     fetchHealth()
     fetchMap()
     healthInterval = setInterval(fetchHealth, HEALTH_POLL_MS)
+    mapInterval = setInterval(fetchMap, MAP_POLL_MS)
 
     const ws = createStateWs(
       (msg) => applyStateMessage(msg as WsStateMessage),
@@ -51,6 +62,7 @@ export function App() {
 
     return () => {
       clearInterval(healthInterval)
+      clearInterval(mapInterval)
       ws.destroy()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
