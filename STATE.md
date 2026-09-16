@@ -3,7 +3,21 @@
 > **Update this at the end of every session and whenever a gate passes.**
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
-**Last updated:** 15 Sep 2026, evening — **DAY 3 AND DAY 4 GATES PASSED. Track A
+**Last updated:** 16 Sep 2026 — **`make yolo` now runs `yolo26s` as an fp16
+`.onnx` (D-22), built on this board by `cap_ws/yolo/export_onnx.py`.** Desk work
+done and benched; the venv gained onnxruntime-gpu 1.24.0 (the **Jetson** wheel).
+**This re-opens three of the four Day 5 gate clauses** — they were evidence
+about `yolo26n.pt` on torch, and both the weights and the backend changed. The
+re-run is two terminals and a cup, no robot, no driving:
+```
+make yolo                                          # terminal 1
+ros2 run my_bot detection_report.py --seconds 300  # terminal 2
+```
+Expect ~46 ms p50 in a 66.7 ms budget, i.e. still camera-limited. Numbers and
+the caveat on them are in `records/calibration.md` "YOLO model swap"; the new
+failure modes are in the symptom index under "ONNX model path".
+
+**Previously, 15 Sep 2026, evening** — **DAY 3 AND DAY 4 GATES PASSED. Track A
 is complete through Nav2.** The re-run with Fixed Frame `map` and the D-21
 behaviour tree was clean: three goals, three successes, no stale-frame timeouts
 (115.5 s / 31.8 s / 6.9 s; `bt_navigator_8618_1789465529679.log`).

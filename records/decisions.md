@@ -524,6 +524,71 @@ the timeout was wrong for this robot's speed.
 
 ---
 
+## D-22 · `make yolo` runs an fp16 `.onnx`, and the model is `yolo26s`
+**Date:** 2026-09-16 · **Status:** adopted · **amends D-11**
+
+`make yolo` now exports `~/yolo/yolo26s.pt` → `~/yolo/yolo26s.onnx` via
+`cap_ws/yolo/export_onnx.py` and runs the `.onnx` under onnxruntime-gpu's
+CUDAExecutionProvider. The export is a prerequisite of the `yolo` target and is
+skipped when the file is already current, so a bring-up pays nothing for it.
+
+**This does not reopen D-11.** D-11 chose our own `vision_msgs` node over
+`yolo_ros`, and that still stands — same node, same topic, same track ids, same
+`Detection2D.id`. What changed is the weights and the backend inside it. Requested
+by the user; the measurements below are what decided *how*.
+
+**Measured on this board, 16 Sep** — 640×640, `model.track()` wall time including
+ByteTrack, 30 frames after 5 warm-up, synthetic frame:
+
+| | mean | p50 |
+|---|---|---|
+| `yolo26n.pt` torch | 35.4 ms | 35.4 ms |
+| `yolo26s.pt` torch | 36.6 ms | 35.5 ms |
+| `yolo26s.onnx` **fp32** | **45.8 ms** | 44.2 ms |
+| `yolo26s.onnx` **fp16** | 35.4 ms | 34.1 ms |
+
+**Why:** two things that table settles.
+
+1. **`yolo26s` is nearly free** — 1.2 ms over nano, not the 1.5× the recovered
+   engine figures implied (27 ms vs 18 ms). This pipeline is launch-bound, not
+   compute-bound, which is the same conclusion 14 Sep reached from `imgsz` 480
+   buying nothing. The GPU sits at its 306 MHz floor either way.
+2. **ONNX fp32 is a 9 ms regression against plain torch.** Only the fp16 export
+   pays for itself. `ONNX_HALF` therefore defaults to **true**, and shipping
+   `ONNX_HALF=false` would be strictly worse than the Day 5 configuration.
+
+**Cost, and it is the sharp edge here:** `onnxruntime-gpu` must be the **Jetson
+wheel**, installed by direct URL. PyPI has no aarch64+CUDA build; plain
+`onnxruntime` is CPU-only, imports under the same module name, and would drop
+inference to a few Hz with **nothing in any log** saying why. Worse, ultralytics
+tries to `AutoUpdate` it at export time — observed 16 Sep, blocked only because
+the launch sets `YOLO_OFFLINE=1`. That env var is now load-bearing for
+correctness, not just for demo-day determinism.
+
+**Second cost:** a static ONNX graph has its input resolution baked in, so
+`model` and `imgsz` must agree. `export_onnx.py` reads the `imgsz` ultralytics
+writes into the ONNX metadata and re-exports on a mismatch, so `make yolo
+IMGSZ=480` stays honest; a hand-launched `ros2 launch` with a mismatched `imgsz`
+does not, and will either raise a shape error or silently ignore the argument.
+
+Considered and rejected: **TensorRT `.engine`** — `TensorrtExecutionProvider` is
+available and would likely be faster still, but D-11 rejected engines because
+they are tied to the TensorRT version that built them, which is exactly what
+killed the recovered ones at the JetPack 6.2 → 6.1 rollback. An `.onnx` is
+portable and survives that. **fp32 ONNX** — measured, and worse than doing
+nothing.
+
+**Reversal:** `make yolo MODEL=$HOME/yolo/yolo26s.pt` skips the export and runs
+the Day 5 torch path unchanged. `yolo26n.pt` is still on disk.
+
+**Limitation to report:** the Day 5 gate was passed on 14 Sep with
+`yolo26n.pt` on torch. **Changing both the weights and the backend invalidates
+that evidence.** The bench above is a synthetic frame and proves neither the
+15 Hz end-to-end rate nor track-id persistence. Both gate clauses need a live
+`detection_report.py` run before this is a passed gate again.
+
+---
+
 ## Template
 
 ```

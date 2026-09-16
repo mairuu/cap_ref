@@ -85,7 +85,8 @@ results = model.track(frame, persist=True, verbose=False)
 Two levers if the Jetson cannot hold 15 Hz:
 
 - [x] ~~`imgsz` down to 480~~ **measured 14 Sep: buys nothing** (36.2 vs 34.9 ms; launch-bound)
-- [x] ~~`yolov8n`, not `yolov8m`~~ **`yolo26n`**, the nano model the old stack used; `yolov8n` is 6 ms faster and available as `make yolo MODEL=~/yolo/yolov8n.pt` if ever needed
+- [x] ~~`yolov8n`, not `yolov8m`~~ ~~**`yolo26n`**~~ **`yolo26s`, as an fp16 `.onnx`** since 16 Sep (**D-22**). The swap costs 1.2 ms — this board is launch-bound, so the bigger model is nearly free. `yolov8n` and `yolo26n` are both still on disk: `make yolo MODEL=~/yolo/yolo26n.pt` runs the Day 5 torch path unchanged
+- [x] **fp16 matters for ONNX and only for ONNX.** fp32 `.onnx` is a 9 ms *regression* against torch; fp16 lands level with it. Do not ship `ONNX_HALF=false`
 
 ```bash
 ros2 topic hz /detections
@@ -93,6 +94,11 @@ tegrastats                    # watch for throttling over several minutes
 ```
 
   **rate 15.15 Hz · model yolo26n.pt (torch fp16) · imgsz 640 · tj after 5 min 44.1 °C (max 44.6)**
+
+> ⚠ **That line is the 14 Sep run, and it no longer describes what `make yolo`
+> does.** The model is `yolo26s.onnx` (fp16) as of 16 Sep. Bench says ~46 ms p50
+> in a 66.7 ms budget, so it should still be camera-limited — but a synthetic
+> frame proves neither the rate nor the track ids. **Re-run the gate.**
 
 - [x] Recorded — `records/calibration.md`, 14 Sep. Replace `ros2 topic hz` + `tegrastats` above with **`ros2 run my_bot detection_report.py --seconds 300`**, which measures all four gate lines at once
 
@@ -104,9 +110,16 @@ tegrastats                    # watch for throttling over several minutes
 
 ## GATE — do not start Day 6 until all of these hold
 
-- [x] `ros2 topic hz /detections` is **stable** — ✅ 15.15 Hz over 301 s, jitter sd 5.2 ms, every frame processed
-- [x] Track IDs **persist across frames** for a stationary object — ✅ **14 Sep evening, real camera: one cup, id 1 in 457/457 frames, span 100 %** (after a still-image proof of 5 ids earlier the same day)
-- [x] The Jetson is **not thermally throttling** after five minutes — ✅ tj 42.8 → 44.1 °C over 301 s at 15 Hz, GPU clock at its 306 MHz floor throughout (headroom, not throttle)
-- [x] Working dependency versions recorded and pushed
+> ⚠ **PASSED 14 Sep on `yolo26n.pt`/torch, and the model and backend BOTH
+> changed on 16 Sep (D-22).** The first three clauses were evidence about a
+> configuration that is no longer what `make yolo` launches, so they are
+> re-opened. The fourth still holds. Nothing about the node, the topic or the
+> track-id contract changed, so this is expected to be a re-confirmation rather
+> than a re-investigation — but it has to actually be run.
+
+- [ ] `ros2 topic hz /detections` is **stable** — ~~✅ 15.15 Hz over 301 s~~ **re-run on `yolo26s.onnx`**
+- [ ] Track IDs **persist across frames** for a stationary object — ~~✅ one cup, id 1 in 457/457 frames~~ **re-run on `yolo26s.onnx`**; needs a COCO object held still in frame
+- [ ] The Jetson is **not thermally throttling** after five minutes — ~~✅ tj 42.8 → 44.1 °C~~ **re-run**; fp16 ONNX benches level with the old nano `.pt`, so no change is expected
+- [x] Working dependency versions recorded and pushed — ✅ re-frozen 16 Sep with onnxruntime-gpu 1.24.0 (Jetson wheel), onnx 1.22.0, onnxslim 0.1.96
 
 **Then update `STATE.md`.**

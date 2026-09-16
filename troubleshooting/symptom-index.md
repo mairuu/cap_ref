@@ -829,6 +829,63 @@ prints all three every 10 s and judges on temperature. If more GPU is ever
 needed (a bigger model, Day 6 contention), `sudo jetson_clocks` pins the clock
 at 625 MHz — measure before assuming it helps.
 
+### — ONNX model path (`make yolo-onnx`, D-22) —
+
+### Detection rate collapses to a few Hz and nothing in the log says why
+`onnxruntime` is running on the **CPU**. The Jetson wheel and the PyPI wheel
+import under the same module name, so a CPU-only `onnxruntime` silently wins and
+there is no error anywhere — the only symptom is the rate. Check the provider,
+do not infer it:
+
+```bash
+~/yolo/venv/bin/python -c "import onnxruntime as o; print(o.get_available_providers())"
+```
+
+`CUDAExecutionProvider` must be in that list. If it is not, something installed
+PyPI's `onnxruntime` — most likely ultralytics' AutoUpdate (see the next entry),
+or a `uv pip install onnxruntime` by hand. Fix: remove it and reinstall the
+Jetson wheel by direct URL, which `setup_yolo_venv.sh` step 5 does.
+
+To confirm which provider the *node* actually chose rather than which are
+available, the detector logs it at startup via ultralytics
+(`Using ONNX Runtime 1.24.0 with CUDAExecutionProvider`).
+
+### `requirements: Ultralytics requirement ['onnxruntime-gpu'] not found, attempting AutoUpdate...`
+Expected, and it must stay blocked. ultralytics wants to pip-install
+`onnxruntime-gpu` at export time; on aarch64 that resolves to a wheel that is
+**not** the JetPack one, and the result is the CPU fallback above. `YOLO_OFFLINE=1`
+turns it into `AutoUpdate skipped (offline)`, which is the correct outcome — the
+export succeeds regardless, because writing an ONNX graph needs `onnx`, not a
+runtime. The launch sets `YOLO_OFFLINE=1`; `make yolo-onnx` inherits it from the
+environment, so if you run `export_onnx.py` by hand, set it.
+
+### `onnxruntime ... GPU device discovery failed: Failed to open file "/sys/class/drm/card1/device/vendor"`
+Harmless, and it is not the CPU-fallback symptom above. onnxruntime 1.24 probes
+for DRM devices in a way that assumes a discrete GPU; Tegra's iGPU has no such
+sysfs node. It prints once per session, including during export. CUDA still
+works — verify with `get_available_providers()` rather than believing this line.
+
+### Shape error on the first frame, or `imgsz` seems to be ignored
+A static ONNX graph has its input resolution **baked in at export**, so a model
+built at 640 cannot run at 480. `make yolo IMGSZ=480` handles this — the export
+script reads the `imgsz` ultralytics wrote into the ONNX metadata and re-exports
+on a mismatch. A hand-rolled `ros2 launch my_bot yolo.launch.py imgsz:=480`
+against a 640 graph does **not**: use `make`, or rebuild the graph first with
+`make yolo-onnx IMGSZ=480`.
+
+### `model not found: ~/yolo/yolo26s.onnx`
+The export has not run. `make yolo-onnx` builds it from the `.pt` beside it in
+about 6 s. If the `.pt` is missing too, it must be fetched with a network —
+`YOLO_OFFLINE=1` deliberately stops ultralytics downloading weights at run time,
+and the script prints the exact `curl` line.
+
+### The `.onnx` vanished after exporting a variant somewhere else
+Fixed 16 Sep, but recognise it in an older checkout. ultralytics **always**
+writes beside the weights at `<stem>.onnx` and cannot be redirected, so
+`export_onnx.py --out /somewhere/else.onnx` used to clobber `~/yolo/yolo26s.onnx`
+and then move the result away. The script now stashes and restores the canonical
+file around the export. Recovery is just `make yolo-onnx`.
+
 ### `/detections` publishes but the semantic node never fuses anything
 Check the stamps before the geometry. `header.stamp` on `/detections` is the
 image **capture** time by design (P2), so it is ~50 ms old at publish; the

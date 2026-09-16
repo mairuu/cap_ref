@@ -1547,6 +1547,62 @@ it recurs every few seconds it is something scheduling frames, not the model.
 > rewritten mid-run to judge on `tj` and print load alongside. The 301 s
 > numbers above were re-read from the raw samples with the corrected rule.
 
+## YOLO model swap to `yolo26s` + ONNX — **MEASURED 2026-09-16** (D-22)
+
+`make yolo` now exports `yolo26s.pt` → `yolo26s.onnx` (fp16) and runs it under
+onnxruntime-gpu. Same node, same topic, same track-id contract as Day 5 — only
+the weights and the backend changed. **The Day 5 gate has not been re-run yet;
+everything below is a synthetic-frame bench.**
+
+### Environment added, 16 Sep — nothing else in the venv moved
+
+| | |
+|---|---|
+| onnxruntime-gpu | **1.24.0**, the **JetPack aarch64 wheel** from `pypi.jetson-ai-lab.io/jp6/cu126` |
+| providers reported | `TensorrtExecutionProvider`, `CUDAExecutionProvider`, `CPUExecutionProvider` |
+| provider actually used | **CUDAExecutionProvider** — confirmed by reading `session.get_providers()` back from the live AutoBackend, not assumed |
+| onnx / onnxslim | 1.22.0 / 0.1.96 |
+| transitive | colorama 0.4.6, flatbuffers 25.12.19, ml-dtypes 0.5.4, protobuf 7.36.1 |
+| unchanged | numpy **1.26.4**, cv2 **4.5.4**, torch **2.11.0** (cuda True), ultralytics 8.4.144 |
+| `yolo26s.pt` | 20.4 MB, ultralytics release v8.4.0 |
+| `yolo26s.onnx` | **19.2 MB** fp16 (fp32 is 38.3 MB); opset 17, static 1×3×640×640, export 5.5–6.0 s |
+
+### Bench — synthetic 640×480 frame, `model.track()` wall time incl. ByteTrack, 30 frames after 5 warm-up
+
+| model | mean | p50 | max |
+|---|---|---|---|
+| `yolo26n.pt` torch | 35.4 ms | 35.4 ms | 36.4 ms |
+| `yolo26s.pt` torch | 36.6 ms | 35.5 ms | 46.5 ms |
+| `yolo26s.onnx` **fp32** | **45.8 ms** | 44.2 ms | 58.7 ms |
+| `yolo26s.onnx` **fp16** | **35.4 ms** | 34.1 ms | 45.7 ms |
+
+**`yolo26s` costs 1.2 ms over `yolo26n`** — not the ~1.5× the recovered engine
+figures implied (27 ms vs 18 ms). Launch-bound, not compute-bound; the same
+conclusion 14 Sep drew from `imgsz` 480 buying nothing.
+
+**ONNX fp32 is a 9 ms regression against plain torch.** Only fp16 pays for
+itself, and it lands level with the nano `.pt`. `ONNX_HALF` defaults to true
+for this reason — see D-22.
+
+> ⚠ **These numbers are NOT comparable to the 14 Sep bench table above**, which
+> records 53.3 ms for `yolo26n.pt` where this run measures 35.4 ms for the same
+> model and nominally the same method. The cause is not established. The
+> `n`-vs-`s`-vs-`onnx` comparison here is internally consistent — one run, one
+> session, same frame — so it is sound for **choosing between the options**, and
+> it is not evidence about absolute end-to-end rate. Treat 14 Sep's live 44.5 ms
+> p50 as the only measured in-node figure until a new live run replaces it.
+
+### Still to measure — the Day 5 gate, against the real camera
+
+```
+make yolo                                          # terminal 1
+ros2 run my_bot detection_report.py --seconds 300  # terminal 2
+```
+Needs a COCO object held still in frame (the cup worked on 14 Sep). Two gate
+clauses depend on it and a synthetic frame proves neither: **15 Hz sustained**
+and **track ids persisting across frames**. Expected from the bench: ~46 ms p50
+in-node against a 66.7 ms budget, i.e. still camera-limited.
+
 ## Semantic fusion — Day 6 desk work, **14 Sep 2026** (bench check still to run)
 
 `cap_ws/src/semantic_objects/` rebuilt from the June modules. Everything below
