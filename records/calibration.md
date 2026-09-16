@@ -1771,58 +1771,78 @@ legs with a wall behind did not materialise at this range.
 > the motion gate (`max_omega` 0.3 rad/s never approached), and landmark
 > persistence after driving away. Those are the drive-past gate.
 
-## Spin recovery — **RUN AT LAST, 2026-09-16, AND IT FAILS: STICTION**
+## Spin recovery — **PASSES, 2026-09-16.** The two failures were a loose battery
 
-The Day 4 clause that was ticked-but-unevidenced since 15 Sep. Executed twice by
-Claude with the full stack up (`make real` · `make slam` · `make nav`).
+The Day 4 clause that was ticked-but-unevidenced since 15 Sep. Executed three
+times by Claude with the full stack up (`make real` · `make slam` · `make nav`).
 
 ```
 ros2 action send_goal /spin nav2_msgs/action/Spin "{target_yaw: 1.57, time_allowance: {sec: 25}}"
 ```
 
-| | attempt 1 | attempt 2 |
+| | attempt 1 | attempt 2 | attempt 3 |
+|---|---|---|---|
+| battery | **unseated** | **unseated** | **reseated** |
+| result | ABORTED | ABORTED | ✅ **SUCCEEDED** |
+| `total_elapsed_time` | 25.000396 s | 25.000421 s | **16.400653 s** |
+
+### ✅ The result — D-21 is vindicated on both counts
+
+| | measured | expected |
 |---|---|---|
-| result | **ABORTED** | **ABORTED** |
-| `total_elapsed_time` | 25.000396 s | 25.000421 s |
-| wall time | 27.5 s | — |
+| duration | **16.4007 s** | 15.7–16.5 s |
+| yaw achieved | **1.5762 rad (90.31°)** | 1.57 |
+| wheel rotation | **−5.9963 / +6.1356 rad** — counter-rotating | — |
+| mean ω | **0.0961 rad/s** | 0.1 commanded (shortfall is the ramp) |
 
-### The D-21 open question is answered — it is **stiction**, not a tight allowance
+**1. The `time_allowance="25.0"` override works.** Even the failed attempts
+proved this: they aborted at **25.000 s**, not upstream's 10 s port default, so
+`my_bot`'s behaviour tree is loaded and used.
 
-D-21 left two indistinguishable failure modes. The measurement separates them:
+**2. The stiction worry D-21 raised is DISPROVEN.** The successful run used the
+*same* `max_rotational_vel: 0.1` as the two failures. **0.1 rad/s does break
+this robot away from standstill.** No change to `max_rotational_vel` is needed
+and none was made.
+
+### ⚠ RETRACTION — an earlier entry here called this stiction. That was wrong.
+
+Between attempts 2 and 3 the only change was **the battery being reseated.** The
+failures were **loss of motor power**, not friction.
+
+The evidence gathered during the failures is still good, and it is worth keeping
+because the *diagnostic* is reusable:
 
 | evidence | value | meaning |
 |---|---|---|
-| `behavior_server` log | `Running spin` → `Turning 1.57 for spin behavior.` → `Exceeded time allowance` | **The D-21 behaviour tree IS loaded and used.** `time_allowance` 25 s was honoured — the abort is at 25 s, not the old port default of 10 s |
-| `/cmd_vel` during the spin | **502 samples, `angular.z 0.1`** | the behaviour commanded correctly |
-| `/diff_cont/cmd_vel_unstamped` | **502 samples, `angular.z 0.1`** | **`twist_mux` passed it through — the command reaches the hardware interface** |
-| `/diff_cont/odom` orientation | `(0, 0, 0, 1)` — **exactly identity** | the robot did not rotate |
-| `/joint_states` wheel positions | **`0.0` and `0.0`** after 50 s of commanding | **the encoders recorded nothing at all. The wheels never turned.** |
+| `/cmd_vel` | 502 samples, `angular.z 0.1` | the behaviour commanded correctly |
+| `/diff_cont/cmd_vel_unstamped` | 502 samples, `angular.z 0.1` | `twist_mux` passed it through to the hardware interface |
+| `/diff_cont/odom` | `(0,0,0,1)` exact identity | the robot did not rotate |
+| `/joint_states` | `0.0`, `0.0` after 50 s | the encoders recorded nothing |
 
-**So the chain is correct end to end and the motors simply do not break away at
-0.1 rad/s.** That is ~0.015 m/s at each wheel. Nothing is misconfigured; the
-commanded speed is below the drivetrain's static friction.
+**Why every one of those readings was consistent with a dead motor rail:** the
+**ESP32 is powered over USB**, so `DiffDriveSerial` connected, accepted commands
+and reported encoder counts perfectly — while the motors had no supply. The
+conclusion drawn from that ("the motors do not break away at 0.1 rad/s") did not
+follow, because *motor power was never checked*. **Check the battery before
+suspecting friction.** The connector is keyed and this was a one-off, so no
+recurring pre-flight step was added.
 
-### What this does and does not threaten
+### Free result — `wheel_separation` physically confirmed for the first time
 
-**It does not contradict the Day 3/4 drives.** Those turns happened *while
-translating*, where the wheels are already rolling and only rolling friction
-applies. A pure in-place rotation **from standstill** is the hard case, and it
-is the only case the Spin recovery ever exercises. *(Mechanism inferred from the
-two results, not separately measured.)*
+Back-computed from the successful spin's own encoder data, independent of any
+earlier calibration:
 
-⚠ **`FollowPath.max_vel_theta` is 0.125 rad/s** (read live, 16 Sep), only 25 %
-above the speed that just failed to move the robot at all. Whether Nav2 can
-rotate in place *at all* under its own controller limits is therefore an open
-question, not just a recovery-behaviour one.
+```
+mean |wheel rotation| 6.0660 rad × r 0.0327 m      = 0.19836 m of arc per wheel
+L = 2 × 0.19836 / 1.5762 rad                        = 0.25169 m
+configured (my_controllers.yaml:58)                 = 0.25168 m      → 0.003 % apart
+```
 
-### Not yet measured — the number the fix needs
-
-**The minimum ω that actually breaks the robot away from standstill.** Until
-that is measured, any new `max_rotational_vel` is a guess. D-21's old objection
-(that 0.157 rad/s exceeds DWB's 0.125) was reasoning about fitting 1.57 rad into
-a **10 s** allowance; with 25 s the arithmetic needs only ≥ 0.0628 rad/s, so the
-binding constraint is no longer time — **it is breakaway torque**, a higher and
-different bar.
+**`wheel_separation` was settled on 10 Sep by inverting a formula, with no
+driving** (see the callout in STATE.md). This is its **first physical
+validation**, and it holds to a hundredth of a millimetre. The 2.30 % left/right
+rotation asymmetry is consistent with the radius multipliers already installed
+(`left 1.002982` / `right 0.997018`).
 
 ## Final results — the tape-measure protocol (Day 7)
 
@@ -1913,6 +1933,10 @@ Not drift, not the motors, not the floor. Fixed by owning the BT XML with
 > stiction the symptom is a *stationary* robot that still times out. Not
 > observed yet; untested.
 
+> ✅ **ANSWERED 16 Sep: no stiction.** The spin succeeded at this same
+> 0.1 rad/s in 16.4007 s. The two failures that looked like stiction were an
+> unseated battery. `max_rotational_vel` was left unchanged.
+
 ### Day 4 gate — re-run, **PASSED 2026-09-15** (goal clause)
 
 Both fixes applied: RViz Fixed Frame back to `map`, and the D-21 behaviour tree.
@@ -1940,3 +1964,6 @@ limit rather than anything upstream of it.
 > has never executed on this robot.** Untested, not verified. The direct test
 > is in STATE.md; expect 15.7–16.5 s, and watch for stiction at 0.1 rad/s
 > (~151 encoder ticks/s per wheel) rather than a timeout.
+
+> ✅ **EXECUTED 16 Sep: SUCCEEDED in 16.4007 s.** D-21's override is proven
+> loaded and used, and no stiction occurred. See "Spin recovery" above.

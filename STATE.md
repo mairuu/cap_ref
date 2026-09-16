@@ -52,48 +52,27 @@ is complete through Nav2.** The re-run with Fixed Frame `map` and the D-21
 behaviour tree was clean: three goals, three successes, no stale-frame timeouts
 (115.5 s / 31.8 s / 6.9 s; `bt_navigator_8618_1789465529679.log`).
 
-> ⛔ **RESOLVED 16 Sep, AND IT FAILS — THE SPIN RECOVERY DOES NOT WORK.** Run
-> twice by Claude with the full stack up: **ABORTED at 25.000 s both times.**
-> The D-21 fix itself is proven good (the abort is at 25 s, not the old 10 s
-> port default, so the behaviour tree loads and is used) — but **the robot never
-> moved.** `/cmd_vel` and `/diff_cont/cmd_vel_unstamped` both carried 502
-> samples at `angular.z 0.1`, so the command reaches the hardware; `/joint_states`
-> wheel positions stayed at **`0.0` and `0.0`** and odom at exact identity.
-> **The encoders recorded nothing: this is STICTION**, the second of the two
-> possibilities D-21 flagged. Nothing is misconfigured — 0.1 rad/s is ~0.015 m/s
-> per wheel and the drivetrain does not break away.
+> ✅ **CLOSED 16 Sep — THE SPIN RECOVERY WORKS. The Day 4 gate is now fully
+> evidenced.** `SUCCEEDED in 16.400653 s`, rotating **1.5762 rad (90.31°)**
+> against the 1.57 target, wheels counter-rotating −5.9963 / +6.1356 rad. Inside
+> the predicted 15.7–16.5 s. **D-21 is vindicated on both counts:** the
+> `time_allowance="25.0"` override is loaded and used, *and* the stiction risk it
+> flagged is **disproven** — the successful run used the same
+> `max_rotational_vel: 0.1`, which was left unchanged.
 >
-> ⚠ **`FollowPath.max_vel_theta` is 0.125 rad/s**, only 25 % above the speed
-> that failed to move the robot at all, so whether Nav2 can rotate in place
-> under its own limits is now open too. Day 3/4 turns all happened *while
-> translating* (rolling friction, not static) — that does not contradict this.
+> ⚠ **RETRACTION.** An earlier version of this block said the spin had failed on
+> **stiction**. That was wrong. Two failed attempts the same day were caused by
+> an **unseated battery**: the ESP32 is USB-powered, so serial connected and the
+> encoders reported normally while the motor rail was dead — every reading looked
+> like a stalled drivetrain. **Check the battery before suspecting friction.**
+> The connector is keyed, this was a one-off, and no pre-flight step was added.
+> The diagnostic that separates the two (`/joint_states`, not odom) is in the
+> symptom index.
 >
-> **Next, and deliberately not guessed at:** the minimum ω that breaks the robot
-> away from standstill has never been measured, so any new `max_rotational_vel`
-> is a guess. A `calibrate_breakaway.py` that ramps ω and watches `/joint_states`
-> is the honest way to get it. Full evidence table in `records/calibration.md`
-> "Spin recovery".
-
-> ~~⚠ **One clause of the Day 4 gate is ticked but not evidenced, and it is the
-> half that matters on demo day.**~~ (superseded by the block above) "Recovery behaviours fire when you block it"
-> has **zero `Running spin` lines** in the successful session's
-> `behavior_server_8584_1789465529644.log` — against twelve in the failed
-> attempt. No recovery ran, so **the D-21 Spin fix has never executed on this
-> robot.** If the chair was replanned around without a recovery firing, that is
-> good navigation and a weak test of the recovery path.
->
-> **Close it in about a minute, no chair needed, with the stack up and clear
-> space around the robot** — hand on `make teleop-nav`:
-> ```
-> ros2 action send_goal /spin nav2_msgs/action/Spin "{target_yaw: 1.57, time_allowance: {sec: 25}}"
-> ```
-> **`time_allowance` must be passed explicitly** — the CLI default is 0 s and
-> Spin would fail instantly for the wrong reason. Expect completion in
-> **15.7–16.5 s** at `max_rotational_vel: 0.1`. Two ways it can still fail, and
-> they look alike: over 25 s means the fix is too tight; a robot that does not
-> visibly turn at all means **stiction** — 0.1 rad/s is only ~151 encoder
-> ticks/s per wheel, four times slower than the `BackUp` that succeeded every
-> time at 0.05 m/s. That is the open question flagged in D-21.
+> **Free result:** the successful spin's encoder data back-computes
+> `wheel_separation` to **0.25169 m** against the configured **0.25168 m** —
+> the **first physical validation** of a number settled on 10 Sep by inverting a
+> formula without driving. See `records/calibration.md` "Spin recovery".
 
 > ⚠ **Goal C was not a real test** — (3.01, 0.30) → (3.08, 0.37) is 0.099 m,
 > inside `xy_goal_tolerance` 0.15, so the robot was already at the goal and only

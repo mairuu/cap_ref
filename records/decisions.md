@@ -522,21 +522,27 @@ path without `allow_substs=True` breaks configuration outright.
 **Limitation to report:** ~~none. The recovery behaves as upstream intends; only
 the timeout was wrong for this robot's speed.~~
 
-⛔ **AMENDED 16 Sep — the decision is correct but insufficient.** The tree was
-finally executed, twice. `time_allowance="25.0"` demonstrably works: the abort
-comes at **25.000 s**, not upstream's 10 s port default, so this file is loaded
-and used. **But the robot does not rotate at all.** `/cmd_vel` and
-`/diff_cont/cmd_vel_unstamped` both carried 502 samples at `angular.z 0.1` while
-`/joint_states` wheel positions stayed at exactly `0.0` — the command reaches
-the hardware and the motors never break away. **The second of the two
-possibilities this decision flagged is the real one: stiction.**
+✅ **CONFIRMED 16 Sep — executed at last, and it passes on both counts.**
+`SUCCEEDED in 16.400653 s`, rotating 1.5762 rad against the 1.57 target.
 
-So the limitation to report is real and currently open: **the Spin recovery
-cannot succeed on this robot at `max_rotational_vel` 0.1 rad/s.** Raising it is
-the obvious fix, but the breakaway threshold has never been measured and
-`FollowPath.max_vel_theta` is only 0.125 — a guess here risks either not moving
-or making a recovery spin the fastest the robot ever moves. Evidence table in
-`records/calibration.md` "Spin recovery"; symptom in the index under Nav2.
+1. **The `time_allowance="25.0"` override works.** Aborts land at 25 s, never
+   upstream's 10 s port default, so this file is demonstrably loaded and used.
+2. **The stiction risk this decision flagged is DISPROVEN.** The successful run
+   used the *same* `max_rotational_vel: 0.1` that the earlier failures used.
+   0.1 rad/s does break this robot away from standstill, so the parameter was
+   left alone and D-21 needs no follow-up.
+
+⚠ **An intermediate amendment here claimed stiction was confirmed. It was
+wrong and has been withdrawn.** Two failed attempts earlier the same day were
+caused by an **unseated battery**, not friction: the ESP32 is USB-powered, so
+serial connected and encoders reported while the motor rail was dead. Evidence
+and the retraction are in `records/calibration.md` "Spin recovery"; the
+diagnostic that distinguishes the two is in the symptom index.
+
+**Bonus, from the successful run's encoder data:** `wheel_separation`
+back-computes to **0.25169 m** against the configured **0.25168 m** — the first
+*physical* validation of a number that was settled on 10 Sep by inverting a
+formula without driving.
 
 ---
 

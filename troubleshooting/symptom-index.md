@@ -674,6 +674,10 @@ Decision **D-21**.
 > times out. That has not been observed; it is the next thing to check if 25 s
 > is also exceeded.
 
+> ✅ **ANSWERED 16 Sep: no stiction.** The spin succeeded at this same
+> 0.1 rad/s in 16.4007 s. The two failures that looked like stiction were an
+> unseated battery. `max_rotational_vel` was left unchanged.
+
 ---
 
 ## YOLO / Jetson
@@ -837,29 +841,34 @@ prints all three every 10 s and judges on temperature.
 > model or `nvpmodel` above 15 W.
 
 ### `/spin` aborts at exactly the time allowance and the robot never visibly turns
-**Stiction — measured 16 Sep, twice.** Do not chase `time_allowance`, the
-behaviour tree, or `twist_mux`; all three were cleared. The distinguishing test
-is **`/joint_states`, not odom**:
+### — or: Nav2 runs perfectly and the robot does not move at all
+**Check the battery is seated. Measured 16 Sep: that was the cause, twice.**
+
+The trap is that everything upstream looks healthy, because **the ESP32 is
+powered over USB**. `DiffDriveSerial` connects, accepts commands and reports
+encoder counts normally while the motor rail is dead. Nothing logs an error.
+
+The distinguishing test is **`/joint_states`, not odom**:
 
 ```bash
-ros2 topic echo /joint_states --once        # wheel positions
-ros2 topic echo /diff_cont/cmd_vel_unstamped --field angular.z
+ros2 topic echo /diff_cont/cmd_vel_unstamped --field angular.z   # is the command arriving?
+ros2 topic echo /joint_states --field position                   # are the wheels moving?
 ```
 
-If `cmd_vel_unstamped` carries the commanded `angular.z` but the wheel positions
-do **not** change, the command is reaching the hardware and the motors are not
-breaking away. At `max_rotational_vel` 0.1 rad/s each wheel sees only ~0.015 m/s.
-Odom alone cannot tell you this apart from a TF fault — the encoders read zero,
-so odom simply stays at identity.
+If `cmd_vel_unstamped` carries the commanded value but the wheel positions do
+**not** change, the command is reaching the hardware interface and the fault is
+*below* it — power first, mechanics second. **Odom cannot tell you this apart
+from a TF fault**: with zero encoder counts it simply stays at exact identity
+`(0,0,0,1)`, which looks like a transform problem.
 
-Distinguish from the *other* D-21 failure: an abort at **10.000 s** means the
-behaviour tree override is not loaded and you are getting upstream's port
-default; an abort at the allowance you passed means the tree IS loaded and the
-problem is mechanical.
+⚠ **Do not conclude "stiction" from this.** That inference was made on 16 Sep
+and was wrong — the robot spins fine at the same 0.1 rad/s once powered
+(16.4 s for 1.57 rad). `max_rotational_vel` did not need changing.
 
-⚠ This does not contradict turns during normal navigation. Those happen while
-the robot is translating, where only rolling friction applies. In-place rotation
-from standstill is the hard case and the only one Spin exercises.
+Distinguish from the *other* D-21 failure by the abort time: **10.000 s** means
+the behaviour-tree override is not loaded and you are getting upstream's port
+default; an abort at the allowance you actually passed means the tree IS loaded
+and the problem is below the software.
 
 ### — ONNX model path (`make yolo-onnx`, D-22) —
 

@@ -294,8 +294,13 @@ ros2 topic hz /image/compressed
 - [x] `make nav` → RViz goal → robot arrives and stops — **✅ 15 Sep, 3 of 3**
       (115.5 s / 31.8 s / 6.9 s). The third was 0.099 m, inside
       `xy_goal_tolerance`, so two were real.
-- [ ] Recovery behaviours fire when you block it **and the spin one actually
-      completes** — attempt 1 (15 Sep) failed here too, separately: upstream's
+- [x] Recovery behaviours fire when you block it **and the spin one actually
+      completes** — ✅ **CLOSED 16 Sep: `/spin` SUCCEEDED in 16.400653 s**,
+      1.5762 rad against 1.57, inside the predicted 15.7–16.5 s. D-21's
+      `time_allowance="25.0"` is proven loaded and used, and the stiction risk it
+      flagged is disproven at the same `max_rotational_vel: 0.1`. (Two earlier
+      attempts that day aborted at 25 s on an **unseated battery**, not friction
+      — see the retraction in `records/calibration.md`.) Original note follows: — attempt 1 (15 Sep) failed here too, separately: upstream's
       BT leaves `Spin`'s `time_allowance` at 10 s while 1.57 rad at
       `max_rotational_vel: 0.1` needs 15.7 s, so it timed out 4 times out of 4
       at exactly 10.000 s. Fixed by owning the tree (**D-21**); re-check it
