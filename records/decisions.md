@@ -793,13 +793,42 @@ because rest noise is not driving noise and chassis vibration is unmeasured.
 > uncorrected — and z is the only axis the EKF fuses. Caught the same day by
 > re-deriving from the script's output. **Copy the line verbatim.**
 
-**What is still unmeasured, and it is now all on the robot:**
-1. Gyro σ with the **motors running** (on blocks, under `o`). Until this
-   exists the driving covariance is an extrapolation, padded 8×.
-2. `/joint_states` at **30.0 Hz** with `USE_IMU=true` — the serial budget.
-3. The whole re-verification ladder below: TF ownership, `odom_check.py`,
-   the Day 3 loop both ways, a Nav2 goal + Spin, the wedged-slip yaw
-   comparison, the bench check. **Nothing has run with the flags on.**
+**✅ THE FUSED STACK HAS NOW RUN, STATIONARY, AND IT WORKS.** 18 Sep evening,
+`use_ekf:=true`: `/joint_states` **29.996 Hz** (the serial budget fits — this
+was the real risk), `/imu_broad/imu` **30.00 Hz with zero gaps > 50 ms**,
+all three controllers active, `diff_cont enable_odom_tf` **False** so the EKF
+owns the edge, bias subtraction confirmed end to end, and **stationary yaw
+drift of +0.06 °/min** on `/odometry/filtered`. Numbers in
+`records/calibration.md` "IMU — Live verification".
+
+> ⚠ **The covariance was wrong and the filter caught it.** Installed at
+> **1e−5** from the rest-noise measurement; gyro σ on the *running* stack is
+> **11× that variance** (1.11e−04 against 1.25e−06), because energising the
+> drive is most of the noise and that is the condition the number is used in.
+> The symptom was exact: `/odometry/filtered`'s vyaw σ matched the raw gyro's
+> to three decimals, i.e. **the filter was doing no smoothing at all**.
+> Corrected to **1e−4**, which is the measured value and restores this
+> decision's intended **100:1** ratio. Slip rejection is unaffected.
+>
+> **The noise itself is aliasing and is fixable in firmware:** `DLPF_CFG=3`
+> passes 42 Hz while the host samples at 30 Hz, so 15–42 Hz folds back.
+> `DLPF_CFG=4` (20 Hz, 8.3 ms delay) is one constant and a reflash, and is
+> the highest-value remaining improvement. Re-measure after, and let the
+> covariance follow it down rather than guessing it down.
+
+**What is still unmeasured — all of it needs the robot to MOVE:**
+1. `odom_check.py`: the push-1-m / turn-90° decoupling, now through the EKF.
+2. The Day 3 loop with `check_pose_stability.py`, **run both ways**. The
+   claim to test is that `map → odom` correction total-path goes DOWN with
+   the EKF on. Note the stationary run already put 14.8° of yaw *path* into
+   30 s at 1e−5; at 1e−4 that should fall, and this is the run that says so.
+3. One Nav2 goal plus a deliberate Spin recovery.
+4. **The wedged-slip yaw comparison** — `map → base_footprint` yaw against
+   `odom → base_link` yaw, with and without `USE_EKF`. This is the report
+   figure and the only thing that actually closes D-23.
+5. The stationary semantic bench check.
+6. Gyro σ with the wheels actually **turning** (on blocks, under `o`), which
+   is a stricter case than motors merely energised.
 
 **Limitation to report** (drafted, replaces D-23's if the fused path is
 demonstrated; otherwise D-23's stands):

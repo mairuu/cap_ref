@@ -55,18 +55,37 @@ about the IMU has been measured.
 > in the new covariance arrays parsed as a *string* (YAML 1.1 wants a signed
 > exponent), which `diff_cont` would have rejected at load.
 >
-> **Next, and none of it is done:** `make real USE_IMU=true` and check
-> `/joint_states` is still **30.0 Hz** (the real test of the serial budget)
-> → `tf_check.py` with `USE_EKF=true` for exactly one publisher on
-> `odom → base_link` → `odom_check.py` → the Day 3 loop with
-> `check_pose_stability.py` **both ways** → one Nav2 goal + Spin → a
-> wedged-slip yaw comparison (the report figure) → the stationary bench
-> check. Table in `records/calibration.md` "IMU". **Stop at the first
-> failure and drop the flags — the demo does not depend on any of it.**
+> ✅ **THE FUSED STACK RAN, STATIONARY, AND IT WORKS** (18 Sep evening,
+> `use_ekf:=true`, which correctly implied the IMU). **`/joint_states`
+> 29.996 Hz** — the serial budget fits, which was the real risk. Also:
+> `/imu_broad/imu` **30.00 Hz with zero gaps > 50 ms**, all three
+> controllers active, `enable_odom_tf` **False** so the EKF owns
+> `odom → base_link`, bias subtraction confirmed end to end, |a| 0.999 g,
+> and **stationary yaw drift +0.06 °/min** — 0.6° over a ten-minute demo.
 >
-> Cheap and still open: gyro σ with the **motors running**, robot on blocks
-> under `o`. That is what would let the covariance come down to the
-> script's 5e−6.
+> ⚠ **One number was wrong and has been corrected: the gyro covariance.**
+> Installed at 1e−5 from the rest measurement; σ on the *running* stack is
+> **11× that variance** (1.11e−04 vs 1.25e−06) because energising the drive
+> is most of the noise. The filter said so plainly — `/odometry/filtered`
+> vyaw σ came back 0.01023 against the gyro's 0.01053, i.e. **no smoothing
+> at all** — and it put 14.8° of total yaw path into a stationary 30 s
+> window. Now **1e−4**, the measured value, restoring the intended
+> **100:1** ratio. **Rebuilt; the stack must be restarted to pick it up.**
+>
+> ⭐ **Highest-value next step, and it is cheap: `DLPF_CFG=3` → `4` in the
+> firmware's `config.h`.** The gyro noise is aliasing — the chip passes
+> 42 Hz while the host samples at 30 Hz, so 15–42 Hz folds back. `4` gives
+> 20 Hz bandwidth for 8.3 ms of delay; do not go past `5` (13.4 ms is half
+> a control frame). One constant, reflash, re-run `imu_check.py`, and let
+> the covariance follow the new measurement down instead of guessing.
+>
+> **Still to do, all of it needing the robot to MOVE:** `odom_check.py` →
+> the Day 3 loop with `check_pose_stability.py` **both ways** (the claim:
+> `map → odom` correction total-path goes DOWN with the EKF) → one Nav2
+> goal + Spin → **the wedged-slip yaw comparison, which is the report
+> figure and the only thing that closes D-23** → the stationary bench
+> check. Full table in `records/calibration.md` "IMU". **Stop at the first
+> failure and drop the flags — the demo does not depend on any of it.**
 >
 > One deliberate choice left open: the semantic layer's motion gate still
 > reads ω from `/diff_cont/odom` (`robot_params.yaml: odom_topic`), so it

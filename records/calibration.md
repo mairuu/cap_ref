@@ -2126,6 +2126,74 @@ flag for the orientation. Both are installed.
 > figure would be several times larger. A quiet rest σ is the cheap
 > confirmation that `6c487ef` is the firmware actually running.
 
+### Live verification on the fused stack — 18 Sep 2026, evening
+
+`make real USE_EKF=true` (which implies the IMU: `use_imu:=false
+use_ekf:=true` was what actually ran, and the launch's `imu_on` expression
+turned the polling on — verified from the process command line). Robot
+stationary on the floor, motors energised, 30 s samples.
+
+| Quantity | Measured | Verdict |
+|---|---|---|
+| `/joint_states` | **29.996 Hz** | ✅ the serial budget fits. This is the test that mattered: `i` costs ~8 ms of a 33 ms frame and the loop did not slip |
+| `/imu_broad/imu` | **30.00 Hz**, inter-arrival p50 33.3 / p95 34.3 / max 35.3 ms, **zero gaps > 50 ms** | ✅ no dropped polls. An early `ros2 topic hz` showed max 0.343 s; that was startup only and did not recur |
+| `/diff_cont/odom` · `/odometry/filtered` | 30.016 · 30.007 Hz | ✅ |
+| Controllers | `diff_cont`, `joint_broad`, `imu_broad` all **active**; all 10 IMU interfaces claimed | ✅ |
+| `diff_cont enable_odom_tf` | **False** | ✅ the spawner `--param-file` override applied; the EKF owns `odom → base_link` |
+| **Bias subtraction, end to end** | `/imu_broad/imu` wz mean **−0.00015 rad/s** (−0.009 °/s) where uncorrected is −0.01087 | ✅ the xacro param reaches the hardware interface and is applied |
+| **Stationary yaw drift, `/odometry/filtered`** | **+0.028° net over 30 s = +0.06 °/min** | ✅ **the headline number.** 0.6° over a ten-minute demo |
+| `\|a\|` | **0.999 g** | ✅ confirms the ±2 g range and the 16384 LSB/g scaling |
+| Accel z tilt from vertical | **3.2°** (ax +0.521, ay +0.165, az +9.786 m/s²) | recorded, **not applied** — see below |
+| `frame_id` · orientation · `orientation_covariance[0]` | `imu_link` · identity · **−1.0** | ✅ correctly flagged "no orientation estimate" |
+
+> ⚠ **The rest-noise figure was wrong for this purpose, by 11×, and the
+> filter told us so.** Gyro σ_z on the running stack is **0.01053 rad/s**
+> (variance **1.11e−04**) against **0.00112** (1.25e−06) at rest with the
+> stack down — same chip, same room, eight minutes apart. Energising the
+> drive is most of the difference, and that is the condition the robot is
+> always in when the number is used.
+>
+> The covariance had been installed at **1e−5** on the strength of the rest
+> figure, and the symptom was specific: **`/odometry/filtered`'s vyaw σ came
+> back 0.01023 against the raw gyro's 0.01053 — the filter was doing no
+> smoothing at all**, tracking gyro noise 1:1, and putting **14.8° of total
+> yaw path** into a stationary 30 s window whose net drift was 0.028°.
+> Now installed at **1e−4**, the measured value, which restores D-25's
+> intended **100:1** gyro-to-wheel ratio. Slip rejection is unaffected:
+> 100:1 already means a slipping wheel cannot move the heading estimate.
+
+> **The noise is aliasing, and that is fixable in firmware — highest-value
+> next step.** σ = 0.6 °/s is high for an MPU6050 behind a filter. The cause
+> is the sample-rate mismatch: `DLPF_CFG=3` gives **42 Hz** of gyro
+> bandwidth, but the host polls at **30 Hz**, so Nyquist is 15 Hz and
+> everything from 15 to 42 Hz folds back into the reading. The chip samples
+> internally at 1 kHz and we decimate by reading one register set per frame,
+> with no averaging.
+>
+> Two ways to fix it honestly, either of which should be followed by
+> re-running `imu_check.py` and letting the covariance come down to whatever
+> it then measures:
+> - **`DLPF_CFG=4`** (20 Hz bandwidth, 8.3 ms group delay) — one constant in
+>   `config.h`, reflash. `DLPF_CFG=5` (10 Hz) is properly below Nyquist but
+>   costs 13.4 ms of lag in the heading estimate, which is half a control
+>   frame. **4 is the sweet spot; do not go past 5.**
+> - **Average in firmware**: read the chip several times per frame and mean
+>   them. Strictly better than a lower DLPF (no added group delay) but it is
+>   real work on the `i` command and its timing budget.
+>
+> Until one of those happens, **1e−4 is the honest covariance** and the
+> stationary drift of 0.06 °/min says the EKF is already doing its job.
+
+> **On the 3.2° mount tilt: measured, deliberately not applied.** A tilt
+> means the gyro's z axis is not exactly vertical, so world yaw rate projects
+> onto it as ω·cos(3.2°) — a **0.16 % scale error** on yaw rate. That is a
+> quarter of the `wheel_separation` correction that *was* worth applying
+> (0.67 %) and far below the 11× noise question above. Putting it in
+> `imu.xacro`'s rpy would also fold in however level the floor was, not just
+> the mount. Same reasoning that left `wheel_radius` at 0.0327: applying a
+> correction smaller than the uncertainty in its own measurement records
+> noise as a calibration.
+
 > **On the axis map reading 0 0 0.** The value is unchanged from the
 > placeholder, and that is not the same as the measurement being redundant:
 > before 18 Sep it was an assertion about a silkscreen, and now it is a
