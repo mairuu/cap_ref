@@ -96,7 +96,21 @@ about the IMU has been measured.
 > with a clean SIGINT (motors stopped on deactivate); no ROS processes and
 > the port is free.
 >
-> **Still to do, all of it needing the robot to MOVE:** `odom_check.py` →
+> ✅ **`odom_check.py --compare` PASSED (18 Sep).** Hand-pushed 1.1 m and
+> turned ~90°: distance **wheels 1.127 m vs EKF 1.116 m (0.98 %)**, yaw
+> **−87.9° vs −92.2° (4.3°)**, and **the yaw SIGNS AGREE** — which confirms
+> the measured gyro axis map on real rotation, the one error that would make
+> the EKF worse than no EKF. The 4.3° is not attributable to either sensor:
+> the MPU6050's ±3 % scale tolerance covers it and the true angle was a hand
+> turn. `calibrate_spin.py` under power with the gyro logged alongside would
+> calibrate the gyro scale for free — worth folding into Day 3.
+>
+> ⚠ **Do not lift or pivot this robot mid-run.** An earlier attempt caught
+> the EKF turning −86.4° while the wheels read −0.6° — an event, not drift.
+> The EKF integrates the gyro through a lift and the encoders see nothing, so
+> `odom` stops meaning anything until `slam_toolbox` absorbs it.
+>
+> **Still to do, all of it needing the robot to MOVE UNDER POWER:**
 > the Day 3 loop with `check_pose_stability.py` **both ways** (the claim:
 > `map → odom` correction total-path goes DOWN with the EKF) → one Nav2
 > goal + Spin → **the wedged-slip yaw comparison, which is the report

@@ -2266,6 +2266,68 @@ not in the figure. Gyro outvotes wheel yaw rate **200:1**.
 >   `/diff_cont/odom`, not the EKF, and σ 0.0043 rad/s is far below
 >   `motion.max_omega` 0.3 anyway.
 
+### `odom_check.py --compare` — hand-push, wheels against the EKF, 18 Sep
+
+Robot pushed ~1.1 m by hand and turned ~90°, stack up with `use_ekf:=true`,
+`odom_check.py` commanding nothing. `--compare` was added for this (D-25):
+the default invocation watches only `/diff_cont/odom`, which the EKF does not
+touch, so it cannot say anything about the fusion.
+
+| | wheels (`/diff_cont/odom`) | EKF (`/odometry/filtered`) | agreement |
+|---|---|---|---|
+| straight-line | **1.127 m** | **1.116 m** | **−11 mm, −0.98 %** |
+| dyaw | **−87.9°** | **−92.2°** | **−4.3°, −4.9 %** |
+| dx / dy | +1.109 / −0.199 | −0.131 / −1.108 | frame-rotated, expected |
+
+> ✅ **THE YAW SIGNS AGREE.** This is the single most important result of the
+> run. A gyro fused with the wrong yaw sign is invisible in TF, invisible in
+> RViz, and makes the EKF worse than no EKF — and it is what `imu.xacro`'s
+> measured rpy exists to prevent. The axis identification was done on a
+> stationary robot by hand; **this confirms it on real rotation with the
+> whole chain live.** `--compare` fails loudly on opposite signs.
+
+> ✅ **Distance agrees to 0.98 %.** The EKF is not corrupting a working
+> estimate, and the twist covariances in `my_controllers.yaml` are not
+> obviously wrong (the EKF fuses only vx and vyaw, so a large distance
+> disagreement would have pointed straight at them).
+
+> **The 4.3° of yaw disagreement is NOT resolvable from this run, and should
+> not be quoted as either sensor's error.** Against a nominal 90° the wheels
+> read −2.3 % and the gyro +2.4 %, but the true angle was a hand turn and is
+> unknown, so neither figure is an error measurement. Three candidates, none
+> separable here:
+> - **Gyro scale factor.** The MPU6050's sensitivity tolerance is ±3 %
+>   typical, so +2.4 % is *inside spec* and needs no explanation.
+> - **Wheel skid during the turn**, which makes the wheels under-read.
+> - `wheel_separation` 0.25168, which sets the wheels' yaw scale.
+>
+> The mount tilt is **not** a candidate: 3.2° costs cos(3.2°) = 0.9984,
+> i.e. −0.16 %. What would separate them is `calibrate_spin.py` under power
+> against a floor mark, with the gyro logged alongside — Day 3 work, and
+> worth doing because it would calibrate the gyro scale for free.
+
+> ⚠ **An earlier attempt at this run recorded something worth keeping: the
+> EKF turned through −86.4° while the wheels registered −0.6°.** The yaw
+> then stopped changing rather than continuing, so it was **an event, not
+> drift** — and stationary drift measured minutes earlier was +0.01 °/min,
+> 140× too small to account for it. The likely cause is the robot being
+> lifted or pivoted so the wheels did not roll; **that is inference, not
+> established.** Two things follow regardless:
+> - It is the closest thing yet seen to the **slip signature** — real
+>   rotation that wheel odometry is completely blind to and the gyro catches.
+>   It is *not* a controlled test and must not be reported as one.
+> - **Repositioning this robot by hand desynchronises the EKF's heading from
+>   the wheels' permanently**, because the EKF integrates the gyro through
+>   the lift and the encoders see nothing. `slam_toolbox` absorbs it into
+>   `map → odom`, so it is survivable — but do not lift the robot mid-run
+>   and expect `odom` to still mean anything.
+
+> **A defect in `--compare` hid 68 s of that first run and is fixed.** The
+> progress trace only printed when the *wheels* had moved enough to be worth
+> a line, so an EKF-only divergence produced no output at all — exactly
+> backwards, since disagreement is the whole point of the mode. The trigger
+> now tests both tracks.
+
 > **Gyro σ repeats across two runs on the running stack** — 0.00481 and
 > 0.00486 rad/s, 1 % apart. The noise figure is stable; it is the *condition*
 > (rest vs energised) that moves it, not run-to-run scatter.

@@ -828,7 +828,14 @@ drift of +0.06 °/min** on `/odometry/filtered`. Numbers in
 > value of the fusion.
 
 **What is still unmeasured — all of it needs the robot to MOVE:**
-1. `odom_check.py`: the push-1-m / turn-90° decoupling, now through the EKF.
+1. ~~`odom_check.py`~~ ✅ **DONE 18 Sep.** Hand-pushed 1.1 m and turned ~90°
+   with `--compare` (added for this; the default watches only
+   `/diff_cont/odom`, which the EKF does not touch). Distance agrees to
+   **0.98 %**, yaw to **4.3°**, and critically **the yaw signs agree** — the
+   measured axis map is confirmed on real rotation, not just on a
+   stationary bench. The 4.3° is not attributable: the gyro's ±3 % scale
+   tolerance covers it, and the true angle was a hand turn. See
+   `records/calibration.md`.
 2. The Day 3 loop with `check_pose_stability.py`, **run both ways**. The
    claim to test is that `map → odom` correction total-path goes DOWN with
    the EKF on. Note the stationary run already put 14.8° of yaw *path* into
