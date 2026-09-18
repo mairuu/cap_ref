@@ -2162,6 +2162,79 @@ stationary on the floor, motors energised, 30 s samples.
 > intended **100:1** gyro-to-wheel ratio. Slip rejection is unaffected:
 > 100:1 already means a slipping wheel cannot move the heading estimate.
 
+### `DLPF_CFG` 3 → 4, flashed 18 Sep 2026 late evening
+
+`IMU_DLPF_CFG = 4` in `esp-motor-firmware/config.h` (20 Hz gyro / 21 Hz
+accel, 8.3 ms group delay, was 42 Hz / 4.8 ms). Compiled 311287 bytes,
+uploaded to `/dev/esp32`, hash verified. Firmware `a9e4f8c`.
+
+Re-measured at rest, motors off, stack down, 20 s:
+
+| | DLPF=3, 18 Sep earlier | DLPF=4, after reflash |
+|---|---|---|
+| Gyro σ x / y / z (rad/s) | 0.00171 / 0.00145 / **0.00112** | 0.00144 / 0.00097 / **0.00114** |
+| Sample rate achieved | 19.3 Hz — **invalid, see below** | **30.1 Hz** |
+| `i` round trip p50 / p95 | 51.7 / 52.3 ms — **invalid** | **6.6 / 6.8 ms** |
+| `\|a\|` · tilt | 0.999 g · 3.2° | 0.999 g · 3.2° |
+
+> ⚠ **A defect in `imu_check.py` invalidated every round-trip figure it has
+> ever printed.** `read_line` called `ser.read(64)`; pyserial waits for **64
+> bytes or the port timeout**, and a reply is ~30 bytes, so every exchange
+> burned the full 50 ms. The 51.7 ms p50 was therefore a measurement of the
+> script's own timeout, not of the firmware, and the 19.3 Hz ceiling was the
+> same thing. Fixed: read `in_waiting` (or one byte) and return the instant
+> the terminator arrives — 6.6 ms p50 afterwards, which matches the ~8 ms
+> predicted from the byte count. **The other bring-up scripts share the same
+> `read_line` shape but poll at 10 Hz, where 50 ms per exchange never
+> mattered; they are left alone.**
+
+> ❓ **The σ_z = 0.330 °/s reading in that same run is UNEXPLAINED, and it
+> should not be written off as the script bug.** The tempting story —
+> undersampling at 19.3 Hz drops Nyquist to 9.7 Hz and aliases more — does
+> not survive contact with the data: **the earlier `DLPF_CFG=3` run was
+> undersampled by exactly the same bug and read 0.064 °/s.** Same script,
+> same ceiling, 5× different answer. So undersampling alone cannot account
+> for it.
+>
+> What is established: 0.330 °/s **did not reproduce** at a true 30 Hz
+> (0.065 °/s, and all four verdicts PASS). What is not established: what it
+> was. The run followed a `colcon build`, an `arduino-cli compile` and a
+> reflash, so the Jetson's fan was at high RPM and the ESP32 had just reset
+> — a transient chassis vibration is plausible and unproven. **If a stray
+> high-σ reading recurs, this is the note to come back to**; the thing that
+> would settle it is two back-to-back runs in the same thermal state.
+> Recorded as an open loose end rather than a closed one.
+
+> **What the reflash did and did not buy.** At rest it changed nothing
+> measurable — 0.00114 against 0.00112 rad/s — and that is expected: with
+> the drive unpowered there is almost no broadband vibration to alias, so a
+> narrower filter has nothing to remove. **The reflash is aimed at the
+> motors-energised case and its benefit there is UNMEASURED.** The test is
+> `make real USE_EKF=true` and 30 s of `/imu_broad/imu` wz, against the
+> **0.01053 rad/s** recorded below at `DLPF_CFG=3`.
+
+> ✅ **The 85× motors-off/motors-energised gap survives the script fix**, so
+> the covariance decision below still stands on solid ground: rest σ_z at a
+> true 30 Hz is 0.00114 rad/s (var 1.30e−06) against **0.01053** (1.11e−04)
+> on the running stack. The live figure came through the C++ hardware
+> interface, not through the script, so it was never affected by the bug.
+
+> ✅ **Serial budget, now measured instead of estimated.** `i` costs
+> **6.6 ms p50** (predicted ~8) on top of ~6 ms for the encoder and motor
+> exchanges: **~13 ms of a 33.3 ms frame**, which is why `/joint_states`
+> holds 29.996 Hz.
+
+> ✅ **Gyro bias is repeatable across three runs**, which is the evidence
+> that it is a constant worth subtracting rather than a drifting quantity:
+> z reads **−81.6 / −82.2 / −81.5** raw, a spread of 0.7 counts
+> (0.005 °/s, 0.32 °/min). x spreads 2.9 counts and y 1.1.
+> **The installed values are kept unchanged.** The largest disagreement on z
+> — the only axis the EKF fuses — is 0.27 °/min, far below anything that
+> matters, and churning a calibration by less than its own repeatability is
+> how noise gets recorded as a measurement (same reasoning that left
+> `wheel_radius` at 0.0327). x and y are not fused at all under
+> `two_d_mode`.
+
 > **The noise is aliasing, and that is fixable in firmware — highest-value
 > next step.** σ = 0.6 °/s is high for an MPU6050 behind a filter. The cause
 > is the sample-rate mismatch: `DLPF_CFG=3` gives **42 Hz** of gyro
