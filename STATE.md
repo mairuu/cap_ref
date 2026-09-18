@@ -3,7 +3,65 @@
 > **Update this at the end of every session and whenever a gate passes.**
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
-**Last updated:** 16 Sep 2026, evening — ✅ **DAY 6 GATE PASSED. Track A and
+**Last updated:** 18 Sep 2026, afternoon — **DAY 7 IN PROGRESS.** Two things
+settled today, one built, one cut.
+
+> **BUILT — the UI has an object list and inspector** (`cap_ref` `942cf1b`).
+> The side panel now lists every landmark with class, published map-frame
+> position, confidence and seen count, ordered nearest-the-robot first — the
+> same landmark `go_to_object.py` would pick. Clicking a row rings it on the
+> canvas; `⌖` centres the view (turning FOLLOW off first, because the RAF loop
+> re-centres on the robot every frame and would otherwise overwrite the view
+> before it was painted). Per-class counts double as the legend, which means
+> **`chair ×2` on screen is the duplicate-landmarks metric, live.**
+>
+> Two fixes rode along. The **MOCK badge had never once appeared** —
+> `HealthResponse` had no `mock` field while `App.tsx` has always read
+> `h.mock` and the README has always promised the badge; a demo display must
+> not be able to show synthetic data without saying so. And **unmapped classes
+> no longer all render grey**: `classColor` had seven entries and a grey
+> fallback, so `table` and `door` — two of the three landmarks the bridge's own
+> mock mode publishes — were the same colour as each other and as everything
+> else. Unknown labels now hash to a stable hue. This deliberately changed an
+> assertion in `colors.test.ts`. 75 UI tests, 39 bridge tests, `tsc --noEmit`
+> and a production build all clean.
+
+> ⛔ **CUT — the four-pass tape-measure protocol was not run. See D-24.**
+> Rehearsals were given the robot time instead. **No number in this project
+> comes from a driven pass.** The one filled row of the §08 results table is
+> the 16 Sep **stationary** bench check (1.64 m: error 0.08 m, within-run
+> spread 0.04 m, duplicates 1, fused 94.3 %). D-24 carries a drafted
+> limitations sentence for the report, and names what this leaves untested:
+> **re-acquisition from a new bearing**, which is the known weak point (144
+> track ids in 301 s, chair holding both 329 and 230; P5 keys object identity
+> on the track id). Duplicates = 1 from a stationary robot is **not** evidence
+> that re-acquisition is sound.
+
+> ⚠ **Correction to a figure quoted all week.** The **~45 % fused ratio is not
+> a while-driving number.** `records/calibration.md` records that those four
+> windows were captured with the robot *largely stationary*, and that the
+> drive-past which satisfied the "stays" clause had its ratio uncaptured. Do
+> not cite ~45 % as a driving figure in the report.
+
+**Stack state, 18 Sep ~15:50:** everything was brought up (`real`, `slam`,
+`nav`, `semantic`, RViz) and then **stopped by Ctrl-C**; the launch logs record
+`user interrupted with ctrl-c (SIGINT)` on all three. Nothing is running now but
+the `ros2` daemon. Two shutdown-path warts seen while tearing down, neither a
+runtime fault: **`semantic_objects_node` exits 1 on SIGINT** rather than
+cleanly, and **`image_transport republish` dies with -11 (SIGSEGV)**.
+
+**Verified live before shutdown:** `/scan` 11.6 Hz · `/image/compressed`
+13.3 Hz · `/detections` 14.8 Hz (person 0.96, chair 0.84, laptop 0.93) ·
+`/semantic_landmarks` publishing a chair at (−1.683, 3.993) ·
+`ros2 param get /diff_cont linear.x.max_velocity` → **0.15**. The RViz
+`Semantic Landmarks` display was **confirmed correctly defined** in `nav.rviz`
+(enabled, `/semantic_markers`, Reliable + Transient Local, depth 1 — matching
+the publisher exactly) but **still never observed populating**; it remains the
+one carried-forward unknown.
+
+---
+
+**Previously, 16 Sep 2026, evening** — ✅ **DAY 6 GATE PASSED. Track A and
 Track B are merged and the committed demo is complete.** All four clauses:
 a labelled marker appears in roughly the right place and **stays after driving
 away** (user-confirmed), the browser UI shows it, the fused ratio is **~45 %**

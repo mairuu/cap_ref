@@ -671,6 +671,55 @@ against `odom → base_link` yaw — and was deliberately not run, per constrain
 
 ---
 
+## D-24 · The tape-measure protocol is cut; validation stays stationary
+**Date:** 18 Sep 2026 · **Status:** adopted (user decision, Day 7)
+
+Day 7's four-pass tape-measure protocol was **not run**. Rehearsals were given
+the robot time instead.
+
+**Why:** one robot, one room, and the two compete directly. A demo that fails
+on the day is unrecoverable; a report with thin validation numbers is a smaller
+and recoverable loss. Constraint 3 — scope to a working demo, not to
+correctness — resolves that tie the same way. The protocol buys report evidence,
+not demo capability: gates 1-6 had already passed without it.
+
+**Cost:** four of the five metrics in the design note's §08 results table stay
+empty, and the one that is filled comes from a **single stationary bench check**
+(16 Sep, one chair, 1.64 m, 20-25 deg off-axis): error 0.08 m, within-run spread
+0.04 m, duplicates 1, fused 132/140 = 94.3 %. No number in this project comes
+from a driven pass.
+
+**What this specifically leaves untested** — worth naming, because it is the
+known weak point rather than an arbitrary gap. 144 distinct track ids appeared
+in 301 s on 16 Sep, with chair holding two of them (329 and 230). P5 keys "same
+object again" on the track id, so a chair that picks up a second id becomes two
+landmarks. The bench check returned duplicates 1, but a stationary robot never
+re-acquires an object from a new bearing. **A four-pass drive is precisely the
+test that would have exposed this, and it was not run.** The duplicates figure
+of 1 should not be read as evidence that re-acquisition is sound.
+
+**Limitation to report** (drafted, for the report's limitations section):
+
+> *"The semantic layer's position accuracy was validated at a single
+> stationary station rather than by the four-direction driven protocol the
+> design note specifies. With the robot held at 1.64 m from a tape-measured
+> chair, absolute position error was 0.08 m against a 0.25 m target and 94.3 %
+> of detections were fused. Two quantities therefore remain unmeasured: spread
+> across viewing directions, and whether a single object re-acquired from a new
+> bearing is recorded as one landmark or several. The second is a known risk
+> rather than an open question -- object identity is keyed on the detector's
+> track id, and track ids were observed to split on a stationary scene. The
+> measurement that would close both is the four-pass protocol in the design
+> note's section 08; it costs roughly half an hour of robot time and was cut
+> for rehearsal time on the final day."*
+
+**Reversal:** `landmark_tape_measure.py` is written, installed and takes
+`--pass-label` / `--summary`; `~/maps/tape_session.jsonl` is clean. If robot
+time frees up, two passes (front and one side) recover the across-pass spread
+and the re-acquisition test in half the time of four.
+
+---
+
 ## Template
 
 ```

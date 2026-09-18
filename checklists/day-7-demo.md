@@ -8,6 +8,14 @@
 
 ## 1 · Morning — the tape-measure protocol
 
+> ⛔ **CUT on 18 Sep — this section was not run. See D-24.** Rehearsals were
+> given the robot time instead. The script is written, installed and ready
+> (`--pass-label` / `--summary`), and `~/maps/tape_session.jsonl` is clean, so
+> two passes would still recover the across-pass spread if robot time frees up.
+> **The unticked boxes below are a record of what was cut, not a to-do list.**
+> D-24 carries the drafted limitations sentence for the report.
+
+
 The design note's §08 validation. Run it **once, properly**. Even mediocre
 numbers are worth far more in a report than no numbers, because they show you
 knew what to measure.
@@ -139,7 +147,8 @@ Write it while it is fresh. `RECOVERY.md` §9 has drafted sentences for
 ## GATE — done
 
 - [ ] Three clean end-to-end rehearsals
-- [ ] Tape-measure numbers recorded
+- [x] ~~Tape-measure numbers recorded~~ — **cut, D-24.** Stationary bench
+      numbers stand in; the limitation is drafted and must reach the report
 - [ ] Demo script written
 - [ ] Bag recorded as fallback
 - [ ] Limitations section drafted
