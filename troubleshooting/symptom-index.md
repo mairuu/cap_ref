@@ -139,6 +139,30 @@ until the `# boot` line.
 
 ---
 
+### `/dev/esp32` (or `/dev/ydlidar`) is missing, but `lsusb` shows the CP210x and `ttyUSB0` exists
+**The adapter is in a different USB socket than when `make udev` last ran.**
+The rules in `/etc/udev/rules.d/99-my-bot-serial.rules` match on physical port
+path (`KERNELS=="1-2.1.4"` etc.) because neither adapter has a unique serial,
+so the name follows the socket, not the device. Seen 18 Sep: the ESP32 came
+back on `1-2.1` after the IMU was fitted, the rule said `1-2.1.4`, and
+`make real` had nothing to open. Check: `udevadm info -a -n /dev/ttyUSB0 |
+grep KERNELS` against the rules file. Fix: both devices in their demo-day
+sockets, then `make udev`, then `make ports`. **Do not hardcode `ttyUSB0`**
+anywhere — the two adapters swap numbers across reboots. The firmware
+`Makefile` takes `PORT=` for a one-off.
+→ `records/calibration.md` "IMU", D-25
+
+### Encoder read timeouts start the moment the IMU is enabled; fine with `USE_IMU=false`
+**The I²C bus is stalling the firmware's main loop**, and the host sees it as
+the encoder reply arriving late — same serial line, same `loop()`. A shorted or
+unplugged GY-521 costs one bus timeout per `i`; before `6c487ef` that was the
+core's 50 ms × two transactions ≈ 100 ms, three PID frames, on every poll.
+Since `6c487ef` it is 10 ms and the chip latches off after 10 failures
+(`i` then answers `IMU Error` instantly). If it still happens: reflash, then
+check the wire run and drop `IMU_I2C_FREQ_HZ` to 100000. Confirm the diagnosis
+without ROS: `imu_check.py` prints `i` round-trip p95; healthy is ~2–4 ms.
+→ `esp-motor-firmware/config.h`, `records/calibration.md` "IMU"
+
 ## Lidar
 
 ### `ydlidar_ros2_driver` will not build, or dies on the first parameter
@@ -415,6 +439,39 @@ ros2 topic echo /diff_drive_controller/cmd_vel_unstamped
 Check `cmd_vel` is going to the topic the controller actually subscribes to.
 
 ---
+
+### With `USE_EKF=true` the heading drifts at roughly twice the turn rate, and the map falls apart in the first corner
+**The gyro yaw-axis sign is wrong**, or the bias was never subtracted. The EKF
+weights the gyro 100:1 over the wheels in yaw rate, so a gyro that turns the
+other way dominates and the estimate turns *against* the wheels; slam_toolbox's
+±10° window (D-18) is exhausted immediately. This does not look like a sign
+error — it looks like "the EKF made things worse". Check `imu.xacro`'s joint
+`rpy` and `ros2_control.xacro`'s `imu_gyro_bias_*` against the output of
+`imu_check.py --axes` (stack DOWN). `rpy="0 0 0"` and biases of `0` are the
+unmeasured placeholders; if they are still there, nothing has been measured.
+Quick live test: `ros2 topic echo /imu_broad/imu --field angular_velocity.z`
+while turning the robot CCW by hand must read **positive** *after* the TF
+rotation — easier: watch `/odometry/filtered` yaw increase for a CCW turn.
+→ `records/calibration.md` "IMU", D-25
+
+### `odom → base_link` jitters between two poses with `USE_EKF=true`
+**Two publishers on one TF edge.** `diff_cont` is still broadcasting because
+the spawner override (`config/diff_cont_ekf_overrides.yaml`,
+`enable_odom_tf: false`) did not apply — most likely `diff_cont` was already
+loaded from an earlier `make real` when the EKF one spawned ("Controller
+already loaded, skipping"). `ros2 param get /diff_cont enable_odom_tf` must be
+`false`. Restart `make real` from nothing; do not restart only the EKF.
+→ `launch/real_robot.launch.py`, D-25
+
+### `/odometry/filtered` publishes but never turns; `/imu_broad/imu` is all zeros or NaN
+**The hardware interface is not getting usable `i` replies** — the banner said
+`imu=FAIL`, the chip latched off, or `use_imu` never reached the hardware
+`<param>` (it is a **xacro arg** passed by `real_robot.launch.py`; a hand-run
+`xacro` without `use_imu:=true` leaves it false). After three failed polls the
+interface zeroes angular velocity on purpose so a dead IMU cannot integrate a
+phantom turn; the EKF then coasts on the wheels. Look for `No usable IMU reply`
+in the `ros2_control_node` log, then run `imu_check.py` with the stack down.
+→ `hardware/diffdrive_serial.cpp` `read_imu()`, D-25
 
 ## Nav2
 

@@ -3,8 +3,52 @@
 > **Update this at the end of every session and whenever a gate passes.**
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
-**Last updated:** 18 Sep 2026, afternoon — **DAY 7 IN PROGRESS.** Two things
-settled today, one built, one cut.
+**Last updated:** 18 Sep 2026, evening — **DAY 7 IN PROGRESS.** An IMU was
+fitted and fused (D-25); the stack is broken by a moved USB cable; nothing
+about the IMU has been measured.
+
+> ⛔ **`make real` FAILS RIGHT NOW — `/dev/esp32` does not exist.** The ESP32's
+> adapter moved from USB path `1-2.1.4` to `1-2.1` when the GY-521 was fitted,
+> and the udev rule matches the old path. The lidar is not plugged in at all.
+> **First thing next session, before anything else:** both devices in their
+> demo-day sockets → `make udev` → `make ports`. Then label the sockets.
+> Symptom index, "Hardware and serial".
+
+> **BUILT — the GY-521 (MPU6050) is fused into odometry, behind two
+> default-off flags (D-25).** The user added the chip and an `i` command to
+> the firmware; this session hardened the firmware for being polled from the
+> 30 Hz loop (`esp-motor-firmware` `6c487ef`, pushed), added a ros2_control
+> `<sensor>` to `DiffDriveSerial`, `imu_broad`, `robot_localization`
+> (`ros-humble-robot-localization` 3.5.4 installed) and `config/ekf.yaml`.
+> **`make real` alone is byte-identical to the stack that passed gates 1–6;**
+> `make real USE_IMU=true USE_EKF=true` is the fused path, in which the EKF
+> owns `odom → base_link` (gyro 100:1 over wheels in yaw rate). Builds clean;
+> URDF validates both ways; launch resolves the right spawners per flag.
+>
+> ⚠ **NOTHING IMU-RELATED HAS TOUCHED THE ROBOT.** The gyro bias
+> (`ros2_control.xacro`, three zeros) and the mounting rpy (`imu.xacro`,
+> `0 0 0`) are **placeholders**. A wrong yaw-axis sign makes the EKF worse than
+> no EKF, quietly. **The measurement is a script, in this order, stack DOWN:**
+> ```
+> ros2 run my_bot imu_check.py                 # banner, bias, sigma, round-trip
+> ros2 run my_bot imu_check.py --axes          # CCW / nose-down / left-down by hand
+> ```
+> Paste its bias line into `ros2_control.xacro`, its rpy line into
+> `imu.xacro`, its σ² into `my_controllers.yaml`, rebuild, and only then
+> `USE_IMU=true`. Then D-25's re-verification ladder: `/joint_states` still
+> 30.0 Hz with the IMU on → `tf_check.py` (one publisher on `odom→base_link`)
+> → `odom_check.py` → the Day 3 loop with `check_pose_stability.py` **both
+> ways** → one Nav2 goal + Spin → a wedged-slip yaw comparison (the report
+> figure) → the stationary bench check. Table in `records/calibration.md`
+> "IMU". **Stop at the first failure and drop the flags — the demo does not
+> depend on any of it.**
+>
+> One deliberate choice left open: the semantic layer's motion gate still
+> reads ω from `/diff_cont/odom` (`robot_params.yaml: odom_topic`), so it
+> stays blind during a slip even with the EKF on. Repointing it at
+> `/odometry/filtered` is one line and needs its own re-test.
+
+**Previously, 18 Sep afternoon** — two things settled, one built, one cut.
 
 > **BUILT — the UI has an object list and inspector** (`cap_ref` `942cf1b`).
 > The side panel now lists every landmark with class, published map-frame

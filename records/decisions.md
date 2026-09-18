@@ -619,7 +619,7 @@ run, and not blocking.
 ---
 
 ## D-23 · Wheel slip during a stuck spin: documented, not corrected
-**Date:** 2026-09-16 · **Status:** adopted — **limitation, untested**
+**Date:** 2026-09-16 · **Status:** ~~adopted — limitation, untested~~ **superseded by D-25 (18 Sep)** — an IMU is now fitted and fused, behind default-off flags; this limitation text stands until D-25's measurements are made
 
 Reported by the user after the Day 6 gate: when the robot wedges on an obstacle
 and spins, the wheels slip. Wheel odometry reports rotation that did not happen.
@@ -717,6 +717,88 @@ of 1 should not be read as evidence that re-acquisition is sound.
 `--pass-label` / `--summary`; `~/maps/tape_session.jsonl` is clean. If robot
 time frees up, two passes (front and one side) recover the across-pass spread
 and the re-acquisition test in half the time of four.
+
+---
+
+## D-25 · GY-521 IMU added and fused into odometry, behind two default-off flags
+**Date:** 18 Sep 2026 · **Status:** adopted (user decision, Day 7) — **built, UNMEASURED, UNTESTED on the robot**
+
+The user fitted a GY-521 (MPU6050) to the ESP32 and added an `i` command to
+`esp-motor-firmware` (`98d603f`). **Decision: fuse its yaw rate with wheel
+odometry in a `robot_localization` EKF that takes over `odom → base_link`.**
+This is the change D-23 named as the textbook answer and declared out of the
+build; **D-23 is superseded** by this record, though its limitation text stays
+true until the measurements below are made.
+
+Raised and accepted with the user before building: it is Day 7, the committed
+demo is complete, and moving `odom → base_link` to a new publisher means gates
+3, 4 and 6 have to be driven again to remain evidenced.
+
+**What was decided about the shape, and why it protects the demo:**
+
+- **Every change is off by default.** `make real` alone starts exactly the
+  stack that passed the gates: no `i` traffic on the serial line, the same two
+  controllers, `diff_cont` publishing TF. `make real USE_IMU=true USE_EKF=true`
+  is the fused path. A bad rehearsal drops two flags, not code.
+- **The IMU goes through `DiffDriveSerial`.** `ros2_control_node` holds
+  `/dev/esp32` exclusively, so no separate node can exist. The interface polls
+  `i` after each encoder read and exports a ros2_control `<sensor>` in the
+  chip's **raw** axes; `imu_sensor_broadcaster` publishes `/imu_broad/imu` in
+  `imu_link`, and the EKF rotates it into `base_link` from TF. Mounting
+  orientation lives once, in `description/imu.xacro` — D-10's principle.
+- **IMU trouble can never fail `read()`.** Failed polls hold, then zero the
+  angular velocity after 3, and log once after 30. The wheels are the demo;
+  the IMU is an improvement on them.
+- **Fusion split:** wheels give `vx`, `vy` (=0, a real constraint) and `vyaw`
+  at variance **1e-2**; gyro gives `vyaw` at **1e-4**. During a slip the gyro
+  outvotes the wheels 100:1; if the IMU drops out the estimate keeps turning
+  on the wheels. Pose from the wheels is **not** fused, so a slip does not
+  enter as a position jump. Accelerometer not fused. No orientation exists
+  (`orientation_covariance[0] = −1`).
+- **TF topology is unchanged.** `base_link` stays root; only the publisher of
+  `odom → base_link` changes, via a spawner `--param-file` that sets
+  `enable_odom_tf: false` only when `use_ekf` is true.
+- `diff_cont`'s covariances are now **set**. The comment that said nothing
+  reads them was true until today.
+
+**Firmware hardening that came with it** (`6c487ef`): 10 ms I²C timeout
+(core default 50 ms × two transactions = a ~100 ms stall in `loop()` per
+poll on a dead bus — three PID frames, presenting on the host as an encoder
+timeout); off-latch after 10 failures; ranges and DLPF (44/42 Hz; the
+power-on default is **off**, which aliases motor vibration into yaw rate at
+30 Hz) written explicitly on every boot, because the host's EN-pulse reset
+does not power-cycle an MPU on the 3V3 rail; WHO_AM_I printed on failure.
+
+**Why:** wheel slip during a stuck spin exceeds the ±10° matcher window D-18
+narrowed (D-23); a gyro is the sensor that does not slip. And it turns D-23's
+untested limitation into a measurable before/after for the report.
+
+**Cost:** `ros-humble-robot-localization` installed (3.5.4). Re-run of gates
+2–4 and the Day 6 bench check on the fused path — **not yet done**. ~8 ms
+more serial per 33 ms frame with the IMU on (`imu_poll_divisor` is the lever).
+
+**Still unmeasured, and load-bearing — none of this has been run:**
+1. `imu_check.py`: banner `imu=ok`, at-rest gyro bias and σ, `i` round-trip.
+2. `imu_check.py --axes`: **the raw→body axis map and sign.** The three
+   biases in `ros2_control.xacro` are `0` and the rpy in `imu.xacro` is
+   `0 0 0` — placeholders. **A wrong yaw-axis sign makes the EKF worse than
+   no EKF, quietly**: heading drifts at ~2× the true turn rate and the
+   matcher window is exhausted in the first corner.
+3. `/dev/esp32` itself: the adapter moved from USB path `1-2.1.4` to `1-2.1`
+   when the IMU was fitted, so the udev rule no longer matches and
+   **`make real` fails today regardless of flags.** `make udev` with both
+   devices in their demo sockets.
+
+**Limitation to report** (drafted, replaces D-23's if the fused path is
+demonstrated; otherwise D-23's stands):
+
+> *"Heading is estimated by an extended Kalman filter fusing wheel odometry
+> with a MEMS gyroscope, weighted 100:1 toward the gyroscope in yaw rate, so
+> that wheel slip during a stalled rotation does not enter the heading
+> estimate. The gyroscope's bias and mounting orientation were measured at
+> rest; the filter's benefit under slip was [measured as … / not measured]."*
+
+**Reversal:** `make real` with no flags. Nothing else needs undoing.
 
 ---
 

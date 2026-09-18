@@ -2087,3 +2087,37 @@ limit rather than anything upstream of it.
 
 > ✅ **EXECUTED 16 Sep: SUCCEEDED in 16.4007 s.** D-21's override is proven
 > loaded and used, and no stiction occurred. See "Spin recovery" above.
+
+---
+
+## IMU — GY-521 / MPU6050 (D-25, 18 Sep 2026) — **NOTHING MEASURED YET**
+
+Fitted by the user 18 Sep on the ESP32's I2C bus (SDA GPIO21, SCL GPIO19,
+address 0x68; `esp-motor-firmware/config.h`). Read through the firmware's `i`
+command, published as `/imu_broad/imu` in frame `imu_link`, fused by
+`robot_localization` when `make real USE_IMU=true USE_EKF=true`.
+
+**Every number below is a placeholder until `imu_check.py` has been run.**
+Fill this table from its output the moment it prints, with the date:
+
+| Quantity | Value | Where it goes | Method |
+|---|---|---|---|
+| Boot banner | — | `ROADMAP.md` checkbox | `imu_check.py` prints it |
+| Gyro bias x / y / z (raw counts) | **0 / 0 / 0 — UNMEASURED** | `ros2_control.xacro` `imu_gyro_bias_*` | `imu_check.py`, ≥10 s at rest, motors off |
+| Gyro σ per axis (rad/s) | — | `my_controllers.yaml` `imu_broad.static_covariance_angular_velocity` = σ²·~4 | same run |
+| `i` round-trip p50 / p95 | — | `imu_poll_divisor` if p95 > ~10 ms | same run |
+| Raw→body axis map, with signs | **rpy 0 0 0 — UNMEASURED** (asserts silkscreen x forward, y left, z up) | `imu.xacro` joint `rpy` | `imu_check.py --axes`: CCW yaw, nose-down, left-side-down by hand; det must be +1 |
+| Mount position (from axle, lateral, height) | 0.0 / 0.0 / 0.10 — **placeholder** | `imu.xacro` properties | tape; matters only if accel is ever fused |
+| `map → odom` correction total-path, EKF off / on | — | D-25 result | `check_pose_stability.py --seconds 30` during the Day 3 loop, both flags |
+| Yaw under induced slip, `odom → base_link` vs `map → base_footprint`, EKF off / on | — | the report's D-23 figure | wedge the robot, log both TF yaws |
+
+Fixed by construction, not measured: ±250 °/s (131 LSB per °/s), ±2 g
+(16384 LSB per g), DLPF_CFG 3 (44 Hz accel / 42 Hz gyro) — the firmware writes
+these on every boot since `6c487ef`. Covariance split in the fusion: gyro vyaw
+**1e-4** against wheel vyaw **1e-2** (`config/ekf.yaml`,
+`config/my_controllers.yaml`).
+
+Serial budget with the IMU on, computed not measured: encoder + motor exchange
+~32 B ≈ 5.6 ms; `i` + reply ~45 B ≈ 7.8 ms; total ≈ 13.4 ms of the 33.3 ms
+frame at 57600 baud. The number that says whether it fits is `/joint_states`
+staying at **30.0 Hz** with `USE_IMU=true`.
