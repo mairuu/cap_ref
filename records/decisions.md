@@ -810,11 +810,22 @@ drift of +0.06 °/min** on `/odometry/filtered`. Numbers in
 > Corrected to **1e−4**, which is the measured value and restores this
 > decision's intended **100:1** ratio. Slip rejection is unaffected.
 >
-> **The noise itself is aliasing and is fixable in firmware:** `DLPF_CFG=3`
-> passes 42 Hz while the host samples at 30 Hz, so 15–42 Hz folds back.
-> `DLPF_CFG=4` (20 Hz, 8.3 ms delay) is one constant and a reflash, and is
-> the highest-value remaining improvement. Re-measure after, and let the
-> covariance follow it down rather than guessing it down.
+> ✅ **DONE AND CONFIRMED, same evening.** `DLPF_CFG` 3 → 4 (20 Hz, 8.3 ms
+> delay) flashed, and on the running stack the gyro variance fell **4.8×**
+> (σ 0.01053 → 0.00486 rad/s) while rest noise was unchanged — the exact
+> signature of undersampling, since aliasing only shows when there is
+> vibration to fold. Yaw jitter fell 3.4×. Covariance re-derived from the
+> new measurement and installed at **5e−5** (2× the measured 2.31e−05,
+> padded only for the wheels-turning case, which is still unmeasured).
+> Gyro outvotes the wheels **200:1**.
+
+> ⚠ **The honest caveat for the report: at standstill the EKF is strictly
+> worse than wheel odometry.** Stationary encoders cannot report rotation,
+> so `/diff_cont/odom` yaw path over 30 s is 0.000° while the EKF adds
+> 5.7° of random walk. **Every benefit of this decision lives in the driven
+> and slip cases, and neither has been measured.** The standstill numbers
+> prove the plumbing, the bias correction and the noise floor — not the
+> value of the fusion.
 
 **What is still unmeasured — all of it needs the robot to MOVE:**
 1. `odom_check.py`: the push-1-m / turn-90° decoupling, now through the EKF.
@@ -828,7 +839,9 @@ drift of +0.06 °/min** on `/odometry/filtered`. Numbers in
    figure and the only thing that actually closes D-23.
 5. The stationary semantic bench check.
 6. Gyro σ with the wheels actually **turning** (on blocks, under `o`), which
-   is a stricter case than motors merely energised.
+   is a stricter case than motors merely energised, and the only reason the
+   installed covariance carries 2× padding rather than sitting on the
+   measurement.
 
 **Limitation to report** (drafted, replaces D-23's if the fused path is
 demonstrated; otherwise D-23's stands):

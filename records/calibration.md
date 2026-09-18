@@ -2208,10 +2208,67 @@ Re-measured at rest, motors off, stack down, 20 s:
 > **What the reflash did and did not buy.** At rest it changed nothing
 > measurable — 0.00114 against 0.00112 rad/s — and that is expected: with
 > the drive unpowered there is almost no broadband vibration to alias, so a
-> narrower filter has nothing to remove. **The reflash is aimed at the
-> motors-energised case and its benefit there is UNMEASURED.** The test is
-> `make real USE_EKF=true` and 30 s of `/imu_broad/imu` wz, against the
-> **0.01053 rad/s** recorded below at `DLPF_CFG=3`.
+> narrower filter has nothing to remove. **The case it targets is
+> motors-energised, and there it worked — measured below.**
+
+### `DLPF_CFG=4` on the running stack, and the covariance set from it
+
+`make real USE_EKF=true`, robot stationary on the floor, drive energised,
+30 s windows. **This is the condition the covariance is used in and the only
+one it should ever be measured in.**
+
+| | DLPF=3, cov 1e−5 | DLPF=3, cov 1e−4 | **DLPF=4, cov 5e−5** |
+|---|---|---|---|
+| Gyro wz σ (rad/s) | 0.01053 | 0.01053 | **0.00486** |
+| Gyro wz variance | 1.11e−04 | 1.11e−04 | **2.31e−05** |
+| `/odometry/filtered` vyaw σ | 0.01023 | 0.00392 | 0.00431 |
+| **σ ratio filtered/gyro** | **0.97 — no smoothing** | 0.81 | 0.89 |
+| Yaw **total path** / 30 s | **14.840°** | 4.320° | 5.681° |
+| Yaw **net** drift | +0.06 °/min | +0.15 °/min | **+0.01 °/min** |
+
+> ✅ **The aliasing diagnosis is CONFIRMED. `DLPF_CFG` 3 → 4 cut the gyro
+> variance 4.8×** (σ 2.19×, 0.603 → 0.276 °/s) with the drive energised,
+> while changing nothing at rest. That is exactly the signature of
+> undersampling: 42 Hz of bandwidth against a 30 Hz poll folds everything
+> above the 15 Hz Nyquist back into the reading, and it only shows when
+> there is broadband vibration present to fold. Yaw jitter fell **3.4×**.
+
+**Installed: `static_covariance_angular_velocity` = 5e−5**, about 2× the
+measured 2.31e−05. The padding covers **one named unknown and no more**:
+the robot was stationary, so vibration from the wheels actually turning is
+not in the figure. Gyro outvotes wheel yaw rate **200:1**.
+
+> **The jitter went UP from 1e−4 to 5e−5 (4.32° → 5.68°), and that was
+> predicted, not a regression.** Lowering a measurement covariance tells the
+> filter to trust the sensor more, so it smooths less. 1e−4 bought smoother
+> output by asserting the gyro was 4.3× noisier than measured — the same
+> class of error as the 1e−5 that started all this, in the other direction.
+> Smoothing is the process model's job, not a lie about the sensor.
+
+> ⚠ **AT STANDSTILL THE EKF IS STRICTLY WORSE THAN WHEEL ODOMETRY, and the
+> report should say so.** `/diff_cont/odom` yaw path over the same 30 s is
+> **0.000°** with σ exactly 0 — stationary encoders cannot report rotation,
+> so wheel odometry is *perfect* in precisely this case, and the EKF adds
+> 5.7° of random-walk yaw path to it. **This is not an argument against the
+> EKF; it is the observation that its entire value is in the case that has
+> not been measured yet** — driving, and specifically slip, where the wheels
+> report rotation that did not happen and the gyro does not. The standstill
+> comparison flatters the wheels by construction.
+>
+> Two consequences worth carrying into the Day 3 run:
+> - **D-18 narrowed the scan matcher's window on the premise that the
+>   odometry prior is quiet** (~0.01° per 0.2 m keyframe). The EKF's prior
+>   carries ~0.25° RMS of jitter, i.e. ~2.5 % of the ±10° window — far from
+>   exhausting it, but no longer negligible against the figure D-18 quoted.
+>   `check_pose_stability.py` run **both ways** is what settles whether this
+>   costs or buys anything.
+> - The semantic layer's motion gate is **unaffected**: it reads ω from
+>   `/diff_cont/odom`, not the EKF, and σ 0.0043 rad/s is far below
+>   `motion.max_omega` 0.3 anyway.
+
+> **Gyro σ repeats across two runs on the running stack** — 0.00481 and
+> 0.00486 rad/s, 1 % apart. The noise figure is stable; it is the *condition*
+> (rest vs energised) that moves it, not run-to-run scatter.
 
 > ✅ **The 85× motors-off/motors-energised gap survives the script fix**, so
 > the covariance decision below still stands on solid ground: rest σ_z at a

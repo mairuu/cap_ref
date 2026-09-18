@@ -72,12 +72,29 @@ about the IMU has been measured.
 > window. Now **1e−4**, the measured value, restoring the intended
 > **100:1** ratio. **Rebuilt; the stack must be restarted to pick it up.**
 >
-> ⭐ **Highest-value next step, and it is cheap: `DLPF_CFG=3` → `4` in the
-> firmware's `config.h`.** The gyro noise is aliasing — the chip passes
-> 42 Hz while the host samples at 30 Hz, so 15–42 Hz folds back. `4` gives
-> 20 Hz bandwidth for 8.3 ms of delay; do not go past `5` (13.4 ms is half
-> a control frame). One constant, reflash, re-run `imu_check.py`, and let
-> the covariance follow the new measurement down instead of guessing.
+> ✅ **`DLPF_CFG` 3 → 4 IS FLASHED AND IT WORKED** (firmware `3f188b5`).
+> On the running stack the gyro variance fell **4.8×** (σ 0.01053 →
+> 0.00486 rad/s, 0.603 → 0.276 °/s) and stationary yaw jitter fell **3.4×**
+> (14.84° → 5.68° of path per 30 s), while **rest noise was unchanged** —
+> which is the signature of aliasing, because folding only shows when there
+> is vibration to fold. 42 Hz of bandwidth against a 30 Hz poll put
+> everything above the 15 Hz Nyquist back into the reading.
+> **Covariance re-derived and installed at 5e−5** (2× the measured
+> 2.31e−05; the padding covers only the wheels-turning case, still
+> unmeasured). Gyro outvotes the wheels **200:1**. Stationary net yaw drift
+> is **+0.01 °/min**.
+>
+> ⚠ **Read this before quoting any of it in the report: at standstill the
+> EKF is strictly WORSE than wheel odometry.** Stationary encoders cannot
+> report rotation, so `/diff_cont/odom` yaw path over 30 s is **0.000°**
+> while the EKF adds 5.7° of random walk. The standstill numbers prove the
+> plumbing, the bias correction and the noise floor. **They do not prove the
+> fusion is worth anything** — its entire value is in the driven and slip
+> cases, and neither has been measured.
+>
+> **Nothing is running now.** Both stacks started this evening were stopped
+> with a clean SIGINT (motors stopped on deactivate); no ROS processes and
+> the port is free.
 >
 > **Still to do, all of it needing the robot to MOVE:** `odom_check.py` →
 > the Day 3 loop with `check_pose_stability.py` **both ways** (the claim:
