@@ -2097,19 +2097,41 @@ address 0x68; `esp-motor-firmware/config.h`). Read through the firmware's `i`
 command, published as `/imu_broad/imu` in frame `imu_link`, fused by
 `robot_localization` when `make real USE_IMU=true USE_EKF=true`.
 
-**Every number below is a placeholder until `imu_check.py` has been run.**
-Fill this table from its output the moment it prints, with the date:
+**MEASURED 2026-09-18** with `scripts/imu_check.py`, firmware `6c487ef`
+flashed, 10 s at rest on a level floor with the motors off, then the axes
+flag for the orientation. Both are installed.
 
 | Quantity | Value | Where it goes | Method |
 |---|---|---|---|
-| Boot banner | — | `ROADMAP.md` checkbox | `imu_check.py` prints it |
-| Gyro bias x / y / z (raw counts) | **0 / 0 / 0 — UNMEASURED** | `ros2_control.xacro` `imu_gyro_bias_*` | `imu_check.py`, ≥10 s at rest, motors off |
-| Gyro σ per axis (rad/s) | — | `my_controllers.yaml` `imu_broad.static_covariance_angular_velocity` = σ²·~4 | same run |
-| `i` round-trip p50 / p95 | — | `imu_poll_divisor` if p95 > ~10 ms | same run |
-| Raw→body axis map, with signs | **rpy 0 0 0 — UNMEASURED** (asserts silkscreen x forward, y left, z up) | `imu.xacro` joint `rpy` | `imu_check.py --axes`: CCW yaw, nose-down, left-side-down by hand; det must be +1 |
-| Mount position (from axle, lateral, height) | 0.0 / 0.0 / 0.10 — **placeholder** | `imu.xacro` properties | tape; matters only if accel is ever fused |
-| `map → odom` correction total-path, EKF off / on | — | D-25 result | `check_pose_stability.py --seconds 30` during the Day 3 loop, both flags |
-| Yaw under induced slip, `odom → base_link` vs `map → base_footprint`, EKF off / on | — | the report's D-23 figure | wedge the robot, log both TF yaws |
+| Gyro bias, raw counts (131 per °/s) | **x −105.5 · y +238.4 · z −81.6** = −0.805 / +1.820 / −0.623 °/s | `ros2_control.xacro` `imu_gyro_bias_*` ✅ installed | 10 s at rest, motors off, 18 Sep |
+| Gyro σ per axis (rad/s) | **x 0.00171 · y 0.00145 · z 0.00112** (z = 0.064 °/s), var z **1.25e−06** | `my_controllers.yaml` `imu_broad.static_covariance_angular_velocity` = **1e−5** (8× σ²_z) ✅ installed | same run |
+| Raw→body axis map | **identity** — body +x = raw +x, +y = raw +y, +z = raw +z; det +1, proper rotation → **rpy 0 0 0** | `imu.xacro` joint `rpy` ✅ installed (now measured, was assumed) | axes flag: CCW turn, nose-down, left-side-down, by hand, 18 Sep |
+| `i` round-trip p50 / p95 | **not recorded** — the script printed it, it was not kept. Superseded in practice by `/joint_states` staying at 30.0 Hz with `USE_IMU=true`, which is the test that matters | `imu_poll_divisor` if p95 > ~10 ms | same run |
+| Gyro σ with the **motors running** | **NOT MEASURED** — this is why the installed covariance is 8× the rest figure and not the rest figure | as above | `imu_check.py` on blocks with the motors turning under `o` |
+| Mount position (from axle, lateral, height) | 0.0 / 0.0 / 0.10 — **placeholder, deliberately not chased** | `imu.xacro` properties | tape. Affects only the RViz box: ω is identical everywhere on a rigid body and accel is not fused |
+| `map → odom` correction total-path, EKF off / on | **NOT MEASURED** | D-25 result | `check_pose_stability.py --seconds 30` during the Day 3 loop, both flags |
+| Yaw under induced slip, `odom → base_link` vs `map → base_footprint`, EKF off / on | **NOT MEASURED** | the report's D-23 figure | wedge the robot, log both TF yaws |
+
+> ⚠ **The signs are the fragile part, and one was already lost once.** The
+> biases are *subtracted*, so a dropped sign does not merely fail to correct
+> the bias — it doubles it. `+81.6` was pasted for z where the run said
+> `−81.6`, which would have given −1.246 °/s of phantom yaw (**75 °/min** of
+> heading drift standing still) against 37 °/min uncorrected. Caught the same
+> day by re-deriving the table from the script's output. **Copy the script's
+> `gyro bias (raw)` line verbatim; do not retype it.**
+
+> **σ_z = 0.064 °/s is also a firmware check, not just a covariance.** With
+> the MPU6050's DLPF at its power-on default (off, 256 Hz bandwidth, 8 kHz
+> internal rate) 30 Hz sampling aliases motor and chassis noise, and this
+> figure would be several times larger. A quiet rest σ is the cheap
+> confirmation that `6c487ef` is the firmware actually running.
+
+> **On the axis map reading 0 0 0.** The value is unchanged from the
+> placeholder, and that is not the same as the measurement being redundant:
+> before 18 Sep it was an assertion about a silkscreen, and now it is a
+> result with a determinant check behind it. The lidar's `reversion` /
+> `inverted` flags are the precedent — both also "looked right" and both
+> cost days. Re-run the axes flag after any remount.
 
 Fixed by construction, not measured: ±250 °/s (131 LSB per °/s), ±2 g
 (16384 LSB per g), DLPF_CFG 3 (44 Hz accel / 42 Hz gyro) — the firmware writes

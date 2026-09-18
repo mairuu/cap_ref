@@ -3,16 +3,21 @@
 > **Update this at the end of every session and whenever a gate passes.**
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
-**Last updated:** 18 Sep 2026, evening — **DAY 7 IN PROGRESS.** An IMU was
+**Last updated:** 18 Sep 2026, late evening — **DAY 7 IN PROGRESS.** An IMU was
 fitted and fused (D-25); the stack is broken by a moved USB cable; nothing
 about the IMU has been measured.
 
-> ⛔ **`make real` FAILS RIGHT NOW — `/dev/esp32` does not exist.** The ESP32's
-> adapter moved from USB path `1-2.1.4` to `1-2.1` when the GY-521 was fitted,
-> and the udev rule matches the old path. The lidar is not plugged in at all.
-> **First thing next session, before anything else:** both devices in their
-> demo-day sockets → `make udev` → `make ports`. Then label the sockets.
-> Symptom index, "Hardware and serial".
+> ✅ **RESOLVED — `/dev/esp32` and `/dev/ydlidar` are both up.** `make udev`
+> was re-run 20:55 with both devices plugged in; the ESP32 is back on its
+> original path `1-2.1.4` → `ttyUSB1`, the lidar on `1-2.2` → `ttyUSB0`.
+> **Label the sockets** — the rules match physical port path, so the names
+> follow the socket and not the device.
+>
+> ⚠ One cosmetic wart in the regenerated rules: the ESP32's identification
+> line reads `answered \`e\` as: unknown` where the 9 Sep run said `esp32`.
+> The mapping is right (`imu_check.py` talked to `/dev/esp32` successfully),
+> so this is the probe landing mid-boot, not a crossed pair. Do not "fix" it
+> by editing the rules file.
 
 > **BUILT — the GY-521 (MPU6050) is fused into odometry, behind two
 > default-off flags (D-25).** The user added the chip and an `i` command to
@@ -25,23 +30,43 @@ about the IMU has been measured.
 > owns `odom → base_link` (gyro 100:1 over wheels in yaw rate). Builds clean;
 > URDF validates both ways; launch resolves the right spawners per flag.
 >
-> ⚠ **NOTHING IMU-RELATED HAS TOUCHED THE ROBOT.** The gyro bias
-> (`ros2_control.xacro`, three zeros) and the mounting rpy (`imu.xacro`,
-> `0 0 0`) are **placeholders**. A wrong yaw-axis sign makes the EKF worse than
-> no EKF, quietly. **The measurement is a script, in this order, stack DOWN:**
-> ```
-> ros2 run my_bot imu_check.py                 # banner, bias, sigma, round-trip
-> ros2 run my_bot imu_check.py --axes          # CCW / nose-down / left-down by hand
-> ```
-> Paste its bias line into `ros2_control.xacro`, its rpy line into
-> `imu.xacro`, its σ² into `my_controllers.yaml`, rebuild, and only then
-> `USE_IMU=true`. Then D-25's re-verification ladder: `/joint_states` still
-> 30.0 Hz with the IMU on → `tf_check.py` (one publisher on `odom→base_link`)
-> → `odom_check.py` → the Day 3 loop with `check_pose_stability.py` **both
-> ways** → one Nav2 goal + Spin → a wedged-slip yaw comparison (the report
-> figure) → the stationary bench check. Table in `records/calibration.md`
-> "IMU". **Stop at the first failure and drop the flags — the demo does not
-> depend on any of it.**
+> ✅ **THE CHIP IS FLASHED, CHARACTERISED AND ITS NUMBERS ARE INSTALLED**
+> (18 Sep, `imu_check.py`). **Gyro bias −105.5 / +238.4 / −81.6 raw counts**
+> (−0.81 / +1.82 / −0.62 °/s, all inside the ±20 °/s spec) → installed in
+> `ros2_control.xacro`. **σ 0.00171 / 0.00145 / 0.00112 rad/s**; σ_z is
+> 0.064 °/s, which is quiet enough to double as proof the 42 Hz DLPF took
+> effect — so the rest noise is also the check that the new firmware is the
+> one running. **Axis map measured by hand: identity, det +1** — the chip
+> really is x-forward, y-left, z-up, and `imu.xacro`'s `rpy 0 0 0` is now a
+> result rather than an assumption about a silkscreen.
+>
+> Gyro covariance installed at **1e−5**, which is 8× the measured rest
+> variance and not the measured value: rest noise is not driving noise, and
+> chassis vibration is still unmeasured. Wheel-to-gyro ratio on yaw rate is
+> **1000:1**.
+>
+> ⚠ **Two transcription errors were made and caught when those biases were
+> first pasted in** — x as −100.5, and **z with its sign dropped to +81.6**.
+> The biases are *subtracted*, so a dropped sign doubles the error instead of
+> removing it: +81.6 for z gives −1.25 °/s of phantom yaw, **75 °/min** of
+> heading drift standing still, against 37 °/min uncorrected. z is the only
+> axis the EKF fuses. **Copy `imu_check.py`'s bias line verbatim; do not
+> retype it.** A second defect from the same afternoon is also fixed: `1.0e6`
+> in the new covariance arrays parsed as a *string* (YAML 1.1 wants a signed
+> exponent), which `diff_cont` would have rejected at load.
+>
+> **Next, and none of it is done:** `make real USE_IMU=true` and check
+> `/joint_states` is still **30.0 Hz** (the real test of the serial budget)
+> → `tf_check.py` with `USE_EKF=true` for exactly one publisher on
+> `odom → base_link` → `odom_check.py` → the Day 3 loop with
+> `check_pose_stability.py` **both ways** → one Nav2 goal + Spin → a
+> wedged-slip yaw comparison (the report figure) → the stationary bench
+> check. Table in `records/calibration.md` "IMU". **Stop at the first
+> failure and drop the flags — the demo does not depend on any of it.**
+>
+> Cheap and still open: gyro σ with the **motors running**, robot on blocks
+> under `o`. That is what would let the covariance come down to the
+> script's 5e−6.
 >
 > One deliberate choice left open: the semantic layer's motion gate still
 > reads ω from `/diff_cont/odom` (`robot_params.yaml: odom_topic`), so it

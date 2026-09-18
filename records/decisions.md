@@ -777,17 +777,29 @@ untested limitation into a measurable before/after for the report.
 2–4 and the Day 6 bench check on the fused path — **not yet done**. ~8 ms
 more serial per 33 ms frame with the IMU on (`imu_poll_divisor` is the lever).
 
-**Still unmeasured, and load-bearing — none of this has been run:**
-1. `imu_check.py`: banner `imu=ok`, at-rest gyro bias and σ, `i` round-trip.
-2. `imu_check.py --axes`: **the raw→body axis map and sign.** The three
-   biases in `ros2_control.xacro` are `0` and the rpy in `imu.xacro` is
-   `0 0 0` — placeholders. **A wrong yaw-axis sign makes the EKF worse than
-   no EKF, quietly**: heading drifts at ~2× the true turn rate and the
-   matcher window is exhausted in the first corner.
-3. `/dev/esp32` itself: the adapter moved from USB path `1-2.1.4` to `1-2.1`
-   when the IMU was fitted, so the udev rule no longer matches and
-   **`make real` fails today regardless of flags.** `make udev` with both
-   devices in their demo sockets.
+**✅ MEASURED AND INSTALLED THE SAME DAY.** The chip was flashed and
+characterised with `imu_check.py`, and all three blockers above are closed:
+gyro bias **−105.5 / +238.4 / −81.6** raw counts (−0.81 / +1.82 / −0.62 °/s,
+inside the ±20 °/s spec), σ **0.00171 / 0.00145 / 0.00112** rad/s, axis map
+**identity with det +1** (the chip is genuinely x-forward, y-left, z-up), and
+`/dev/esp32` restored by re-running `make udev`. Covariance installed at
+**1e−5**, 8× the measured rest variance rather than the measurement itself,
+because rest noise is not driving noise and chassis vibration is unmeasured.
+
+> ⚠ **The signs are the fragile part, and one was lost on first transcription.**
+> `+81.6` was pasted for z where the run said `−81.6`. Because the biases are
+> *subtracted*, that doubles the error rather than removing it: −1.25 °/s of
+> phantom yaw, **75 °/min** of heading drift standing still, against 37 °/min
+> uncorrected — and z is the only axis the EKF fuses. Caught the same day by
+> re-deriving from the script's output. **Copy the line verbatim.**
+
+**What is still unmeasured, and it is now all on the robot:**
+1. Gyro σ with the **motors running** (on blocks, under `o`). Until this
+   exists the driving covariance is an extrapolation, padded 8×.
+2. `/joint_states` at **30.0 Hz** with `USE_IMU=true` — the serial budget.
+3. The whole re-verification ladder below: TF ownership, `odom_check.py`,
+   the Day 3 loop both ways, a Nav2 goal + Spin, the wedged-slip yaw
+   comparison, the bench check. **Nothing has run with the flags on.**
 
 **Limitation to report** (drafted, replaces D-23's if the fused path is
 demonstrated; otherwise D-23's stands):
