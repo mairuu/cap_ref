@@ -59,3 +59,26 @@ export function lerp(a: number, b: number, t: number): number {
 export function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v))
 }
+
+// Pan the view so a world point sits at the centre of the canvas, keeping the
+// current zoom. Note the sign difference between the two axes -- it is the same
+// y flip as worldToScreen, and getting it wrong centres on the mirror image of
+// the point, which looks plausible near the origin and very wrong away from it.
+//
+// Callers must turn followRobot OFF first. The RAF loop recomputes panX/panY
+// from the robot pose on EVERY frame while follow is on, so a view set here
+// would be overwritten before it was ever painted -- the click would appear to
+// do nothing at all.
+export function centreViewOn(
+  v: ViewTransform,
+  canvasWidth: number,
+  canvasHeight: number,
+  wx: number,
+  wy: number,
+): ViewTransform {
+  return {
+    scale: v.scale,
+    panX: canvasWidth / 2 - wx * v.scale,
+    panY: canvasHeight / 2 + wy * v.scale,
+  }
+}

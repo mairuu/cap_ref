@@ -63,7 +63,8 @@ export function MapCanvas() {
     function frame() {
       const s = storeRef.current
       const { view, robotPose, prevRobotPose, poseReceivedAt, scan,
-              landmarks, occupancyGrid, offscreenCanvas, followRobot } = s
+              landmarks, occupancyGrid, offscreenCanvas, followRobot,
+              selectedLandmarkId } = s
 
       // Resize canvas to its CSS size
       const { width, height } = canvas!.getBoundingClientRect()
@@ -108,7 +109,12 @@ export function MapCanvas() {
       }
 
       // Layer 3: landmarks
-      drawLandmarks(ctx, landmarks, liveView)
+      //
+      // selectedLandmarkId comes off the ref snapshot like everything else, so
+      // selecting a row costs this loop one field read and no re-render. If the
+      // id is not in `landmarks` -- a landmark can vanish between frames, track
+      // ids churn -- nothing is highlighted and nothing breaks.
+      drawLandmarks(ctx, landmarks, liveView, selectedLandmarkId)
 
       // Layer 4: robot
       if (robotPose) {

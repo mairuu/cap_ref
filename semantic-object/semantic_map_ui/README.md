@@ -2,6 +2,8 @@
 
 Live top-down semantic map viewer for the robot. Shows an occupancy grid, lidar halo, landmarks, and robot pose — fed by `semantic_bridge` over HTTP and WebSocket.
 
+The side panel lists every detected object with its class, its published position in the map frame, confidence and how many times it has been seen. Rows are ordered nearest-the-robot first — the same landmark `go_to_object.py` would drive to if asked for that class. Clicking a row rings it on the map; `⌖` centres the view on it (and turns FOLLOW off, since auto-follow would otherwise re-centre on the robot every frame). The per-class counts above the list double as the colour legend.
+
 ## Setup
 
 ```bash

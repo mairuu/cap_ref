@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createCameraWs } from '../api/websocket'
 import { StatusIndicator } from './StatusIndicator'
 import { ClearButton } from './ClearButton'
+import { ObjectList } from './ObjectList'
 
 export function CameraPanel() {
   const imgRef    = useRef<HTMLImageElement>(null)
@@ -35,10 +36,14 @@ export function CameraPanel() {
     }
   }, [])
 
+  // overflow-hidden, not overflow-y-auto: CAMERA and STATUS stay put and the
+  // OBJECTS list scrolls on its own. Scrolling the whole panel would push the
+  // camera feed off-screen as landmarks accumulate, which is the wrong thing to
+  // lose during a demo.
   return (
-    <aside className="flex flex-col gap-4 w-full md:w-[300px] shrink-0 bg-bg-panel border-l border-bg-border p-4 overflow-y-auto">
+    <aside className="flex flex-col gap-4 w-full md:w-[340px] shrink-0 bg-bg-panel border-l border-bg-border p-4 overflow-hidden">
       {/* Camera feed */}
-      <div>
+      <div className="shrink-0">
         <div className="font-mono text-xs text-text-secondary mb-2 tracking-wider">
           CAMERA
         </div>
@@ -62,15 +67,18 @@ export function CameraPanel() {
       </div>
 
       {/* Status */}
-      <div>
+      <div className="shrink-0">
         <div className="font-mono text-xs text-text-secondary mb-2 tracking-wider">
           STATUS
         </div>
         <StatusIndicator />
       </div>
 
+      {/* Detected objects -- the only part of the panel that scrolls */}
+      <ObjectList />
+
       {/* Controls */}
-      <div className="mt-auto">
+      <div className="shrink-0">
         <ClearButton />
       </div>
     </aside>

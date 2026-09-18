@@ -6,6 +6,7 @@ import {
   lerpAngle,
   lerp,
   normaliseAngle,
+  centreViewOn,
 } from '../src/components/Map/coords'
 import type { ViewTransform } from '../src/state/types'
 
@@ -96,5 +97,41 @@ describe('lerpAngle', () => {
 
   it('returns end at t=1', () => {
     expect(lerpAngle(1.2, 2.4, 1)).toBeCloseTo(2.4)
+  })
+})
+
+describe('centreViewOn', () => {
+  const W = 800
+  const H = 600
+
+  it('puts the target world point at the canvas centre', () => {
+    const v = centreViewOn(VIEW, W, H, 2.5, -1.25)
+    const { sx, sy } = worldToScreen(2.5, -1.25, v)
+
+    expect(sx).toBeCloseTo(W / 2)
+    expect(sy).toBeCloseTo(H / 2)
+  })
+
+  it('keeps the current zoom', () => {
+    expect(centreViewOn(VIEW, W, H, 3, 4).scale).toBe(VIEW.scale)
+  })
+
+  it('does not mirror the y axis', () => {
+    // A sign error here centres on the reflection of the point through the
+    // canvas centre, which looks right near the origin and wrong everywhere
+    // else. Two points differing only in the sign of y must land on opposite
+    // sides of centre.
+    const above = worldToScreen(0, 2, centreViewOn(VIEW, W, H, 0, 0))
+    const below = worldToScreen(0, -2, centreViewOn(VIEW, W, H, 0, 0))
+
+    expect(above.sy).toBeLessThan(H / 2)
+    expect(below.sy).toBeGreaterThan(H / 2)
+  })
+
+  it('is a no-op when the point is already centred', () => {
+    const centred = centreViewOn(VIEW, W, H, 1, 1)
+    const again = centreViewOn(centred, W, H, 1, 1)
+
+    expect(again).toEqual(centred)
   })
 })

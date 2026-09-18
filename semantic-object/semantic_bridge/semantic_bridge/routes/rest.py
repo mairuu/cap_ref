@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from ..config import settings
 from ..models import HealthResponse, LandmarkList, MapData
 from ..state import AppState, get_state
 
@@ -16,6 +17,7 @@ async def health(state: AppState = Depends(get_state)) -> HealthResponse:
         last_landmark_msg=snap["last_landmark_msg"],
         landmark_count=snap["landmark_count"],
         robot_pose=snap["pose"],
+        mock=settings.mock,
     )
 
 

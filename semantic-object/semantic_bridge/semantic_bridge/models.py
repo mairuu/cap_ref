@@ -54,6 +54,11 @@ class HealthResponse(BaseModel):
     last_landmark_msg: Optional[datetime]
     landmark_count: int
     robot_pose: Optional[RobotPose]
+    # The UI has always read this field (App.tsx: `h.mock ?? false`) and the UI
+    # README has always promised a MOCK badge -- but nothing ever sent it, so
+    # the badge could not appear and mock data was indistinguishable from real
+    # data on screen. Found 18 Sep 2026.
+    mock: bool = False
 
 
 class LandmarkList(BaseModel):

@@ -27,6 +27,13 @@ interface AppStore {
   scan: ScanData | null
   landmarks: Landmark[]
 
+  // The landmark the object panel has selected, or null. Lives in the store
+  // rather than in ObjectList's own state because the CANVAS needs it too, and
+  // MapCanvas reads the store through a ref inside its requestAnimationFrame
+  // loop -- so putting it here costs the render loop one field read and no
+  // extra React work. Toggle-on-reclick is the row's job, not the store's.
+  selectedLandmarkId: string | null
+
   // map
   occupancyGrid: OccupancyGrid | null
   offscreenCanvas: OffscreenCanvas | null
@@ -43,6 +50,7 @@ interface AppStore {
   setOccupancyGrid(grid: OccupancyGrid, canvas: OffscreenCanvas): void
   setView(t: ViewTransform): void
   setFollowRobot(v: boolean): void
+  selectLandmark(id: string | null): void
   clearLandmarks(): void
 }
 
@@ -60,6 +68,7 @@ export const useStore = create<AppStore>((set, get) => ({
 
   scan: null,
   landmarks: [],
+  selectedLandmarkId: null,
 
   occupancyGrid: null,
   offscreenCanvas: null,
@@ -107,7 +116,13 @@ export const useStore = create<AppStore>((set, get) => ({
     set({ followRobot: v })
   },
 
+  selectLandmark(id) {
+    set({ selectedLandmarkId: id })
+  },
+
   clearLandmarks() {
-    set({ landmarks: [], landmarkCount: 0 })
+    // The selection goes with them: a selected id that no longer exists would
+    // leave the panel showing a highlighted row for a landmark that is gone.
+    set({ landmarks: [], landmarkCount: 0, selectedLandmarkId: null })
   },
 }))

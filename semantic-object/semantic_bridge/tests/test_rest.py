@@ -7,6 +7,7 @@ import base64
 import pytest
 from fastapi.testclient import TestClient
 
+from semantic_bridge.config import settings
 from semantic_bridge.main import app
 from semantic_bridge.models import MapData, MapOrigin
 from semantic_bridge.state import AppState, get_state
@@ -70,7 +71,32 @@ class TestHealth:
             "last_landmark_msg",
             "landmark_count",
             "robot_pose",
+            "mock",
         }
+
+    def test_reports_mock_false_by_default(self, populated_state: AppState) -> None:
+        override(populated_state)
+        with TestClient(app) as client:
+            resp = client.get("/api/health")
+        clear_overrides()
+
+        assert resp.json()["mock"] is False
+
+    def test_reports_mock_true_in_mock_mode(
+        self, populated_state: AppState, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The UI's MOCK badge depends on this field and nothing sent it before.
+
+        Without it, synthetic data was indistinguishable from real data on the
+        screen -- the one thing a demo display must never be ambiguous about.
+        """
+        monkeypatch.setattr(settings, "mock", True)
+        override(populated_state)
+        with TestClient(app) as client:
+            resp = client.get("/api/health")
+        clear_overrides()
+
+        assert resp.json()["mock"] is True
 
 
 # ---------------------------------------------------------------------------

@@ -4,11 +4,13 @@ import { classColor } from '../../utils/colors'
 
 const DOT_RADIUS = 6
 const LABEL_OFFSET_Y = 14
+const RING_GAP = 5
 
 export function drawLandmarks(
   ctx: CanvasRenderingContext2D,
   landmarks: Landmark[],
   view: ViewTransform,
+  selectedId: string | null = null,
 ) {
   ctx.font = '11px "JetBrains Mono", monospace'
   ctx.textAlign = 'center'
@@ -28,6 +30,33 @@ export function drawLandmarks(
     ctx.strokeStyle = 'rgba(0,0,0,0.5)'
     ctx.lineWidth = 1
     ctx.stroke()
+
+    // Selection ring, drawn BETWEEN the dot and the label and inside its own
+    // save/restore. Both of those matter:
+    //
+    //  - between, so it can never sit on top of the label text below;
+    //  - isolated, so it cannot leak its globalAlpha into the label draw or
+    //    into the next iteration. A stale landmark's dot is at alpha 0.3 but a
+    //    deliberate selection should read at full strength.
+    //
+    // White with a dark halo, not a colour, for the same reason the label and
+    // the scale bar are: the canvas has both light (mapped free space) and dark
+    // (unknown, unmapped) regions and no single flat colour is legible on both.
+    // A coloured ring would also collide with the chair swatch and the robot
+    // triangle, which are both #4a9eff.
+    if (lm.id === selectedId) {
+      ctx.save()
+      ctx.globalAlpha = 1.0
+      ctx.beginPath()
+      ctx.arc(sx, sy, DOT_RADIUS + RING_GAP, 0, Math.PI * 2)
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)'
+      ctx.lineWidth = 4
+      ctx.stroke()
+      ctx.strokeStyle = '#ffffff'
+      ctx.lineWidth = 2
+      ctx.stroke()
+      ctx.restore()
+    }
 
     // Label: white with a dark halo, because the canvas has BOTH light and
     // dark regions and one flat colour cannot serve both. The old '#e8e8e8'

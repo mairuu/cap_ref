@@ -103,6 +103,38 @@ describe('clearLandmarks', () => {
     expect(s.landmarks).toHaveLength(0)
     expect(s.landmarkCount).toBe(0)
   })
+
+  it('drops the selection with them', () => {
+    // Otherwise the panel keeps a highlighted row for a landmark that no
+    // longer exists, and the canvas keeps looking for an id it will never see.
+    useStore.getState().applyStateMessage(MSG)
+    useStore.getState().selectLandmark(MSG.landmarks[0].id)
+    useStore.getState().clearLandmarks()
+    expect(useStore.getState().selectedLandmarkId).toBeNull()
+  })
+})
+
+describe('selectLandmark', () => {
+  it('starts with nothing selected', () => {
+    expect(useStore.getState().selectedLandmarkId).toBeNull()
+  })
+
+  it('sets the selected id', () => {
+    useStore.getState().selectLandmark('id-7')
+    expect(useStore.getState().selectedLandmarkId).toBe('id-7')
+  })
+
+  it('clears the selection when passed null', () => {
+    useStore.getState().selectLandmark('id-7')
+    useStore.getState().selectLandmark(null)
+    expect(useStore.getState().selectedLandmarkId).toBeNull()
+  })
+
+  it('replaces an existing selection rather than accumulating', () => {
+    useStore.getState().selectLandmark('id-1')
+    useStore.getState().selectLandmark('id-2')
+    expect(useStore.getState().selectedLandmarkId).toBe('id-2')
+  })
 })
 
 describe('setRosConnected', () => {
