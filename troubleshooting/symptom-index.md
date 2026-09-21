@@ -533,6 +533,42 @@ publishes into nothing.
 > `make teleop-nav` **is** the e-stop and `make teleop` is the dangerous one.
 
 
+### The robot crawls and `q` in teleop does nothing to speed it up
+**Nothing is broken — that is three clamps, and `q` is inert by design.** The
+human channel passes through four limits and the *lowest* one wins:
+
+```
+teleop_twist_keyboard   SPEED (Makefile)        -> /cmd_vel_teleop_raw
+teleop_speed_guard      max_linear  (a CLAMP)   -> /cmd_vel_teleop
+twist_mux  priority 100                         -> /diff_cont/cmd_vel_unstamped
+diff_cont  linear.x.max_velocity (a CLAMP)      -> ESP32
+```
+
+`q` raises `teleop_twist_keyboard`'s own speed 10 % per press with no ceiling,
+but `teleop_speed_guard` clamps it straight back before `twist_mux` sees it —
+that is the whole point of the guard (D-18, the 10 Sep map). It logs
+`CLAMPED: asked … sending …` in the `make nav` terminal every 2 s while it is
+happening; **that log line is the confirmation you are hitting the guard and
+not a hardware fault.**
+
+**To change it, relaunch — a keypress cannot:**
+```bash
+make nav TELEOP_MAX_LINEAR=0.30 TELEOP_MAX_ANGULAR=0.5   # restart `make nav` ONLY
+```
+Keep `make real` and `make slam` running or the map is lost from
+`slam_toolbox`. Above `diff_cont`'s ceiling nothing reaches the wheels, so
+raising the guard alone silently achieves nothing — edit
+`config/my_controllers.yaml`, rebuild, and restart `make real` as well.
+As of 21 Sep both are **0.30** (D-26); before that they were 0.10 and 0.15.
+
+> ⚠ **`make explore` is not on this path at all.** `explore_lite` only posts
+> goals; the speed is Nav2's `max_vel_x` / `max_vel_theta` in
+> `nav2_params.yaml` (**0.10 / 0.25**, raised from 0.055 / 0.125 on 21 Sep),
+> mirrored in `velocity_smoother.max_velocity`. **Raising it means raising
+> both, plus `acc_lim_x`, plus revisiting `sim_time` — the lookahead distance
+> is `sim_time × max_vel_x`.** A running Nav2 keeps the params it started
+> with, so if exploration is still crawling after an edit, restart `make nav`.
+
 ### Robot refuses doorways it physically fits through
 Someone replaced `footprint` with `robot_radius`. A circle enclosing this robot
 needs **r = 0.265** because `base_link` sits on the axle, not the centre. Use

@@ -366,7 +366,8 @@ than it occupies, and a doorway refusal should be checked against that before
 
 ## D-18 · Trust odometry: tighten the scan matcher, cap velocity in the controller
 
-**Date:** 2026-09-11 · **Status:** adopted — **untested on a moving robot**
+**Date:** 2026-09-11 · **Status:** adopted — **untested on a moving robot** ·
+**velocity cap amended by D-26 (0.15 → 0.30 m/s); the scan-matcher half stands**
 
 Five `slam_toolbox` scan-matcher parameters and six new `diff_cont` velocity
 limits, both in `cap_ws/src/my_bot/config/`:
@@ -420,8 +421,10 @@ would drift with odom instead of oscillating. The 9–10 Sep calibration runs
 make that unlikely, and `check_pose_stability.py` still reports the net
 correction, which is where such drift would show. A robot that slips more than
 15 cm in one keyframe (a shove, a cable) is now beyond the search window and
-will need a fresh `make slam`. The velocity cap also means `make teleop-nav
-SPEED=0.3` silently drives at 0.15.
+will need a fresh `make slam`. The velocity cap also meant `make teleop-nav
+SPEED=0.3` silently drove at 0.15 — **which is exactly the complaint that
+produced D-26 on 21 Sep.** The cap is now 0.30 and `SPEED=0.3` does what it
+says.
 
 **Limitation to report:** tuned from the penalty maths and the calibration
 numbers, not from a driven A/B. The next driving session is the test; if
@@ -860,6 +863,68 @@ demonstrated; otherwise D-23's stands):
 > rest; the filter's benefit under slip was [measured as … / not measured]."*
 
 **Reversal:** `make real` with no flags. Nothing else needs undoing.
+
+---
+
+## D-26 · Raise the teleop ceiling to 0.30 m/s. Nav2's own speed is unchanged
+**Date:** 21 Sep 2026 · **Status:** adopted · **amends the velocity half of D-18**
+
+Requested by the user after `make teleop-nav` and `make explore` both felt
+unusably slow and `q` appeared to do nothing. **Three numbers moved together,
+because any one of them left behind silently wins:**
+
+| Where | Was | Now |
+|---|---|---|
+| `diff_cont` `linear.x.max_velocity` / `min_velocity` (`config/my_controllers.yaml`) | ±0.15 | **±0.30** |
+| `teleop_speed_guard` `max_linear` (default in the script **and** in `navigation.launch.py`) | 0.10 | **0.30** |
+| `Makefile` `TELEOP_MAX_LINEAR`, and `SPEED` (the teleop starting speed) | 0.10 | **0.30** |
+
+`angular.z` is untouched at ±0.5 rad/s; the guard and `TURN` were already at
+0.50, so yaw was never the thing being clamped.
+
+**Nav2 was deliberately NOT raised.** `max_vel_x` stays 0.10, so `make explore`
+and goal navigation drive at exactly the speed they did when the Day 4 gate
+passed. Raising Nav2 is a coupled edit — `FollowPath.max_vel_x`,
+`max_speed_xy`, `acc_lim_x`/`decel_lim_x` and `velocity_smoother.max_velocity`
+must all move, *and* `sim_time` has to be revisited because the lookahead
+distance is `sim_time × max_vel_x` (3.0 s × 0.30 = 0.9 m, against the ~30 cm
+"about the robot's own length" the current value was chosen for). That is a
+retune, not a number, and it was not worth doing to a passing gate on Day 7.
+
+**Why:** `q` was inert by design and the design had stopped matching what the
+robot is used for. D-18's cap was written for *map-building* runs, where shear
+is the binding constraint; most driving now is repositioning between rehearsals,
+where it is not. The user asked for 0.30 explicitly; this is their call.
+
+**Cost — paid in scan shear, and it is real.** The X3 Pro sweeps 360° in ~86 ms
+and `slam_toolbox` does not deskew, so each scan shears by `speed × sweep`:
+
+| Speed | Shear per scan |
+|---|---|
+| 0.10 m/s (mapping) | 0.9 cm |
+| **0.30 m/s (new ceiling)** | **2.6 cm** |
+| 0.5 m/s (teleop stock — lost the 10 Sep map) | 8.7 cm |
+
+So it is ~3× the shear budget the Day 3 map was built on, and about a third of
+what destroyed the 10 Sep run. Sheared scans enter the pose graph permanently.
+**Mitigation, and it is a habit not a mechanism:** drive map-building runs with
+`make teleop-nav SPEED=0.10`, or cap the whole session with
+`make nav TELEOP_MAX_LINEAR=0.10`. Nothing enforces this any more.
+
+Second cost: **`make teleop` has no guard in front of it** (it publishes
+downstream of `twist_mux`), so `q` there now climbs to 0.30 rather than 0.15.
+
+Third, smaller: D-18's scan matcher searches ±15 cm about the odometry prior.
+At 0.30 m/s the robot covers 15 cm in 0.5 s, so a dropped keyframe or a stall
+eats that window about twice as fast as before. Same window, less time in it.
+
+**Limitation to report:** *"Manual driving is limited to 0.30 m/s in the
+controller. Map-building runs were driven at 0.10 m/s, where lidar shear is
+0.9 cm per scan; the higher limit exists for repositioning and is not a speed
+at which the mapping results were obtained."*
+
+**Reversal:** set the three numbers back to 0.15 / 0.10 / 0.10, `colcon build`,
+restart `make real` **and** `make nav`. Nothing structural changed.
 
 ---
 

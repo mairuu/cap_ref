@@ -3,9 +3,45 @@
 > **Update this at the end of every session and whenever a gate passes.**
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
-**Last updated:** 18 Sep 2026, late evening — **DAY 7 IN PROGRESS.** An IMU was
-fitted and fused (D-25); the stack is broken by a moved USB cable; nothing
-about the IMU has been measured.
+**Last updated:** 21 Sep 2026 — **DAY 7 IN PROGRESS.** Speeds were raised
+(Nav2 earlier today, teleop this session); the IMU work from 18 Sep still has
+every driven measurement outstanding.
+
+> 🏃 **SPEED LIMITS CHANGED TWICE ON 21 SEP. Any figure quoted below from an
+> earlier session is at the OLD speed.**
+>
+> **Nav2 (`make explore`, goal navigation) — commit `7de62ce`:**
+> `max_vel_x` **0.055 → 0.10**, `max_vel_theta` **0.125 → 0.25**, in both
+> `FollowPath` and `velocity_smoother`; `behavior_server.max_rotational_vel`
+> 0.1 → 0.2. The Day 4 gate and the Spin recovery were evidenced at the OLD
+> values — **the 16.4 s / 1.5762 rad spin will now take about half as long,
+> and the `time_allowance="25.0"` override (D-21) has that much more margin.**
+>
+> **Teleop — D-26, this session, at the user's request.** `make teleop-nav`
+> and `make teleop` were capped at 0.10 m/s with `q` deliberately inert; the
+> user asked for 0.30. **Three numbers had to move together** or the lowest
+> silently wins: `diff_cont` `linear.x` ±0.15 → **±0.30**
+> (`my_controllers.yaml`), `teleop_speed_guard` `max_linear` 0.10 → **0.30**
+> (script default *and* `navigation.launch.py`), and the Makefile's
+> `TELEOP_MAX_LINEAR` **and** `SPEED` 0.10 → **0.30**. Angular untouched at
+> 0.5 rad/s — it was never the binding limit. Built and verified in
+> `install/`; **not yet driven.**
+>
+> ⚠ **THE MAPPING SPEED IS STILL 0.10 m/s AND NOTHING ENFORCES IT NOW.**
+> Scan shear is `speed × 86 ms`: 0.9 cm at 0.10, **2.6 cm at 0.30**, 8.7 cm at
+> 0.5 (which lost the 10 Sep map). For any run that is *building* a map, drive
+> `make teleop-nav SPEED=0.10`, or start the session with
+> `make nav TELEOP_MAX_LINEAR=0.10`. The guard no longer protects the map — it
+> only stops a runaway.
+>
+> ⚠ **`make explore` was NOT raised to 0.30** and is still 0.10. That is
+> deliberate (D-26): raising Nav2 is a coupled retune — `max_vel_x`,
+> `max_speed_xy`, `acc_lim_x`/`decel_lim_x`, `velocity_smoother.max_velocity`
+> *and* `sim_time`, because lookahead distance is `sim_time × max_vel_x` — and
+> it was not worth doing to a passing gate on Day 7.
+>
+> **A running stack keeps the parameters it started with.** If the robot still
+> crawls, it is a pre-21-Sep `make real` / `make nav` still up, not the config.
 
 > ✅ **RESOLVED — `/dev/esp32` and `/dev/ydlidar` are both up.** `make udev`
 > was re-run 20:55 with both devices plugged in; the ESP32 is back on its
@@ -172,7 +208,8 @@ cleanly, and **`image_transport republish` dies with -11 (SIGSEGV)**.
 **Verified live before shutdown:** `/scan` 11.6 Hz · `/image/compressed`
 13.3 Hz · `/detections` 14.8 Hz (person 0.96, chair 0.84, laptop 0.93) ·
 `/semantic_landmarks` publishing a chair at (−1.683, 3.993) ·
-`ros2 param get /diff_cont linear.x.max_velocity` → **0.15**. The RViz
+`ros2 param get /diff_cont linear.x.max_velocity` → **0.15** (that reading was
+correct on 18 Sep; **it is 0.30 as of 21 Sep** — D-26, see the top of this file). The RViz
 `Semantic Landmarks` display was **confirmed correctly defined** in `nav.rviz`
 (enabled, `/semantic_markers`, Reliable + Transient Local, depth 1 — matching
 the publisher exactly) but **still never observed populating**; it remains the
