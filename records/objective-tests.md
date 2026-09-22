@@ -20,6 +20,99 @@ the lap, plus an evening for objective 2.
 
 ---
 
+## Copy-paste sheet — the whole measurement lap
+
+**Before any command.** Tape a cross on the floor for `HOME` and park the robot
+on it, aimed straight down a wall. Tape three more crosses around the room and
+measure each from `HOME` with the tape: **x along the robot's heading, y to its
+left** (right is negative). Put the test chair about **1.6 m** from a spot the
+robot can stop at, and measure its x/y the same way. Write the four pairs on
+paper before you start — the map origin is fixed the moment `make slam` runs,
+and re-deriving it afterwards is not possible.
+
+`~/.bashrc` sets `ROS_DOMAIN_ID=42` but does **not** source ROS. The `make`
+targets source it themselves; every `ros2 run` terminal below needs this line
+first:
+
+```bash
+source /opt/ros/humble/setup.bash && source ~/cap_ws/install/setup.bash
+```
+
+### The stack — seven terminals, in this order
+
+```bash
+cd ~/cap_ws && make ports    # check: /dev/esp32 and /dev/ydlidar both present
+make real                    # T1
+make slam                    # T2  <- THE ORIGIN IS SET HERE. Robot on HOME, facing the wall.
+make nav                     # T3  required: twist_mux, the speed guard, NavigateToPose
+make yolo                    # T4  starts its own camera; do not also run `make camera`
+make semantic                # T5
+make bridge                  # T6
+make ui                      # T7
+```
+
+### The measurement terminals — start these BEFORE driving
+
+```bash
+make bag                                                             # T8
+
+# T9 -- objective 5. Cover the whole lap; Ctrl-C ends it early and still reports.
+ros2 run my_bot resource_report.py --seconds 900 \
+  --label "real+slam+nav+yolo+semantic, driving"
+
+# T10 -- objective 3, a live figure to sit beside the bag's 13.05 Hz.
+ros2 run my_bot detection_report.py --seconds 300
+```
+
+### Drive, and stop on each mark
+
+```bash
+# T11 -- 0.10 m/s. Nothing enforces this since D-26. Do not press `q`.
+cd ~/cap_ws && make teleop-nav SPEED=0.10
+```
+
+At each cross, stop the robot and run one line in T12 — objective 1:
+
+```bash
+ros2 run my_bot slam_accuracy_check.py mark HOME     --truth 0 0
+ros2 run my_bot slam_accuracy_check.py mark MARK_B   --truth 4.20 -2.65
+ros2 run my_bot slam_accuracy_check.py mark MARK_C   --truth 6.80  1.10
+ros2 run my_bot slam_accuracy_check.py mark MARK_D   --truth 2.05  3.40
+```
+
+Then drive the lap again and repeat all four. **Three laps minimum** — one visit
+per mark gives an error, three give repeatability, and repeatability is the
+number with no tape in it.
+
+Park by the chair for objective 4, one run per side (back the robot off to
+~1.6 m each time):
+
+```bash
+ros2 run my_bot landmark_tape_measure.py chair --truth 5.10 -1.35 --pass-label front
+ros2 run my_bot landmark_tape_measure.py chair --truth 5.10 -1.35 --pass-label right
+ros2 run my_bot landmark_tape_measure.py chair --truth 5.10 -1.35 --pass-label back
+ros2 run my_bot landmark_tape_measure.py chair --truth 5.10 -1.35 --pass-label left
+```
+
+### Before shutting anything down
+
+```bash
+make save-map MAP=~/maps/objective-lap-$(date +%m%d)   # while slam_toolbox is still up
+```
+
+### Read the results back
+
+```bash
+ros2 run my_bot slam_accuracy_check.py --summary        # objective 1
+ros2 run my_bot landmark_tape_measure.py chair --truth 5.10 -1.35 --summary   # objective 4
+ros2 run my_bot resource_report.py --summary            # objective 5
+```
+
+`detection_report.py` prints its verdict when its window ends (objective 3).
+Copy every number into `records/calibration.md` the same day.
+
+---
+
 ## The lap: one run, four numbers
 
 Start the stack as usual (`make real`, `make slam`, `make nav`, `make yolo`,
@@ -103,6 +196,37 @@ number, and they answer different questions:
   reasonably ask why the number is not yours.
 
 Do (a); mention (b) in one sentence for context.
+
+### What to claim, given that the model is not ours
+
+Objective 2 is worded `เพื่อพัฒนาและปรับปรุงโมเดลการเรียนรู้เชิงลึก` — to
+**develop and improve** the model. Pretrained COCO weights were used as they
+came, so that wording overstates what was done, and an examiner who asks "which
+dataset, how many epochs" must not get a vague answer. Two ways to make the
+claim match the work, and the measurement is identical either way:
+
+- **Keep the objective, change what the number is about.** Report the
+  **accuracy of the deployed detector in the target environment** — your own
+  labelled frames, your room, your camera, at `conf 0.5`. That is a genuine
+  experimental result about the system, and it is a more relevant one than a
+  COCO score, because it is measured where the robot works.
+- **Reword the objective** to selection and deployment on an edge device rather
+  than training. Worth one question to the advisor; it costs nothing if the
+  answer is yes and it removes the only soft claim in the chapter.
+
+**And name what was actually engineered**, because it is not nothing:
+
+- export `yolo26s.pt` → ONNX at a fixed 640×640 and run it through ONNX Runtime
+  on the Orin's GPU — a deployment decision with a measurable cost;
+- the confidence threshold and the target-class filter;
+- the detection→lidar fusion gate (motion gate, `max_spread` rejection) — a
+  system-level accuracy improvement that *is* ours, and objective 3's 0.08 m
+  is the evidence for it.
+
+> The `.pt` versus `.onnx` comparison on the same labelled frames is what turns
+> "we used a pretrained model" into a measured engineering decision. Equal
+> accuracy at a higher frame rate is a result; skipping the comparison leaves
+> the export as an unjustified assertion.
 
 **Worth the extra hour, and it is a good figure:** score the same labelled
 frames through `yolo26s.pt` (torch) and `yolo26s.onnx` (ONNX Runtime). Equal
