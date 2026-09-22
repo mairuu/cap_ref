@@ -2403,3 +2403,41 @@ Serial budget with the IMU on, computed not measured: encoder + motor exchange
 ~32 B ≈ 5.6 ms; `i` + reply ~45 B ≈ 7.8 ms; total ≈ 13.4 ms of the 33.3 ms
 frame at 57600 baud. The number that says whether it fits is `/joint_states`
 staying at **30.0 Hz** with `USE_IMU=true`.
+
+---
+
+## Concurrent detection rate — **MEASURED 2026-09-22, from the demo bag**
+
+The report's objective 3 asks for ≥ 5 FPS of detection **while SLAM is
+running**. `~/bags/2026-09-22-163401` is a 215.28 s window of the full stack,
+and the concurrency is in the bag rather than asserted: `/scan` flowing and
+`/map` republishing in the same window is SLAM working.
+
+| topic | messages | rate |
+|---|---|---|
+| `/detections` | 2 809 | **13.05 Hz** |
+| `/detections/image` | 2 809 | 13.05 Hz |
+| `/image/compressed` | 2 808 | 13.04 Hz |
+| `/scan` | 2 497 | 11.60 Hz |
+| `/map` | 105 | 0.49 Hz |
+| `/semantic_landmarks`, `/semantic_markers` | 402 each | 1.87 Hz |
+| `/diff_cont/odom` | 6 257 | 29.06 Hz |
+| `/tf` | 19 804 | 91.99 Hz |
+
+**Method:** message counts and duration read from the bag's `metadata.yaml`
+(`rosbag2_bagfile_information.duration`), not a live `ros2 topic hz`.
+
+**13.05 Hz is 2.6× the criterion.** Against Day 5's standalone **15.15 Hz
+(sd 5 ms over 301 s)**, the ~2 Hz difference is what SLAM, the semantic node
+and the recorder cost. Quote the pair, not just the survivor.
+
+> ⚠ These are **recorded** rates: what the recorder wrote, which can only be
+> ≤ what was published. They are a lower bound on the true rate, which is the
+> safe direction for a criterion, but the table should also carry one live
+> `detection_report.py --seconds 300` figure taken during a lap.
+
+**Map from the same session:** `~/maps/day7-run-22sep.pgm`, 666×361 px at
+0.05 m/px = 33.3 × 18.1 m of bounding box, origin `[-7.12, -6.70]`. Saved from
+`~/my_map` (the Makefile default, which the next bare `make save-map`
+overwrites) and copied under a dated name the same day. Walls are single-stroke
+at this resolution — no shear visible.
