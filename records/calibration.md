@@ -2506,9 +2506,26 @@ after 20 warm-up, `jetson_clocks` locked then restored. Compare with the
 | yolo26s | 27.4 ms | **12.3 ms** (sd 0.2) | **531 s** |
 | yolo26n | 16.3 ms | **8.3 ms** (sd 0.1) | 398 s |
 
-**Estimated** pipeline for `yolo26s`, adding this session's measured non-GPU
-cost (~6 ms pre/post, ~29 ms ByteTrack + Python): predict ≈ 18 ms (~55 FPS),
-**track ≈ 41 ms (~24 FPS)** against 56.5 ms today. Not measured end to end.
+**End to end, measured** (`yolo26s`, ultralytics `predict()`/`track()` on
+`bus.jpg`, clocks locked, two runs each, interleaved; TRT session swapped into
+`AutoBackend.backend.session` with outputs rebound to its IO-binding tensors):
+
+| | CUDA EP (onnx fp16) | TensorRT EP fp16 |
+|---|---|---|
+| inference | 27.0 ms | **10.8 ms** |
+| predict wall | 33.1 ms (~30 FPS) | **16.5 ms (~61 FPS)** |
+| **track wall** | **58.1–59.0 ms (~17 FPS)** | **42.1–42.3 ms (~24 FPS)** |
+| GPU load | 59 % | **40 %** |
+| detections | 5: bus + 4 person | **same 5**, conf within 0.001 |
+| start, engine cached | — | 2.7 s |
+
+ByteTrack + Python (~26 ms) is now the larger half of `track()`. ultralytics
+8.4.144 hard-codes `CUDAExecutionProvider` for `.onnx`
+(`nn/backends/onnx.py`), so adopting this means a node change, not a flag.
+⚠ A first attempt set `AutoBackend.session` (a proxy) instead of
+`.backend.session` and silently kept running CUDA fp32 — 36.8 ms — while
+`get_providers()` on the swapped object reported TensorRT. Check `inference`
+time, not the provider string.
 
 Not adopted: the camera caps live rate at 15 Hz, so it buys no FPS on this
 robot; a lost cache costs a 9-minute build before the first detection; fp16
