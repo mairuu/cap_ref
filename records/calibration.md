@@ -2493,3 +2493,25 @@ governor sat at **306–510 MHz** because torch never loaded the GPU enough to r
 33.2 ms predict), and ONNX fp32 is slower than torch for `s`. New: `yolo26n.onnx`
 fp16 is the fastest at 21.9 ms predict — not adopted; D-22 chose `s` for accuracy
 and the camera, not inference, is the ceiling.
+
+### TensorRT via onnxruntime, 23 Sep — measured, NOT adopted
+
+`TensorrtExecutionProvider` (`trt_fp16_enable`, engine + timing cache on) on
+the **fp32** ONNX exports, raw `session.run` on a 1×3×640×640 input, 200 timed
+after 20 warm-up, `jetson_clocks` locked then restored. Compare with the
+"raw forward" column above.
+
+| model | CUDA EP fp16 | **TensorRT EP fp16** | first build |
+|---|---|---|---|
+| yolo26s | 27.4 ms | **12.3 ms** (sd 0.2) | **531 s** |
+| yolo26n | 16.3 ms | **8.3 ms** (sd 0.1) | 398 s |
+
+**Estimated** pipeline for `yolo26s`, adding this session's measured non-GPU
+cost (~6 ms pre/post, ~29 ms ByteTrack + Python): predict ≈ 18 ms (~55 FPS),
+**track ≈ 41 ms (~24 FPS)** against 56.5 ms today. Not measured end to end.
+
+Not adopted: the camera caps live rate at 15 Hz, so it buys no FPS on this
+robot; a lost cache costs a 9-minute build before the first detection; fp16
+TRT accuracy unmeasured. Note for D-11/D-22: through ORT the `.onnx` stays the
+source and the engine is a rebuildable cache, so a JetPack change costs a
+rebuild, not the model — the failure D-11 feared does not apply to this path.
