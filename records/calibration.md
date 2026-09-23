@@ -2441,3 +2441,55 @@ and the recorder cost. Quote the pair, not just the survivor.
 `~/my_map` (the Makefile default, which the next bare `make save-map`
 overwrites) and copied under a dated name the same day. Walls are single-stroke
 at this resolution — no shear visible.
+
+---
+
+## YOLO bench re-run, 23 Sep — why n / s / torch / ONNX looked identical
+
+Re-run because the 16 Sep table (35.4 / 36.6 / 35.4 ms) made every option look
+the same. Script: `cap_ws/yolo/bench_yolo.py`, one process per config, 100
+timed after 20 warm-up, `bus.jpg` resized to 640×480 (5 detections at conf 0.5),
+imgsz 640, nvpmodel 15 W. Fresh ONNX exports of **both** n and s, fp16 and fp32.
+Pass 2 used `jetson_clocks` (GPU locked at 624.75 MHz), stored and restored after.
+
+**It is on the GPU — verified, not assumed:** torch parameters read back as
+`cuda:0` (fp16 where asked); ORT `session.get_providers()` on ultralytics' own
+session = `CUDAExecutionProvider` first; GPU load 45–94 % during runs; the CPU
+control (`yolo26s.pt` on cpu) is **1084 ms raw / 1391 ms predict**, ~35× slower.
+
+### Clocks locked (624.75 MHz) — ms, mean
+
+| model | backend | raw forward | predict pre / inf / post | predict wall | track wall | GPU load (raw) |
+|---|---|---|---|---|---|---|
+| yolo26n | torch fp32 | 46.7 | 1.4 / 30.4 / 3.6 | 36.3 | 59.4 | 45 % |
+| yolo26n | torch fp16 | 50.5 | 1.2 / 31.6 / 3.8 | 37.6 | 61.3 | 31 % |
+| yolo26n | onnx fp32 | 21.2 | 1.4 / 19.9 / 3.9 | 26.0 | 49.4 | 90 % |
+| yolo26n | onnx fp16 | **16.3** | 1.3 / 15.6 / 4.1 | **21.9** | **46.8** | 89 % |
+| yolo26s | torch fp32 | 47.0 | 1.3 / 30.9 / 3.5 | 36.7 | 60.3 | 85 % |
+| yolo26s | torch fp16 | 52.1 | 1.3 / 32.9 / 3.9 | 39.0 | 63.8 | 50 % |
+| yolo26s | onnx fp32 | 37.7 | 1.4 / 36.8 / 4.1 | 43.1 | 66.4 | 94 % |
+| yolo26s | onnx fp16 | **27.4** | 1.3 / 27.0 / 4.1 | **33.2** | **56.5** | 93 % |
+
+Default governor (`nvhost_podgov`, as the robot runs): ONNX rows within ~2 ms of
+the above (it drives the clock to 625). Torch rows the same wall time but the
+governor sat at **306–510 MHz** because torch never loaded the GPU enough to raise it.
+
+### Why they looked the same
+
+1. **Torch is launch-bound.** n and s take the same ~30 ms inference although s
+   is ~3.5× the FLOPs; fp16 is no faster (slightly slower); GPU load 31–66 %.
+   The time is Python dispatching kernels one by one, not the GPU computing.
+   Raw forward (unfused) is *slower* than ultralytics' inference (Conv+BN
+   fused) — fewer kernels, less time: same conclusion.
+2. **ONNX shows the real model cost.** ORT runs the graph without per-op
+   Python; GPU load ~90 %, and n vs s separates: **16.3 vs 27.4 ms** fp16.
+3. **`track()` adds ~25–30 ms** of CPU (ByteTrack + Python) to every row,
+   and the 16 Sep table measured `track()` wall — that flattens the spread
+   further (46.8 → 66.4 ms here, i.e. 21–15 Hz).
+4. **Live, the camera caps it at 15 Hz** — every option above is faster than
+   66.7 ms per frame, so the live `/detections` rate cannot tell them apart.
+
+**Consistent with 16 Sep:** `yolo26n.pt` torch ≈ `yolo26s.onnx` fp16 (36.3 vs
+33.2 ms predict), and ONNX fp32 is slower than torch for `s`. New: `yolo26n.onnx`
+fp16 is the fastest at 21.9 ms predict — not adopted; D-22 chose `s` for accuracy
+and the camera, not inference, is the ceiling.
