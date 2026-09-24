@@ -550,7 +550,7 @@ formula without driving.
 ---
 
 ## D-22 · `make yolo` runs an fp16 `.onnx`, and the model is `yolo26s`
-**Date:** 2026-09-16 · **Status:** adopted · **amends D-11**
+**Date:** 2026-09-16 · **Status:** adopted · **amends D-11** · *default superseded by D-30 (24 Sep)*
 
 `make yolo` now exports `~/yolo/yolo26s.pt` → `~/yolo/yolo26s.onnx` via
 `cap_ws/yolo/export_onnx.py` and runs the `.onnx` under onnxruntime-gpu's
@@ -1028,6 +1028,31 @@ one object each — and they are the two classes near 99 %), chair is still
 re-measure objective 3 (FPS) and objective 5 (CPU) with it.
 
 **Reversal:** record a new bag with the robot moving, score once (D-28 as written).
+
+---
+
+## D-30 · `make yolo` defaults to yolo26l TensorRT fp16 480×640, conf 0.4
+**Date:** 24 Sep 2026 · **Status:** adopted (user request) · **supersedes D-22's default**
+
+`MODEL ?= $(HOME)/yolo/yolo26l_480x640.engine`, `CONF ?= 0.4` in the
+Makefile, and the same defaults in `yolo.launch.py` (cap_ws `07370da`). A new
+`yolo-engine` prerequisite builds the engine from `~/yolo/yolo26l.pt` with
+`yolo/export_engine.py` when it is missing, and does nothing when it exists.
+
+**Why:** the report's objectives 2 (82.2 %, D-29) and 3 (15.16 Hz with SLAM)
+were measured on this configuration; a default that ran anything else would
+make every later run — objective 5 in particular — measure a different system
+from the one the report describes.
+
+**Cost:** D-11/D-22's objection to engines stands in a weaker form: an engine
+dies with a TensorRT/JetPack change. It is treated as a per-board cache of the
+`.pt`, rebuilt automatically — but the rebuild takes ~13 min and ~3.1 GB of the
+7.4 GB shared memory with no disk swap, so `export_engine.py` refuses to start
+below 4.5 GB free (i.e. with the stack up). After a JetPack change the first
+`make yolo` must be run with the stack down, and not an hour before a demo.
+
+**Reversal:** `make yolo MODEL=$HOME/yolo/yolo26s.onnx CONF=0.5` — the ONNX
+path and `export_onnx.py` are unchanged.
 
 ---
 

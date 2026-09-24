@@ -27,9 +27,10 @@
 
 ## 1. วิธีเปิดระบบ (B และ C)
 
-> ⚠ **yolo ต้องใช้ตัวนี้เท่านั้น** ให้ตรงกับที่รายงานเขียนไว้:
-> `make yolo MODEL=$HOME/yolo/yolo26l_480x640.engine CONF=0.4`
-> ถ้าพิมพ์แค่ `make yolo` จะได้ yolo26s ตัวเก่า และตัวเลข CPU ข้อ 5 จะไม่ตรงกับรายงาน
+> ✅ **`make yolo` เปล่า ๆ = yolo26l TensorRT 480×640 conf 0.4 แล้ว** (D-30) ตรงกับที่รายงานเขียนไว้
+> ถ้าไฟล์ engine หาย (เช่นหลังเปลี่ยน JetPack) `make yolo` จะ build ให้เอง ~13 นาที
+> — ต้อง**ปิดระบบก่อน** ถ้า RAM ว่างไม่ถึง 4.5 GB สคริปต์จะไม่ยอม build
+> ตัวเก่า: `make yolo MODEL=$HOME/yolo/yolo26s.onnx CONF=0.5`
 
 เปิดทีละ terminal ตามลำดับ รอให้ตัวก่อนหน้าขึ้นครบก่อน:
 
@@ -37,7 +38,7 @@
 |---|---|
 | `cd ~/cap_ws && make real` | `Configured and activated diff_cont` · lidar `Lidar has started!` (checksum error ตอนเปิดไม่กี่บรรทัดเป็นเรื่องปกติ) |
 | `make slam` | `Registering sensor` |
-| `make yolo MODEL=$HOME/yolo/yolo26l_480x640.engine CONF=0.4` | `imgsz [480, 640] (from the model)` และ `15.x Hz` |
+| `make yolo` | `imgsz [480, 640] (from the model)` · `conf 0.4` · `15.x Hz` |
 | `make semantic` | `fused .../... detections` |
 | `make teleop SPEED=0.10` | ใช้ขับหุ่น |
 
@@ -134,7 +135,7 @@ ros2 run my_bot object_accuracy.py chair --summary
 
 ## 3. รอบ C — ข้อ 5 CPU (ต่อจากรอบ B ได้เลย)
 
-**ห้ามอัด bag** (zstd กิน CPU) · **ห้ามเปิด RViz / เบราว์เซอร์บน Jetson** · yolo ต้องเป็น L engine conf 0.4 (หัวข้อ 1)
+**ห้ามอัด bag** (zstd กิน CPU) · **ห้ามเปิด RViz / เบราว์เซอร์บน Jetson** · `make yolo` ค่าเริ่มต้น (L engine conf 0.4)
 
 ### 3.1 เก็บ
 
@@ -301,4 +302,4 @@ python3 plot_objectives.py resource --window "full stack"    # หลังร�
 - label: yolo26x ร่าง → ตรวจแก้ในเบราว์เซอร์ (`label_server.py`) ทุกภาพ · สำรองที่ `records/objective2-data/`
 - เงื่อนไข / ข้อจำกัด: D-27 (มุมมองเดียว) · D-29 (ปรับบนชุดเดียวกัน ไม่มีชุดทดสอบแยก)
 - ตารางพัฒนาการ s → m → L, TensorRT, ขนาดภาพ, ทรัพยากร: `records/objective-tests.md` → Objective 2 → Run log
-- engine: `~/yolo/yolo26l_480x640.engine` (build ~13 นาที, ห้าม build ตอนเปิดทั้งระบบ)
+- engine: `~/yolo/yolo26l_480x640.engine` = ค่าเริ่มต้นของ `make yolo` (D-30) · build ใหม่ด้วย `make yolo-engine FORCE=true` (~13 นาที ห้ามตอนเปิดทั้งระบบ)

@@ -17,9 +17,9 @@ every driven measurement outstanding.
 > 📏 **24 SEP — REPORT MEASUREMENTS (see `MEASUREMENT-PLAN.md`, the live runbook).**
 > Objective 2 ✅ **82.2 %** macro F1 (yolo26l TensorRT fp16 480×640, conf 0.4;
 > baseline yolo26s 64.4 %) — tuned on the same 143 frames, no held-out set
-> (D-27, D-29). Objective 3 ✅ **15.16 Hz** with SLAM + semantic. **The deployed
-> detector is now `make yolo MODEL=$HOME/yolo/yolo26l_480x640.engine CONF=0.4`**
-> — plain `make yolo` is still yolo26s ONNX. Node change: compiled models take
+> (D-27, D-29). Objective 3 ✅ **15.16 Hz** with SLAM + semantic. **Plain
+> `make yolo` now runs yolo26l TensorRT 480×640 at conf 0.4 (D-30)** and
+> rebuilds the engine if missing (~13 min, stack down). Node change: compiled models take
 > imgsz from the model (cap_ws `27dec07`). Still owed: rounds B (obj 4), C
 > (obj 5 CPU with the L engine), D (obj 1, old file fails), E (Nav2 figure).
 > Report is `project_report-good3.tex` only (good5 removed).
