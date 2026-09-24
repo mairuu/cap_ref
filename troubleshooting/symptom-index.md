@@ -1413,3 +1413,13 @@ real+slam level (~1.5 GB). Match the steps against `launch.log` start/SIGINT
 times in `~/.ros/log`, then exclude those spans rather than quote the file's
 mean: `plot_objectives.py resource --series <stem> --exclude T0:T1`. The
 24 Sep window read 48.4 % as logged, 55.8 % with the stack actually up. (24 Sep)
+
+### `USE_EKF=true`: heading drifts ~8 °/min with the robot standing still; the map comes up rotated
+`/odometry/filtered` yaw walks steadily while `/diff_cont/odom` yaw stays 0.000°.
+The z gyro bias in `ros2_control.xacro` no longer matches the chip (MPU6050 bias
+moves with temperature and across power cycles); 18 Sep it gave +0.01 °/min,
+24 Sep −8 °/min. slam_toolbox starts `map` aligned with `odom`, so the whole
+map comes up rotated by however far the EKF drifted before `make slam`. Check
+before trusting the EKF: sample both yaws for 20 s at rest. Fix: re-run
+`imu_check.py` (motors off, robot still), paste its bias line verbatim, rebuild;
+or run without the EKF. (24 Sep)

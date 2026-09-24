@@ -1095,7 +1095,7 @@ mentioned alongside the post-fix figure, as a finding and its fix.
 
 
 ## D-31 · Objective 1 is measured with the EKF on
-**Date:** 24 Sep 2026 · **Status:** adopted (user decision)
+**Date:** 24 Sep 2026 · **Status:** **REVERSED the same evening** — objective 1 runs on plain `make real` (EKF off). See the end of this entry.
 
 `make real USE_IMU=true USE_EKF=true` for round D (`slam_accuracy_check.py`).
 
@@ -1112,3 +1112,13 @@ lifted or turned by hand** during the run: the gyro counts it and the wheels do
 not, which desynchronises `odom` permanently (calibration.md, 18 Sep).
 A no-EKF round on the same marks is optional, for comparison only, in a
 separate `--session` file.
+
+**Reversed, 24 Sep 23:08.** With `make real USE_IMU=true USE_EKF=true` up and the
+robot parked still on HOME, `/odometry/filtered` yaw ran **−11.2° → −13.9° in
+20 s (≈ −8 °/min)** while `/diff_cont/odom` stayed at 0.000°. The z gyro bias
+installed on 18 Sep (+0.01 °/min then) no longer matches the chip. slam had
+already started with the robot at −8.3° in `odom`, so the map's x axis was 8.3°
+off the tape line — ~0.72 m at the 5 m mark before any SLAM error. Offered a
+bias re-measure (`imu_check.py`); **the user chose plain `make real`.** The
+EKF stays default-off, and objective 1 is measured on the same configuration as
+objectives 2–5.
