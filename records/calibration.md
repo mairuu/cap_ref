@@ -2112,6 +2112,13 @@ flag for the orientation. Both are installed.
 | `map → odom` correction total-path, EKF off / on | **NOT MEASURED** | D-25 result | `check_pose_stability.py --seconds 30` during the Day 3 loop, both flags |
 | Yaw under induced slip, `odom → base_link` vs `map → base_footprint`, EKF off / on | **NOT MEASURED** | the report's D-23 figure | wedge the robot, log both TF yaws |
 
+> **Qualitative, not a measurement (reported by the user 24 Sep; date of the
+> run not recorded):** when the robot turned and got caught on an obstacle —
+> wheels turning, body not — the map **skewed with the EKF off and did not
+> skew with it on.** That is the slip case this row exists for, observed but
+> not logged. Do not quote it as a number; it is the reason objective 1 is
+> measured with the EKF on (D-31).
+
 > ⚠ **The signs are the fragile part, and one was already lost once.** The
 > biases are *subtracted*, so a dropped sign does not merely fail to correct
 > the bias — it doubles it. `+81.6` was pasted for z where the run said

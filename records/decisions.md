@@ -1092,3 +1092,23 @@ and ByteTrack's are a few boxes by a few tracks.
 mentioned alongside the post-fix figure, as a finding and its fix.
 
 **Reversal:** delete the one env line.
+
+
+## D-31 · Objective 1 is measured with the EKF on
+**Date:** 24 Sep 2026 · **Status:** adopted (user decision)
+
+`make real USE_IMU=true USE_EKF=true` for round D (`slam_accuracy_check.py`).
+
+**Why:** the user has seen the map skew when the robot turns while caught on an
+obstacle (wheel slip) with the EKF off, and not with it on — the case D-25 was
+built for. The EKF's bench checks passed on 18 Sep (yaw signs agree with the
+wheels, distance within 0.98 %, stationary drift +0.06 °/min).
+
+**What it costs:** objectives 2–5 were measured with the EKF off (D-25 default),
+so the report must say objective 1 used the fused odometry, and the paragraph
+that calls fusion an off-by-default option needs a sentence. The EKF has still
+never been driven under motors before this round, and **the robot must not be
+lifted or turned by hand** during the run: the gyro counts it and the wheels do
+not, which desynchronises `odom` permanently (calibration.md, 18 Sep).
+A no-EKF round on the same marks is optional, for comparison only, in a
+separate `--session` file.
