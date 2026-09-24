@@ -1423,3 +1423,12 @@ map comes up rotated by however far the EKF drifted before `make slam`. Check
 before trusting the EKF: sample both yaws for 20 s at rest. Fix: re-run
 `imu_check.py` (motors off, robot still), paste its bias line verbatim, rebuild;
 or run without the EKF. (24 Sep)
+
+### `/scan` has a dead sector (−150°..0° returned 0 %); SLAM laps come out ~2× worse
+Seen on objective 1 lap `_0924b`: every ray in −150°..0° (the robot's right side)
+was 0.0 while the rest of the circle was normal, and the lap's worst mark was
+26.0 cm against 15.9 cm once fixed (`_0924c`), HOME return 13.6 → 6.4 cm. Not
+the normal X2 dropout (scattered ~19–28 % zeros): a contiguous arc at 0 %. Fix
+that worked: clean the lidar window and replug its USB (24 Sep 23:43). Root cause
+not isolated (dirt vs. connector). Before any accuracy run, look at one `/scan`
+in RViz or with `scan_dropout_report.py` for a solid empty arc. (24 Sep)
