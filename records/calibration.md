@@ -2579,3 +2579,21 @@ woken by ByteTrack's per-frame matrix maths and busy-waiting between frames,
 of the bench pacing and board state. It is the same across settings, which is the
 point. Fix: `OPENBLAS_NUM_THREADS=1` in `yolo.launch.py` (D-28). Post-fix
 full-stack window: **not yet measured.**
+
+## yolo26m TensorRT fp16 engine (24 Sep 2026) — for D-28
+
+Built on this board: `YOLO("yolo26m.pt").export(format="engine", half=True,
+imgsz=640, batch=1, dynamic=False)`, `YOLO_OFFLINE=1`, TensorRT 10.3 →
+`~/yolo/yolo26m.engine` (42 MB). **Build ≈ 14 min** (17:44–17:58, with the
+yolo26s node running on the GPU alongside).
+
+| | yolo26m `.pt` (torch) | **yolo26m `.engine` fp16** | yolo26s `.onnx` fp16 (deployed) |
+|---|---:|---:|---:|
+| macro F1 @ conf 0.5, D-27 validation set, no tracker | 67.4 % | **65.6 %** | — (66.3 % as `.pt`) |
+| macro P / R | 96.8 / 54.7 | 95.3 / 52.7 | |
+| `track()` wall, real frame, 60 after 10 warm-up | | **60.2 ms mean, ~17 FPS** | 57.0 ms, ~18 FPS |
+| inference | | 30.1 ms | 33.4 ms |
+
+Timing taken with the yolo26s node still running on the GPU, clocks not locked
+— comparative, not absolute. fp16 TRT costs ~1.8 F1 points against the `.pt` on
+these frames. The camera caps live rate at 15 Hz either way.
