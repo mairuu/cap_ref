@@ -970,3 +970,26 @@ report must not describe the set as driven, multi-view or multi-distance.
 **Cost:**
 **Limitation to report:**
 ```
+
+## D-28 · Objective 5: stop OpenBLAS busy-waiting, do not throttle detection
+**Date:** 24 Sep 2026 · **Status:** adopted — post-fix window not yet measured
+
+`OPENBLAS_NUM_THREADS=1` in `yolo.launch.py`'s node env. The detection rate,
+model and camera rate are unchanged.
+
+**Why:** The 596 s full-stack window was 81.5 % (fail by 1.5 points). About 200 % of
+`yolo_detector.py`'s 371 % was five OpenBLAS threads busy-waiting after
+ByteTrack's small matrix ops (`records/calibration.md`, Objective 5). One
+thread cut the node from 263 % to 38 % offline at the same rate.
+Throttling (`make yolo CAM_FPS=8`, the §4.3 table's first idea) only scales
+the waste down with the frame rate, and it would put objectives 3 (13.05 FPS)
+and 5 on different configurations, which the report would have to explain.
+The ORT-pool hypothesis was tested first and ruled out.
+
+**Cost:** none measured. A single BLAS thread can only matter for large matrices,
+and ByteTrack's are a few boxes by a few tracks.
+
+**Limitation to report:** the pre-fix 81.5 % window is real and must be
+mentioned alongside the post-fix figure, as a finding and its fix.
+
+**Reversal:** delete the one env line.

@@ -1382,3 +1382,12 @@ The bag is from `make bag`, which records `--compression-mode file
 hands that to sqlite3 undecompressed. Fixed in cap_ws `65f9132`: extract uses
 `SequentialCompressionReader` when the bag's metadata names a compression
 format. If it comes back, `git pull`. (24 Sep)
+
+### `yolo_detector.py` at ~370 % CPU, five threads at ~40 % each (objective 5 fails)
+numpy's OpenBLAS thread pool (one per core) is woken by ByteTrack's matrix
+maths every frame that has detections, then busy-waits. Not onnxruntime (the
+ORT pool was ruled out: limiting it changed nothing). Fix:
+`OPENBLAS_NUM_THREADS=1` in the node's env, already in `yolo.launch.py` (D-28).
+It drops to ~38 % at the same rate. If it comes back, check the env actually reached
+the process: `tr '\0' '\n' < /proc/$(pgrep -f yolo_detector.py)/environ | grep OPENBLAS`.
+(24 Sep)

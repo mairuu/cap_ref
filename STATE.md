@@ -7,6 +7,13 @@
 (Nav2 earlier today, teleop this session); the IMU work from 18 Sep still has
 every driven measurement outstanding.
 
+> 🧮 **24 Sep — objective 5 (CPU ≤ 80 %): the pre-fix window FAILED at 81.5 %**
+> (596 s full stack, 23 Sep). The cause was `yolo_detector.py` at 371 %, most of it five
+> OpenBLAS threads busy-waiting after ByteTrack. **Fixed in `yolo.launch.py`
+> (`OPENBLAS_NUM_THREADS=1`, D-28), built.** Offline test: 263 % → 38 %.
+> **Next action: restart `make yolo`, re-run round C** (`MEASUREMENT-PLAN.md` §4)
+> with `update-manager` closed. Numbers: `records/calibration.md` → Objective 5.
+
 > 🏃 **SPEED LIMITS CHANGED TWICE ON 21 SEP. Any figure quoted below from an
 > earlier session is at the OLD speed.**
 >

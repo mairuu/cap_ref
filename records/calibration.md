@@ -2539,3 +2539,43 @@ rebuild, not the model — the failure D-11 feared does not apply to this path.
 yolo26s ONNX fp16 @ 640, conf 0.5, IoU 0.5, 4 classes, 143 hand-reviewed frames
 from bag `2026-09-24-165025`, fixed viewpoint (D-27). Per-class table, method and
 the recall-by-size breakdown: `records/objective-tests.md` → Objective 2 → Run log.
+
+## Objective 5 — CPU, pre-fix windows and the busy-wait diagnosis (23–24 Sep 2026)
+
+**Windows (23 Sep, `resource_report.py`, `~/maps/resource_session.jsonl`)** — all
+of them, per `MEASUREMENT-PLAN.md` §4.3 (no picking the pretty one):
+
+| label | file | s | 6-core mean | GPU | RAM peak | tj max |
+|---|---|---|---|---|---|---|
+| idle | 211545 | 120 | 0.3 % | 0 % | 1328 MB | 45.2 °C |
+| real+slam | 212252 | 120 | 0.8 % | 0 % | 1557 MB | 46.2 °C |
+| full stack, driving | 212914 | 5 | 90.8 % | 52 % | 3321 MB | 48.0 °C — stub, discard |
+| full stack, driving | 213525 | 356 | 76.3 % | 46 % | 3762 MB | 51.7 °C |
+| full stack, driving | **214529** | **596** | **81.5 % ✗** | 52 % | 3852 MB | 55.7 °C |
+
+214529 is the longest and the one to report as the pre-fix figure. Load is even
+across cores (80.6–82.9 %), so there is no single busy core.
+
+**Who (24 Sep 17:16, live stack, `top -H -p`):** `yolo_detector.py` **371 %**, 28
+threads — **5 threads at a steady ~40 % each, state R**, identical cumulative
+time; main thread 23 %. Others: cam2image 18 %, image_transport republish 6.5 %,
+`update-manager` 14 % (GUI, close it before measuring).
+
+**Which pool (24 Sep, offline, `bus.jpg` at 640×480, `model.track()` paced at
+1/15 s sleep, 90 frames, yolo26s.onnx CUDA EP; per-thread ticks from
+`/proc/self/task`):**
+
+| setting | process CPU | busiest threads | rate |
+|---|---|---|---|
+| default | **263 %** | 46 46 46 46 45 33 | 6.4 Hz |
+| ORT `intra_op_num_threads=1`, `allow_spinning=0` | 258 % | 46 46 45 45 45 32 | 6.5 Hz |
+| `OMP_NUM_THREADS=1` | 38 % | 38 | 6.3 Hz |
+| **`OPENBLAS_NUM_THREADS=1`** | **38 %** | 38 | 6.3 Hz |
+
+A random-noise frame (0 detections) costs 35 % with default settings, so the
+spinning only happens while something is being tracked. It is **numpy's OpenBLAS pool**,
+woken by ByteTrack's per-frame matrix maths and busy-waiting between frames,
+**not onnxruntime**. The rate here is 6 Hz rather than the robot's 13 because
+of the bench pacing and board state. It is the same across settings, which is the
+point. Fix: `OPENBLAS_NUM_THREADS=1` in `yolo.launch.py` (D-28). Post-fix
+full-stack window: **not yet measured.**
