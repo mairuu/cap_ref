@@ -223,6 +223,14 @@ against a tape with `calibrate_straight.py`, not measured with calipers.
 
 | Re-verify on new board | Tape | Odom | New `r` | Date |
 |---|---|---|---|---|
+| `calibrate_straight.py --distance 5.0`, closed loop, marks under the lidar centre | **4.90 m** (tape 4 → 494 cm) | **5.0018 m** | **0.03203** (was 0.0327, −2.0 %) | **25 Sep 2026** |
+
+> **Applied** to `my_controllers.yaml` and `robot_core.xacro` (cap_ws). Why now: objective 1's
+> map came out short on every tape pair (−2.3 % fitted, 24 Sep 23:50 lap), and the
+> 9 Sep hand push had already read −2.0 %. Three measurements, two methods, one
+> sign. Floor lateral offset at the end of the run was not reported. The script's
+> hint printed `0.034 ×` (free tyre radius) — wrong base, fixed to point at the
+> configured radius.
 | | | | | |
 
 ### (c) Wheel separation — **RECOVERED**
@@ -2755,3 +2763,22 @@ while the robot is at the SLAM start pose, so never take `--fwd/--left` from the
 The back error is mostly **lateral** (left −0.32 m, fwd −0.11 m). The right pass
 errs sideways too (−0.22 m). Not diagnosed.
 
+
+
+## Objective 1 — SLAM position error, 24–25 Sep 2026 (round D)
+
+Marks HOME (0,0), A (5,0), B (5,3.5), C (0,3.5), tape from HOME along a rope;
+area 5 × 3.5 m (criterion asks 5 × 5). `make real` (EKF off, D-31 reversed),
+`make slam`, teleop 0.10 m/s. Files in `~/maps/`:
+
+| file | what | ABSOLUTE | ALIGNED | REPEAT | scale | rot |
+|---|---|---|---|---|---|---|
+| `_0924a` | 2 marks, session abandoned | — | — | — | — | — |
+| `_0924b` | 1 lap, **lidar blind −150°..0°** (0 % returns; cleaned + replugged 23:43) | 26.0 cm | 26.2 cm | 6.8 cm | −3.4 % | −0.23° |
+| `_0924c` | 1 lap, lidar full circle, `wheel_radius` 0.0327 | **15.9 cm** | **13.6 cm** | **3.2 cm** | **−2.3 %** | +1.16° |
+
+`_0924c` with the fitted scale and rotation both removed: A 1.3, B 2.8, C 5.7,
+HOME 6.4 cm — SLAM itself is within 10 cm; the excess is odometry scale leaking
+into the map plus the robot's heading at `make slam` (setup, not drift). The
+fitted −2.3 % was **not** applied; the radius came from the taped run above.
+**Still owed: ≥ 3 laps with `wheel_radius` 0.03203.**
