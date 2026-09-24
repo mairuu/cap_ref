@@ -279,8 +279,9 @@ python3 plot_objectives.py resource --window "full stack"    # หลังร�
 | รูป | สถานะ |
 |---|---|
 | `accuracy_before_after.png` · `detection_fps.png` | ✅ มีแล้วที่ `~/cap_ref/figures/` — ก๊อปได้เลย |
-| `all_nodes_running.png` · `tf_tree.png` · `ros2_node_graph.png` | รอบ B |
-| `resource_usage.png` | รอบ C → 6.1 |
+| `tf_tree.png` · `ros2_node_graph.png` | ✅ มีแล้วที่ `~/cap_ref/figures/` (`node_graph.py` ไม่ต้องมีจอ) |
+| `all_nodes_running.png` | แคปเทอร์มินัล `ros2 node list` ขณะเปิดครบ |
+| `resource_usage.png` | ✅ มีแล้ว |
 | `slam_error_result.png` | รอบ D → 6.1 |
 | `nav2_costmap_path.png` | รอบ E |
 

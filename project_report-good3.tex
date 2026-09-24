@@ -1011,8 +1011,11 @@ NFR-07 & ระบบต้องทำงานต่อเนื่องไ�
 
 \begin{figure}[htbp]
 \centering
-\imgph[0.85\textwidth]{7cm}{ros2_node_graph.png}{แผนภาพโหนดและหัวข้อของ ROS 2 ทั้งระบบ แสดงทิศทางการไหลของข้อมูลตั้งแต่เซนเซอร์ ผ่านโหนดประมวลผล จนถึงเว็บแอปพลิเคชัน}
-\caption[แผนภาพการไหลของข้อมูลระหว่างโหนดของระบบ (บทที่ 3)]{แผนภาพการไหลของข้อมูลระหว่างโหนดของระบบ}
+\includegraphics[width=\textwidth]{images/ros2_node_graph.png}
+\caption[แผนภาพการไหลของข้อมูลระหว่างโหนดของระบบ (บทที่ 3)]{แผนภาพการไหลของข้อมูลระหว่างโหนดของระบบ
+อ่านจากระบบจริงขณะเปิดครบทุกส่วน (วงรีคือโหนด สี่เหลี่ยมคือหัวข้อ ลูกศรคือทิศทางการไหลของข้อมูล)
+แสดงเฉพาะหัวข้อที่มีทั้งผู้เผยแพร่และผู้รับ
+และไม่แสดง \texttt{/tf} \texttt{/rosout} หัวข้อภายในของ Action และแผนที่ต้นทุนของ Nav2}
 \label{fig:nodegraph}
 \end{figure}
 
@@ -1596,23 +1599,28 @@ y_{k+1} &= y_k + \Delta s \sin\left(\theta_k + \frac{\Delta \theta}{2}\right) \\
 \subsection{การกำหนดโครงสร้างระบบพิกัด}
 
 ก่อนที่ slam\_toolbox จะทำงานได้ ระบบต้องมีต้นไม้ของระบบพิกัดที่สมบูรณ์
-โดยเฉพาะการแปลงพิกัดจาก \texttt{base\_link} ไปยัง \texttt{laser\_frame}
+โดยเฉพาะการแปลงพิกัดจาก \texttt{base\_link} ไปยัง \texttt{laser\_frame} (ผ่าน \texttt{chassis})
 ซึ่งเป็นค่าคงที่ที่ได้จากการวัดตำแหน่งติดตั้งไลดาร์บนตัวหุ่นยนต์
 ค่านี้ถูกประกาศไว้ในไฟล์ URDF ที่บรรยายโครงสร้างเชิงกลของหุ่นยนต์
-เมื่อระบบทำงานครบทุกส่วน ต้นไม้ของระบบพิกัดจะมีลำดับดังนี้
+เมื่อระบบทำงานครบทุกส่วน เส้นทางหลักของต้นไม้ระบบพิกัดมีลำดับดังนี้
 
 \begin{center}
-\texttt{map} $\rightarrow$ \texttt{odom} $\rightarrow$ \texttt{base\_footprint}
-$\rightarrow$ \texttt{base\_link}
-$\rightarrow$ \{\texttt{laser\_frame}, \texttt{camera\_link}\}
+\texttt{map} $\rightarrow$ \texttt{odom} $\rightarrow$ \texttt{base\_link}
+$\rightarrow$ \texttt{chassis}
+$\rightarrow$ \{\texttt{laser\_frame}, \texttt{camera\_link}, \texttt{imu\_link}\}
 \end{center}
 
+ส่วน \texttt{base\_footprint} เป็นกรอบพิกัดลูกของ \texttt{base\_link} ที่ระดับพื้น
+และล้อทั้งสองเป็นกรอบพิกัดลูกที่ขยับตามค่าเอนโคเดอร์
 ต้นไม้ของระบบพิกัดที่ตรวจสอบได้จากระบบจริงแสดงดังรูปที่ \ref{fig:tftree}
+โดย slam\_toolbox เผยแพร่ \texttt{map}$\rightarrow$\texttt{odom} ที่ประมาณ 12 ครั้งต่อวินาที
+และ \texttt{diff\_cont} เผยแพร่ \texttt{odom}$\rightarrow$\texttt{base\_link} ที่ 30 ครั้งต่อวินาที
+ส่วนเส้นเชื่อมที่แสดงอัตรา 10,000 คือการแปลงพิกัดคงที่ (static) จาก URDF
 
 \begin{figure}[htbp]
 \centering
-\imgph[0.85\textwidth]{6cm}{tf_tree.png}{ภาพต้นไม้ของระบบพิกัดที่ได้จากเครื่องมือตรวจสอบของ ROS 2 ขณะระบบทำงานครบทุกโหนด แสดงผู้เผยแพร่และอัตราการเผยแพร่ของแต่ละเส้นเชื่อม}
-\caption[ต้นไม้ของระบบพิกัดขณะระบบทำงานครบทุกโหนด (บทที่ 4)]{ต้นไม้ของระบบพิกัดขณะระบบทำงานครบทุกโหนด}
+\includegraphics[width=\textwidth]{images/tf_tree.png}
+\caption[ต้นไม้ของระบบพิกัดขณะระบบทำงานครบทุกโหนด (บทที่ 4)]{ต้นไม้ของระบบพิกัดขณะระบบทำงานครบทุกโหนด จาก \texttt{tf2\_tools view\_frames} (24 ก.ย.) แสดงผู้เผยแพร่และอัตราการเผยแพร่ของแต่ละเส้นเชื่อม}
 \label{fig:tftree}
 \end{figure}
 

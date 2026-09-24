@@ -1,0 +1,94 @@
+digraph ros {
+  graph [rankdir=LR, fontname="Loma", fontsize=13, nodesep=0.18, ranksep=0.9, pad=0.2, compound=true];
+  node [fontname="DejaVu Sans", fontsize=10];
+  edge [color="#52514e", arrowsize=0.6];
+  subgraph cluster_0 {
+    label="ฐานหุ่นยนต์ (ros2_control, LiDAR)"; style="rounded,filled"; fillcolor="#e8f1fb"; color="#c8c7c2";
+    "/diff_cont" [shape=ellipse, style=filled, fillcolor="white", color="#2a78d6"];
+    "/joint_broad" [shape=ellipse, style=filled, fillcolor="white", color="#2a78d6"];
+    "/robot_state_publisher" [shape=ellipse, style=filled, fillcolor="white", color="#2a78d6"];
+    "/teleop_speed_guard" [shape=ellipse, style=filled, fillcolor="white", color="#2a78d6"];
+    "/twist_mux" [shape=ellipse, style=filled, fillcolor="white", color="#2a78d6"];
+    "/ydlidar_ros2_driver_node" [shape=ellipse, style=filled, fillcolor="white", color="#2a78d6"];
+  }
+  subgraph cluster_1 {
+    label="SLAM"; style="rounded,filled"; fillcolor="#fdf0e9"; color="#c8c7c2";
+    "/slam_toolbox" [shape=ellipse, style=filled, fillcolor="white", color="#2a78d6"];
+  }
+  subgraph cluster_2 {
+    label="นำทาง (Nav2)"; style="rounded,filled"; fillcolor="#eaf7f1"; color="#c8c7c2";
+    "/behavior_server" [shape=ellipse, style=filled, fillcolor="white", color="#2a78d6"];
+    "/bt_navigator" [shape=ellipse, style=filled, fillcolor="white", color="#2a78d6"];
+    "/controller_server" [shape=ellipse, style=filled, fillcolor="white", color="#2a78d6"];
+    "/global_costmap/global_costmap" [shape=ellipse, style=filled, fillcolor="white", color="#2a78d6"];
+    "/local_costmap/local_costmap" [shape=ellipse, style=filled, fillcolor="white", color="#2a78d6"];
+    "/velocity_smoother" [shape=ellipse, style=filled, fillcolor="white", color="#2a78d6"];
+  }
+  subgraph cluster_3 {
+    label="ตรวจจับวัตถุ"; style="rounded,filled"; fillcolor="#fdf6e3"; color="#c8c7c2";
+    "/cam2image" [shape=ellipse, style=filled, fillcolor="white", color="#2a78d6"];
+    "/yolo_detector" [shape=ellipse, style=filled, fillcolor="white", color="#2a78d6"];
+  }
+  subgraph cluster_4 {
+    label="เว็บแอปพลิเคชัน"; style="rounded,filled"; fillcolor="#f1f1ef"; color="#c8c7c2";
+    "/semantic_bridge" [shape=ellipse, style=filled, fillcolor="white", color="#2a78d6"];
+    "/semantic_bridge_control" [shape=ellipse, style=filled, fillcolor="white", color="#2a78d6"];
+  }
+  subgraph cluster_5 {
+    label="ผสานข้อมูลเชิงความหมาย"; style="rounded,filled"; fillcolor="#f3eefb"; color="#c8c7c2";
+    "/image_republish" [shape=ellipse, style=filled, fillcolor="white", color="#2a78d6"];
+    "/semantic_objects" [shape=ellipse, style=filled, fillcolor="white", color="#2a78d6"];
+  }
+  "T/cmd_vel" [label="/cmd_vel", shape=box, style="rounded", color="#8a8984", fontsize=9];
+  "T/cmd_vel_nav" [label="/cmd_vel_nav", shape=box, style="rounded", color="#8a8984", fontsize=9];
+  "T/cmd_vel_teleop" [label="/cmd_vel_teleop", shape=box, style="rounded", color="#8a8984", fontsize=9];
+  "T/cmd_vel_teleop_raw" [label="/cmd_vel_teleop_raw", shape=box, style="rounded", color="#8a8984", fontsize=9];
+  "T/detections" [label="/detections", shape=box, style="rounded", color="#8a8984", fontsize=9];
+  "T/detections/image" [label="/detections/image", shape=box, style="rounded", color="#8a8984", fontsize=9];
+  "T/diff_cont/cmd_vel_unstamped" [label="/diff_cont/cmd_vel_unstamped", shape=box, style="rounded", color="#8a8984", fontsize=9];
+  "T/diff_cont/odom" [label="/diff_cont/odom", shape=box, style="rounded", color="#8a8984", fontsize=9];
+  "T/image" [label="/image", shape=box, style="rounded", color="#8a8984", fontsize=9];
+  "T/image/compressed" [label="/image/compressed", shape=box, style="rounded", color="#8a8984", fontsize=9];
+  "T/joint_states" [label="/joint_states", shape=box, style="rounded", color="#8a8984", fontsize=9];
+  "T/map" [label="/map", shape=box, style="rounded", color="#8a8984", fontsize=9];
+  "T/scan" [label="/scan", shape=box, style="rounded", color="#8a8984", fontsize=9];
+  "T/semantic_landmarks" [label="/semantic_landmarks", shape=box, style="rounded", color="#8a8984", fontsize=9];
+  "/behavior_server" -> "T/cmd_vel";
+  "/cam2image" -> "T/image";
+  "/controller_server" -> "T/cmd_vel_nav";
+  "/diff_cont" -> "T/diff_cont/odom";
+  "/image_republish" -> "T/image/compressed";
+  "/joint_broad" -> "T/joint_states";
+  "/semantic_bridge_control" -> "T/cmd_vel_teleop_raw";
+  "/semantic_objects" -> "T/semantic_landmarks";
+  "/slam_toolbox" -> "T/map";
+  "/teleop_speed_guard" -> "T/cmd_vel_teleop";
+  "/twist_mux" -> "T/diff_cont/cmd_vel_unstamped";
+  "/velocity_smoother" -> "T/cmd_vel";
+  "/ydlidar_ros2_driver_node" -> "T/scan";
+  "/yolo_detector" -> "T/detections";
+  "/yolo_detector" -> "T/detections/image";
+  "T/cmd_vel_teleop" -> "/behavior_server";
+  "T/diff_cont/odom" -> "/bt_navigator";
+  "T/diff_cont/odom" -> "/controller_server";
+  "T/diff_cont/cmd_vel_unstamped" -> "/diff_cont";
+  "T/map" -> "/global_costmap/global_costmap";
+  "T/scan" -> "/global_costmap/global_costmap";
+  "T/detections/image" -> "/image_republish";
+  "T/scan" -> "/local_costmap/local_costmap";
+  "T/joint_states" -> "/robot_state_publisher";
+  "T/image/compressed" -> "/semantic_bridge";
+  "T/map" -> "/semantic_bridge";
+  "T/scan" -> "/semantic_bridge";
+  "T/semantic_landmarks" -> "/semantic_bridge";
+  "T/detections" -> "/semantic_objects";
+  "T/diff_cont/odom" -> "/semantic_objects";
+  "T/scan" -> "/semantic_objects";
+  "T/map" -> "/slam_toolbox";
+  "T/scan" -> "/slam_toolbox";
+  "T/cmd_vel_teleop_raw" -> "/teleop_speed_guard";
+  "T/cmd_vel" -> "/twist_mux";
+  "T/cmd_vel_teleop" -> "/twist_mux";
+  "T/cmd_vel_nav" -> "/velocity_smoother";
+  "T/image" -> "/yolo_detector";
+}
