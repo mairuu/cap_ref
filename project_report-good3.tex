@@ -567,7 +567,7 @@ Development Tools &
 
 \section{ระบบปฏิบัติการหุ่นยนต์ ROS 2}
 
-ROS 2 (Robot Operating System 2) ไม่ใช่ระบบปฏิบัติการโดยตรง
+ROS 2 (Robot Operating System 2)~\cite{ros2} ไม่ใช่ระบบปฏิบัติการโดยตรง
 แต่เป็นชุดเครื่องมือและมิดเดิลแวร์ (Middleware) ที่ทำงานอยู่บนระบบปฏิบัติการอีกชั้นหนึ่ง
 ทำหน้าที่จัดการการสื่อสารระหว่างโปรแกรมย่อยของหุ่นยนต์
 โครงงานนี้ใช้ ROS 2 รุ่น Humble Hawksbill ซึ่งทำงานบน Ubuntu 22.04
@@ -604,7 +604,7 @@ ROS 2 (Robot Operating System 2) ไม่ใช่ระบบปฏิบั�
 
 \subsection{ros2\_control และการเชื่อมต่อกับไมโครคอนโทรลเลอร์}
 
-สำหรับการเชื่อมต่อกับไมโครคอนโทรลเลอร์ โครงงานนี้ใช้เฟรมเวิร์ก \textbf{ros2\_control}
+สำหรับการเชื่อมต่อกับไมโครคอนโทรลเลอร์ โครงงานนี้ใช้เฟรมเวิร์ก \textbf{ros2\_control}~\cite{ros2control}
 แทนการรัน ROS 2 บนไมโครคอนโทรลเลอร์โดยตรง
 ros2\_control แยกระบบออกเป็นสองชั้น ชั้นแรกคือ \textbf{Hardware Interface}
 ซึ่งเป็นโค้ดภาษา C++ ที่ทำงานบนหน่วยประมวลผลหลัก
@@ -637,7 +637,7 @@ ros2\_control แยกระบบออกเป็นสองชั้น �
 \section{การสร้างแผนที่และระบุตำแหน่งพร้อมกัน (SLAM)}
 
 SLAM (Simultaneous Localization and Mapping)
-คือกระบวนการที่หุ่นยนต์สร้างแผนที่ของสภาพแวดล้อมที่ไม่เคยรู้จักมาก่อน
+คือกระบวนการที่หุ่นยนต์สร้างแผนที่ของสภาพแวดล้อมที่ไม่เคยรู้จักมาก่อน~\cite{probrobotics}
 พร้อมกับประมาณตำแหน่งของตนเองภายในแผนที่นั้นไปพร้อมกัน
 ปัญหานี้มีลักษณะเป็นไก่กับไข่ กล่าวคือ การสร้างแผนที่ที่ถูกต้องต้องรู้ตำแหน่งของหุ่นยนต์
 แต่การรู้ตำแหน่งก็ต้องอาศัยแผนที่เป็นตัวอ้างอิง
@@ -680,7 +680,7 @@ SLAM (Simultaneous Localization and Mapping)
 แต่ละช่องเก็บค่าความน่าจะเป็นว่าช่องนั้นมีสิ่งกีดขวางอยู่หรือไม่
 โดยแบ่งสถานะเป็นพื้นที่ว่าง พื้นที่มีสิ่งกีดขวาง และพื้นที่ที่ยังไม่ทราบข้อมูล
 
-โครงงานนี้ใช้แพ็กเกจ slam\_toolbox ซึ่งเป็นการนำอัลกอริทึมแบบ Pose Graph
+โครงงานนี้ใช้แพ็กเกจ slam\_toolbox~\cite{slamtoolbox} ซึ่งเป็นการนำอัลกอริทึมแบบ Pose Graph
 มาพัฒนาต่อสำหรับ ROS 2 รองรับการทำงานหลายโหมด
 โดยโหมดที่ใช้ในโครงงานคือโหมดออนไลน์แบบอะซิงโครนัส (Online Asynchronous)
 ซึ่งประมวลผลข้อมูลไลดาร์ทันทีที่ได้รับและยอมข้ามข้อมูลบางเฟรมได้
@@ -704,7 +704,7 @@ SLAM (Simultaneous Localization and Mapping)
 หากเกิดขึ้นเร็วกว่าขอบเขตการค้นหาของการจับคู่ข้อมูลสแกน
 
 ตัวกรองคาลมานแบบขยาย (Extended Kalman Filter: EKF)
-เป็นวิธีมาตรฐานในการรวมค่าที่วัดได้จากเซนเซอร์หลายตัวที่มีความไม่แน่นอนต่างกัน
+เป็นวิธีมาตรฐานในการรวมค่าที่วัดได้จากเซนเซอร์หลายตัวที่มีความไม่แน่นอนต่างกัน~\cite{probrobotics}
 โดยถ่วงน้ำหนักแต่ละแหล่งข้อมูลตามค่าความแปรปรวนที่กำหนดให้
 เซนเซอร์ที่ประกาศความแปรปรวนต่ำจะมีอิทธิพลต่อค่าประมาณสุดท้ายมากกว่า
 
@@ -718,7 +718,7 @@ SLAM (Simultaneous Localization and Mapping)
 
 \section{ระบบนำทางอัตโนมัติ Nav2}
 
-Nav2 เป็นชุดซอฟต์แวร์นำทางมาตรฐานของ ROS 2 ที่รับตำแหน่งเป้าหมายบนแผนที่
+Nav2~\cite{nav2} เป็นชุดซอฟต์แวร์นำทางมาตรฐานของ ROS 2 ที่รับตำแหน่งเป้าหมายบนแผนที่
 แล้ววางแผนเส้นทางและสั่งความเร็วให้หุ่นยนต์เคลื่อนที่ไปถึงโดยหลบสิ่งกีดขวางระหว่างทาง
 องค์ประกอบหลักที่เกี่ยวข้องกับโครงงานนี้ได้แก่
 
@@ -767,9 +767,10 @@ Nav2 เป็นชุดซอฟต์แวร์นำทางมาตร
 
 \subsection{แบบจำลอง YOLO26}
 
-โครงงานนี้เริ่มจาก YOLO26 รุ่น Small (YOLO26s) และเปลี่ยนเป็นรุ่น Large (YOLO26l)
-หลังการประเมินความแม่นยำในพื้นที่ใช้งานจริง
+โครงงานนี้ใช้แบบจำลอง YOLO26~\cite{yolo26} ผ่านไลบรารี Ultralytics~\cite{ultralytics}
 ซึ่งเป็นตระกูลแบบจำลองที่ออกแบบมาสำหรับอุปกรณ์ประมวลผลขอบและอุปกรณ์กำลังไฟต่ำ
+โดยเริ่มจากรุ่น Small (YOLO26s) และเปลี่ยนเป็นรุ่น Large (YOLO26l)
+หลังการประเมินความแม่นยำในพื้นที่ใช้งานจริง
 
 การเลือกรุ่น Small แทนรุ่น Nano ที่เล็กกว่ามาจากผลการวัดบนอุปกรณ์จริง
 ซึ่งพบว่าเวลาประมวลผลของทั้งสองรุ่นต่างกันเพียงเล็กน้อย
@@ -793,13 +794,13 @@ Nav2 เป็นชุดซอฟต์แวร์นำทางมาตร
     \item ประสิทธิภาพต่อหน่วยพลังงานที่ดีขึ้นบนอุปกรณ์ตระกูล NVIDIA Jetson
 \end{itemize}
 
-แบบจำลองที่ผ่านการฝึกมาแล้วบนชุดข้อมูล COCO รองรับการจำแนกวัตถุจำนวน 80 คลาส
+แบบจำลองที่ผ่านการฝึกมาแล้วบนชุดข้อมูล COCO~\cite{coco} รองรับการจำแนกวัตถุจำนวน 80 คลาส
 ซึ่งเป็นชุดคลาสแบบปิด กล่าวคือระบบจะตรวจจับได้เฉพาะวัตถุที่อยู่ในรายการคลาสเหล่านี้เท่านั้น
 หากต้องการตรวจจับวัตถุนอกเหนือจากนี้ จำเป็นต้องเก็บชุดข้อมูลเพิ่มและฝึกแบบจำลองซ้ำ
 
 \subsection{การเร่งการอนุมาน: TensorRT และ ONNX Runtime}
 
-TensorRT เป็นชุดเครื่องมือของ NVIDIA สำหรับปรับแต่งแบบจำลองให้ทำงานเร็วขึ้นบนหน่วยประมวลผลกราฟิก
+TensorRT~\cite{tensorrt} เป็นชุดเครื่องมือของ NVIDIA สำหรับปรับแต่งแบบจำลองให้ทำงานเร็วขึ้นบนหน่วยประมวลผลกราฟิก
 กระบวนการทำงานคือการแปลงแบบจำลองจากรูปแบบมาตรฐานให้กลายเป็นเครื่องยนต์อนุมาน (Engine)
 ที่ผูกกับสถาปัตยกรรมของอุปกรณ์เป้าหมายโดยเฉพาะ
 เทคนิคที่ใช้ในการปรับแต่งประกอบด้วยการรวมชั้นการคำนวณที่ต่อเนื่องกันให้เป็นชั้นเดียว (Layer Fusion)
@@ -818,7 +819,7 @@ TensorRT เป็นชุดเครื่องมือของ NVIDIA ส
 ซึ่งเป็นข้อจำกัดเดียวกับที่อธิบายไว้ในย่อหน้าก่อนหน้า
 
 ระบบจึงเปลี่ยนมาใช้รูปแบบ \textbf{ONNX (Open Neural Network Exchange)}
-ร่วมกับ ONNX Runtime ที่เรียกใช้หน่วยประมวลผลกราฟิกผ่าน CUDA Execution Provider แทน
+ร่วมกับ ONNX Runtime~\cite{onnxruntime} ที่เรียกใช้หน่วยประมวลผลกราฟิกผ่าน CUDA Execution Provider แทน
 ไฟล์ ONNX เป็นรูปแบบกลางที่อธิบายโครงสร้างของแบบจำลอง ไม่ผูกกับรุ่นของไลบรารีอนุมาน
 จึงยังใช้งานได้แม้เปลี่ยนรุ่นชุดซอฟต์แวร์ของอุปกรณ์
 โดยยังคงส่งออกด้วยความละเอียด 16 บิต (FP16) เช่นเดียวกัน
@@ -857,27 +858,27 @@ ROS 2 จัดการเรื่องนี้ด้วยไลบรา�
 ในรูปโครงสร้างต้นไม้พร้อมประทับเวลา ทำให้สามารถสอบถามการแปลงพิกัด
 ระหว่างเฟรมใดกับเฟรมใดก็ได้ ณ เวลาที่ต้องการ
 
-ระบบพิกัดหลักที่ใช้ในโครงงานนี้ประกอบด้วย \texttt{map} ซึ่งเป็นเฟรมอ้างอิงของแผนที่
+ระบบพิกัดหลักที่ใช้ในโครงงานนี้ตั้งชื่อตามมาตรฐาน REP 105~\cite{rep105} ประกอบด้วย \texttt{map} ซึ่งเป็นเฟรมอ้างอิงของแผนที่
 \texttt{odom} ซึ่งเป็นเฟรมที่ต่อเนื่องแต่มีความคลาดเคลื่อนสะสม
 \texttt{base\_footprint} ซึ่งเป็นเงาของหุ่นยนต์บนพื้นและเป็นเฟรมที่ slam\_toolbox ใช้อ้างอิง
 \texttt{base\_link} ซึ่งยึดติดกับตัวหุ่นยนต์
 และเฟรมของเซนเซอร์แต่ละตัวคือ \texttt{laser\_frame} และ \texttt{camera\_link}
 
 การระบุตำแหน่งของวัตถุลงบนแผนที่อาศัยหลักการฉายจุดบนภาพกลับไปเป็นทิศทางในปริภูมิสามมิติ
-โดยใช้พารามิเตอร์ภายในของกล้อง (Intrinsic Parameters) ที่ได้จากการสอบเทียบ
+โดยใช้พารามิเตอร์ภายในของกล้อง (Intrinsic Parameters) ที่ได้จากการสอบเทียบ~\cite{zhang2000}
 จากนั้นใช้ระยะทางจากไลดาร์ในทิศทางเดียวกันเป็นตัวกำหนดความลึก
 แล้วแปลงพิกัดผลลัพธ์จากเฟรมกล้องไปยังเฟรมแผนที่ผ่าน TF2
 
 \section{เทคโนโลยีฝั่งเว็บแอปพลิเคชัน}
 
 ส่วนแสดงผลของระบบพัฒนาด้วยสถาปัตยกรรมแบบแยกส่วนหน้าและส่วนหลัง
-ส่วนหลังใช้ FastAPI ซึ่งเป็นเว็บเฟรมเวิร์กภาษาไพทอนที่รองรับการทำงานแบบอะซิงโครนัส
+ส่วนหลังใช้ FastAPI~\cite{fastapi} ซึ่งเป็นเว็บเฟรมเวิร์กภาษาไพทอนที่รองรับการทำงานแบบอะซิงโครนัส
 ทำหน้าที่เปิดปลายทาง REST API สำหรับการเรียกข้อมูลแบบครั้งต่อครั้ง
 และเปิดช่องทาง WebSocket สำหรับการส่งข้อมูลแบบสองทางอย่างต่อเนื่อง
 ซึ่งจำเป็นสำหรับการแสดงตำแหน่งหุ่นยนต์และผลการตรวจจับแบบเรียลไทม์
 โดยไม่ต้องให้เบราว์เซอร์คอยร้องขอซ้ำ ๆ
 
-ส่วนหน้าใช้ React.js สำหรับสร้างส่วนติดต่อผู้ใช้แบบหน้าเดียว
+ส่วนหน้าใช้ React.js~\cite{react} สำหรับสร้างส่วนติดต่อผู้ใช้แบบหน้าเดียว
 โดยรับข้อมูลทั้งหมดจากส่วนหลังผ่าน REST API และ WebSocket
 ระบบไม่ได้ใช้ฐานข้อมูล แต่บันทึกรายการวัตถุที่พบลงไฟล์ JSON บนตัวอุปกรณ์โดยตรง
 ซึ่งเพียงพอกับปริมาณข้อมูลระดับหลักสิบรายการต่อรอบการสำรวจ
@@ -1475,6 +1476,7 @@ y_{k+1} &= y_k + \Delta s \sin\left(\theta_k + \frac{\Delta \theta}{2}\right) \\
 เอนโคเดอร์จะรายงานการหมุนที่ตัวหุ่นยนต์ไม่ได้หมุนจริง
 ระบบจึงติดตั้งหน่วยวัดความเฉื่อย GY-521 (MPU6050) เพิ่มเติม
 และผสานอัตราการหมุนรอบแกนตั้งเข้ากับโอดอมิเตอร์ด้วยตัวกรองคาลมานแบบขยาย
+ของแพ็กเกจ robot\_localization~\cite{robotlocalization}
 โครงสร้างการผสานข้อมูลแสดงดังรูปที่ \ref{fig:ekf-block}
 
 \begin{figure}[htbp]
@@ -2007,7 +2009,7 @@ ONNX Runtime (GPU) & 1.24.0 \\
 ผลการตรวจจับที่มีค่าความเชื่อมั่นต่ำกว่าเกณฑ์ที่กำหนดจะถูกคัดออกก่อนส่งต่อ
 
 นอกจากนี้โหนดยังติดหมายเลขติดตามวัตถุ (Track ID) ให้กับกรอบแต่ละกรอบ
-โดยใช้ตัวติดตามที่มากับไลบรารีของแบบจำลอง
+โดยใช้ตัวติดตาม ByteTrack~\cite{bytetrack} ที่มากับไลบรารีของแบบจำลอง
 หมายเลขนี้เป็นสิ่งที่ทำให้ชั้นผสานข้อมูลสามารถแยกได้ว่า
 ``เก้าอี้ตัวเดิมที่เห็นอีกครั้ง'' ต่างจาก ``เก้าอี้ตัวที่สอง''
 และเป็นกุญแจหลักในการป้องกันการบันทึกวัตถุซ้ำ
@@ -3276,6 +3278,16 @@ S. Macenski, T. Foote, B. Gerkey, C. Lalancette, and W. Woodall,
 ``Robot Operating System 2: Design, architecture, and uses in the wild,''
 \textit{Science Robotics}, vol. 7, no. 66, 2022.
 
+\bibitem{ros2control}
+S. Chitta, E. Marder-Eppstein, W. Meeussen, V. Pradeep, A. Rodr\'iguez Tsouroukdissian,
+J. Bohren, D. Coleman, B. Magyar, G. Raiola, M. L\"udtke, and E. Fern\'andez Perdomo,
+``ros\_control: A generic and simple control framework for ROS,''
+\textit{Journal of Open Source Software}, vol. 2, no. 20, p. 456, 2017.
+
+\bibitem{probrobotics}
+S. Thrun, W. Burgard, and D. Fox,
+\textit{Probabilistic Robotics}. Cambridge, MA: MIT Press, 2005.
+
 \bibitem{slamtoolbox}
 S. Macenski and I. Jambrecic,
 ``SLAM Toolbox: SLAM for the dynamic world,''
@@ -3288,31 +3300,15 @@ in \textit{Proc. IEEE/RSJ International Conference on Intelligent Robots
 and Systems (IROS)}, 2020.
 
 \bibitem{yolo26}
-R. Sapkota and M. Karkee,
+R. Sapkota, R. H. Cheppally, A. Sharda, and M. Karkee,
 ``YOLO26: Key architectural enhancements and performance benchmarking
 for real-time object detection,''
 arXiv preprint arXiv:2509.25164, 2025.
 
-\bibitem{ros2control}
-S. Chitta, E. Marder-Eppstein, W. Meeussen, V. Pradeep, A. Rodr\'iguez Tsouroukdissian,
-J. Bohren, D. Coleman, B. Magyar, G. Raiola, M. L\"udtke, and E. Fern\'andez Perdomo,
-``ros\_control: A generic and simple control framework for ROS,''
-\textit{Journal of Open Source Software}, vol. 2, no. 20, p. 456, 2017.
-
-\bibitem{robotlocalization}
-T. Moore and D. Stouch,
-``A generalized extended Kalman filter implementation for the Robot Operating System,''
-in \textit{Proc. 13th International Conference on Intelligent Autonomous Systems (IAS-13)},
-Springer, 2014.
-
-\bibitem{probrobotics}
-S. Thrun, W. Burgard, and D. Fox,
-\textit{Probabilistic Robotics}. Cambridge, MA: MIT Press, 2005.
-
-\bibitem{rep105}
-W. Meeussen,
-``REP 105: Coordinate frames for mobile platforms,''
-ROS Enhancement Proposal, 2010.
+\bibitem{ultralytics}
+Ultralytics,
+``Ultralytics YOLO,''
+[Online]. Available: \url{https://github.com/ultralytics/ultralytics}
 
 \bibitem{coco}
 T.-Y. Lin, M. Maire, S. Belongie, J. Hays, P. Perona, D. Ramanan, P. Doll\'ar,
@@ -3320,21 +3316,42 @@ and C. L. Zitnick,
 ``Microsoft COCO: Common objects in context,''
 in \textit{Proc. European Conference on Computer Vision (ECCV)}, 2014, pp. 740--755.
 
-\bibitem{bytetrack}
-Y. Zhang, P. Sun, Y. Jiang, D. Yu, F. Weng, Z. Yuan, P. Luo, W. Liu, and X. Wang,
-``ByteTrack: Multi-object tracking by associating every detection box,''
-in \textit{Proc. European Conference on Computer Vision (ECCV)}, 2022, pp. 1--21.
+\bibitem{tensorrt}
+NVIDIA Corporation,
+``NVIDIA TensorRT,''
+[Online]. Available: \url{https://developer.nvidia.com/tensorrt}
 
 \bibitem{onnxruntime}
 ONNX Runtime developers,
 ``ONNX Runtime: Cross-platform accelerated machine learning,''
 2021. [Online]. Available: \url{https://onnxruntime.ai}
 
+\bibitem{rep105}
+W. Meeussen,
+``REP 105: Coordinate frames for mobile platforms,''
+ROS Enhancement Proposal, 2010.
+
 \bibitem{zhang2000}
 Z. Zhang,
 ``A flexible new technique for camera calibration,''
 \textit{IEEE Transactions on Pattern Analysis and Machine Intelligence},
 vol. 22, no. 11, pp. 1330--1334, 2000.
+
+\bibitem{fastapi}
+S. Ram\'irez,
+``FastAPI,''
+2018. [Online]. Available: \url{https://fastapi.tiangolo.com}
+
+\bibitem{react}
+Meta Platforms, Inc.,
+``React,''
+[Online]. Available: \url{https://react.dev}
+
+\bibitem{robotlocalization}
+T. Moore and D. Stouch,
+``A generalized extended Kalman filter implementation for the Robot Operating System,''
+in \textit{Proc. 13th International Conference on Intelligent Autonomous Systems (IAS-13)},
+Springer, 2014.
 
 \bibitem{yamauchi1997}
 B. Yamauchi,
@@ -3347,10 +3364,10 @@ robo-friends,
 ``m-explore-ros2: ROS 2 port of the m-explore multi-robot exploration packages,''
 [Online]. Available: \url{https://github.com/robo-friends/m-explore-ros2}
 
-\bibitem{fastapi}
-S. Ram\'irez,
-``FastAPI,''
-2018. [Online]. Available: \url{https://fastapi.tiangolo.com}
+\bibitem{bytetrack}
+Y. Zhang, P. Sun, Y. Jiang, D. Yu, F. Weng, Z. Yuan, P. Luo, W. Liu, and X. Wang,
+``ByteTrack: Multi-object tracking by associating every detection box,''
+in \textit{Proc. European Conference on Computer Vision (ECCV)}, 2022, pp. 1--21.
 
 \end{thebibliography}
 
