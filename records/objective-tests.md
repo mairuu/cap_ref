@@ -322,6 +322,38 @@ are (greedy IoU-0.5 matching, same thresholds; size = √area of the truth box):
 seeing the score; no frames dropped. A conf sweep was not run for the
 objective and must not replace the 0.5 figure if one is run later.
 
+#### 24 Sep — exploratory sweep on the SAME frames — **analysis, NOT a result**
+
+Run after the score above, to see what tuning could buy. Because it is tuned on
+the frames it is scored on, every number here is **optimistic** and none may be
+reported as objective 2's result. If a setting is adopted, this set becomes the
+*validation* set and a new bag (robot moving) becomes the test set, scored once.
+`predict` runs the `.pt` through ultralytics with **no tracker**, so the 640 /
+0.5 row (66.3 %) sits slightly above the deployed ONNX + ByteTrack 64.4 %.
+
+| model | imgsz | conf | macro P | macro R | macro F1 | F1 person / chair / backpack / laptop |
+|---|---:|---:|---:|---:|---:|---|
+| yolo26s | 640 | 0.50 | 93.0 | 56.3 | 66.3 | 63.5 / 22.3 / 82.8 / 96.4 |
+| yolo26s | 640 | 0.35 | 88.5 | 66.4 | 73.9 | 69.0 / 34.9 / 94.1 / 97.8 |
+| yolo26s | 640 | 0.25 | 86.9 | 72.2 | 77.9 | 71.3 / 46.9 / 95.2 / 98.3 |
+| yolo26s | 960 | 0.25 | 88.8 | 58.5 | 67.1 | 68.3 / 31.0 / 72.0 / 96.9 |
+| yolo26s | 1280 | 0.25 | 84.7 | 47.7 | 54.8 | 62.5 / 33.3 / 27.7 / 95.6 |
+| yolo26m | 640 | 0.50 | 96.8 | 54.7 | 67.4 | 72.9 / 32.1 / 77.2 / 87.4 |
+| yolo26m | 640 | 0.35 | 95.2 | 65.1 | 75.7 | 77.1 / 47.2 / 86.5 / 92.1 |
+| yolo26m | 640 | 0.25 | 89.7 | 73.1 | 79.8 | 77.5 / 55.0 / 92.1 / 94.5 |
+
+(960 and 1280 at conf 0.5 / 0.35 were also run and are lower still.)
+
+- **Lower conf is the lever**: 0.5 → 0.25 trades ~6 points of precision for
+  ~16 of recall. **Larger imgsz makes it worse** — the camera is 640×480, so
+  960/1280 is upsampling, not detail.
+- **yolo26m** helps person and chair (the far objects) but has not been
+  exported or timed on the Orin; objective 3's 13.05 FPS is for yolo26s.
+- **Bias warning for low conf:** the truth started as yolo26x drafts at conf
+  0.25 and only 20/143 frames were edited, so a YOLO model at 0.25 may be
+  credited for sharing the drafts' uncorrected mistakes.
+- Nothing reaches 80 % even when tuned on the test frames themselves.
+
 
 ## Objective 3 — detection rate ≥ 5 FPS with SLAM running ✅
 
