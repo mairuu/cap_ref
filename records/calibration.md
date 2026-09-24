@@ -2791,5 +2791,14 @@ into the map plus the robot's heading at `make slam` (setup, not drift). The
 fitted −2.3 % was **not** applied; the radius came from the taped run above.
 | `_0925a` | HOME + A only, `wheel_radius` 0.03203 | A 19.2 cm (4.817, 0.061) | — | — | — | — |
 
+| **`_0925b`** (current file) | **2 laps**, radius 0.0327, lidar full circle | **34.4 cm** | **16.1 cm** | **25.7 cm** (HOME) | −2.0 % | +1.75° |
+
+`_0925b` per lap: lap 1 worst 22.7 cm (B), HOME return 8.9 cm. **Lap 2 slipped:**
+every mark moved +y against lap 1, and between B and C by **+46 cm** (C 3.343 → 3.805);
+HOME return 34.4 cm. A pose jump on the B→C leg, not gradual drift. Lap 1 C was
+parked facing −x (171.8°), lap 2 C facing +y (92.4°). A at x 4.87–4.89 in every
+session since 23 Sep (except the 0.03203 lap) — a fixed ~12 cm, cause open
+(tape truth vs lidar scale; lidar read a wall at 3.01 m, tape value not given).
+
 **0.03203 reverted (see Odometry (b)).** Still owed: ≥ 3 laps at 0.0327, and a check of
 what makes the map short (lidar range vs a wall at 2–4 m; re-tape HOME → A).
