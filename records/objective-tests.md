@@ -239,7 +239,7 @@ turns "we used a pretrained model" into "we quantified what deployment cost".
 
 ### Run log
 
-#### 24 Sep — attempt 1: bag recorded, extracted, pre-labelled — **NOT USABLE, robot stationary**
+#### 24 Sep — attempt 1: fixed-viewpoint set — **adopted as the test set (D-27)**
 
 **Method as run** (round A of `MEASUREMENT-PLAN.md`):
 
@@ -261,7 +261,9 @@ one laptop and one backpack on the floor at the left, the same blue chair at the
 right, only the people move. So `laptop` and `backpack` are **one object each at
 one pose, 143 times** — the ≥ 50-instance rule counts instances, and these are
 one sample repeated. This is exactly the "อย่าจอดนิ่ง" failure the plan warns
-about. Not labelled; not scored as a result.
+about. **Adopted anyway, on the user's decision, as a fixed-viewpoint test with
+people moving through the scene — D-27 has the evidence and the wording the
+report must use.** It must not be described as driven or multi-view.
 
 **Provisional, NOT the objective 2 result** — yolo26s at conf 0.5 scored against
 the *uncorrected* yolo26x drafts (i.e. agreement between two models, on the
@@ -273,9 +275,9 @@ rule is "every visible instance", so they count, and yolo26s at 0.5 misses most
 of them. Do not change the rule or the class list because of this
 (`MEASUREMENT-PLAN.md` §7.1).
 
-**Next:** re-record round A **driving the whole time** — several distances and
-angles, 2–3 backpacks, 1–2 laptops — then extract into a fresh directory. The
-attempt-1 data is kept as `~/eval/insitu2_stationary` for reference.
+**Next:** hand-correct every draft in labelImg (`~/labelimg-venv/bin/labelImg`,
+patched for Python 3.10), move `labels_draft/*` → `labels/`, then `score`
+against `~/eval/insitu2_stationary`. Result goes below this line.
 
 ## Objective 3 — detection rate ≥ 5 FPS with SLAM running ✅
 

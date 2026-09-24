@@ -928,6 +928,36 @@ restart `make real` **and** `make nav`. Nothing structural changed.
 
 ---
 
+## D-27 · Objective 2 is scored on the 24 Sep stationary-camera set, as a fixed-viewpoint test
+**Date:** 24 Sep 2026 · **Status:** adopted
+
+The 143-frame set from bag `2026-09-24-165025` (`~/eval/insitu2_stationary`)
+is the objective 2 test set. It is **not** re-recorded, and it is described in
+the report as what it is: **a fixed viewpoint with people moving through the
+scene**, not a driven survey.
+
+**Why:** the user's call, on time. The robot was nudged by hand during the
+recording but the camera did not measurably move: the laptop's box centre is at
+x = 123–124 px and 230 px wide from the first frame to the last, the
+backpack's 216 px / 114 px likewise. What varies is the people — walking past
+close to the camera (≈ frames 000000–000035), standing and walking at distance
+(≈ 000036–000083), one seated on the blue chair (≈ 000084–000142).
+
+**Cost:** `laptop` and `backpack` are each **one physical object at one pose**,
+so their per-class scores describe one instance repeated, not the class. The
+report must not describe the set as driven, multi-view or multi-distance.
+
+**Limitation to report (Thai, for chapter 5):** *"ชุดภาพทดสอบ 143 ภาพ
+สุ่มจากการบันทึก 290 วินาที ขณะหุ่นยนต์จอดนิ่งในมุมมองเดียว โดยมีบุคคลเคลื่อนที่ในฉาก
+(เดินผ่านระยะใกล้ ยืน และนั่งบนเก้าอี้) ตลอดการบันทึก คลาส laptop และ backpack
+มีวัตถุอย่างละหนึ่งชิ้นในตำแหน่งคงที่ ผลของสองคลาสนี้จึงสะท้อนวัตถุชิ้นเดียว
+และไม่ได้ทดสอบความหลากหลายของระยะและมุมมอง"*
+
+**Reversal:** re-record round A while moving the robot between 6–8 spots
+(`MEASUREMENT-PLAN.md` §2), extract into `~/eval/insitu2`, label, score.
+
+---
+
 ## Template
 
 ```
