@@ -2616,3 +2616,9 @@ grey. **This applies to the deployed `yolo26s.onnx` too** (64.4 % in the D-27
 score). Export at `imgsz=(480, 640)`; ultralytics reads the baked-in shape from
 the model's metadata and uses it even when the node passes `imgsz=640`
 (verified: `predictor.imgsz` → `[480, 640]`), so no node change is needed.
+
+### Objective 2 after tuning (24 Sep 2026) — D-29
+
+yolo26l `.engine` fp16 480×640, **conf 0.4 → macro F1 82.2 %** (P 96.2 / R 75.1)
+on the D-27 set, offline, no tracker. Tuned on the same frames (no held-out
+test). Baseline yolo26s ONNX conf 0.5: 64.4 %. Details: `records/decisions.md` D-29.

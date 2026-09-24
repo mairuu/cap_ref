@@ -959,7 +959,7 @@ report must not describe the set as driven, multi-view or multi-distance.
 ---
 
 ## D-28 · Objective 2 re-test: yolo26l as a TensorRT fp16 engine (480×640), conf 0.5
-**Date:** 24 Sep 2026 · **Status:** adopted — **fixed before the new test set is recorded**
+**Date:** 24 Sep 2026 · **Status:** ~~adopted~~ **superseded by D-29** (no new test set was recorded)
 
 The detector under test becomes `~/yolo/yolo26l_480x640.engine` (ultralytics
 export, fp16, **imgsz (480, 640)** to match the camera, batch 1, TensorRT 10.3),
@@ -993,6 +993,41 @@ both must be re-measured with this engine. The engine is tied to TensorRT 10.3
 and `make yolo` with no MODEL is still the yolo26s ONNX path.
 
 **Reversal:** `make yolo` (defaults) — nothing else changed.
+
+---
+
+## D-29 · No new test bag: objective 2 is reported on the D-27 set, yolo26l engine at conf 0.4
+**Date:** 24 Sep 2026 · **Status:** adopted (user decision) · **supersedes D-28's held-out test**
+
+The new bag D-28 called for is not recorded. Objective 2 is reported on the
+same 143 frames that were used to choose the model and the threshold.
+
+**Result on that set** (yolo26l `.engine` fp16 480×640, offline `predict`, no
+tracker, IoU 0.5): **conf 0.4 → macro F1 82.2 %** (P 96.2 / R 75.1; person
+75.8 · chair 55.4 · backpack 98.2 · laptop 99.2). conf 0.45 → 81.0 %,
+conf 0.5 → 79.2 %. Baseline, as deployed before any tuning: yolo26s ONNX,
+conf 0.5, **64.4 %**.
+
+**Why:** the user's call, on time.
+
+**Cost — what the number is and is not:** there is no held-out test. The model
+(s → m → l) and the threshold (0.5 → 0.4) were both picked by looking at
+scores on these frames, so 82.2 % is a *tuned* figure and optimistic by an
+unknown amount. On top of D-27's limits (one viewpoint; backpack and laptop are
+one object each — and they are the two classes near 99 %), chair is still
+55 %. The pass rests on the two single-object classes.
+
+**Limitation to report (Thai, for chapter 5), alongside the baseline:**
+*"ผลการประเมินหลังปรับปรุง (yolo26l, TensorRT fp16, ค่าความเชื่อมั่น 0.4)
+ได้ค่า F1 เฉลี่ย 82.2% จากเดิม 64.4% (yolo26s, 0.5) โดยการเลือกแบบจำลองและค่า
+ความเชื่อมั่นทำบนชุดภาพเดียวกับที่ใช้ประเมิน ยังไม่ได้ยืนยันบนชุดทดสอบที่แยกไว้
+ผลจึงอาจสูงกว่าค่าจริง"*
+
+**Still needed for the deployed system to match the number:** run the node at
+`CONF=0.4` (`make yolo MODEL=$HOME/yolo/yolo26l_480x640.engine CONF=0.4`), and
+re-measure objective 3 (FPS) and objective 5 (CPU) with it.
+
+**Reversal:** record a new bag with the robot moving, score once (D-28 as written).
 
 ---
 
