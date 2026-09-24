@@ -7,12 +7,15 @@
 (Nav2 earlier today, teleop this session); the IMU work from 18 Sep still has
 every driven measurement outstanding.
 
-> 🧮 **24 Sep — objective 5 (CPU ≤ 80 %): the pre-fix window FAILED at 81.5 %**
-> (596 s full stack, 23 Sep). The cause was `yolo_detector.py` at 371 %, most of it five
-> OpenBLAS threads busy-waiting after ByteTrack. **Fixed in `yolo.launch.py`
-> (`OPENBLAS_NUM_THREADS=1`, D-28), built.** Offline test: 263 % → 38 %.
-> **Next action: restart `make yolo`, re-run round C** (`MEASUREMENT-PLAN.md` §4)
-> with `update-manager` closed. Numbers: `records/calibration.md` → Objective 5.
+> 🧮 **24 Sep — objective 5 (CPU ≤ 80 %) ✅ PASS at 55.8 %, IN THE REPORT.**
+> Pre-fix 81.5 % (23 Sep, yolo26s ONNX) → post-fix **55.8 %** (24 Sep 19:58 window,
+> 472 of 596 s: yolo restart 129–175 s and the stack-off tail from 521 s excluded,
+> which *raises* the mean from the file's 48.4 %). The drop is the OpenBLAS fix
+> (D-28); the model swap is < 1 point. `tab:eval` row 5, new `tab:obj5`, results
+> text, abstract, conclusion and `figures/resource_usage.png` done. Regenerate
+> with the command in `records/calibration.md` → Objective 5 post-fix.
+> **Unconfirmed:** that yolo26l was the model (inferred from launch time) and
+> that the robot drove the whole window.
 
 > 📏 **24 SEP — REPORT MEASUREMENTS (see `MEASUREMENT-PLAN.md`, the live runbook).**
 > Objective 2 ✅ **82.2 %** macro F1 (yolo26l TensorRT fp16 480×640, conf 0.4;
@@ -20,8 +23,9 @@ every driven measurement outstanding.
 > (D-27, D-29). Objective 3 ✅ **15.16 Hz** with SLAM + semantic. **Plain
 > `make yolo` now runs yolo26l TensorRT 480×640 at conf 0.4 (D-30)** and
 > rebuilds the engine if missing (~13 min, stack down). Node change: compiled models take
-> imgsz from the model (cap_ws `27dec07`). Round B (obj 4) ✅ **PASS, worst 33.8 cm, mean 18.8 cm** (report from `~/maps/object_accuracy_chair_final.jsonl`) — see `records/calibration.md` → Objective 4. Still owed: C
-> (obj 5 CPU with the L engine), D (obj 1, old file fails), E (Nav2 figure).
+> imgsz from the model (cap_ws `27dec07`). Round B (obj 4) ✅ **PASS, worst 33.8 cm, mean 18.8 cm** (report from `~/maps/object_accuracy_chair_final.jsonl`) — see `records/calibration.md` → Objective 4. C ✅ (obj 5, above).
+> Still owed: D (obj 1, old file fails), E (Nav2 figure), and the screenshots
+> `tf_tree` / `ros2_node_graph` / `all_nodes_running`.
 > Report is `project_report-good3.tex` only (good5 removed).
 
 > 🏃 **SPEED LIMITS CHANGED TWICE ON 21 SEP. Any figure quoted below from an

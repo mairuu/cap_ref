@@ -2578,7 +2578,59 @@ woken by ByteTrack's per-frame matrix maths and busy-waiting between frames,
 **not onnxruntime**. The rate here is 6 Hz rather than the robot's 13 because
 of the bench pacing and board state. It is the same across settings, which is the
 point. Fix: `OPENBLAS_NUM_THREADS=1` in `yolo.launch.py` (D-28). Post-fix
-full-stack window: **not yet measured.**
+full-stack window: see the next section.
+
+## Objective 5 — CPU, post-fix window (24 Sep 2026) — **PASS, 55.8 %**
+
+`resource_report.py`, 596 s, label `full stack, driving`, CSV
+`~/maps/resource_samples/20260924-200759.csv` (19:58:03 → 20:07:59). Stack
+launched 19:55–19:57, after `c4b874d` (OPENBLAS fix, 17:31) and `07370da`
+(D-30, yolo26l TRT fp16 480×640 conf 0.4, 19:16). **The model is inferred from
+the launch time, not logged** — the label does not say yolo26l.
+
+The window is **not one clean run**. Launch logs in `~/.ros/log` show it:
+
+| t (s) | what was up | n | 6-core mean | p95 | max | GPU | busiest core |
+|---|---|---|---|---|---|---|---|
+| 0–129 | full stack (yolo #1) | 128 | 57.7 % | 73.3 | 87.5 | 48 % | 60.8 % |
+| 129–175 | yolo Ctrl-C'd 20:00:12, relaunched 20:00:46 + engine load | 45 | 42.4 % | 74.5 | 77.5 | 5 % | — |
+| 175–521 | full stack (yolo #2), steady | 344 | 55.1 % | 64.7 | 85.0 | 49 % | 59.4 % |
+| 521–596 | yolo + semantic stopped 20:06:44; real+slam only | 79 | 7.4 % | — | — | 3 % | — |
+| **whole file as logged** | | 596 | *48.4 %* | 67.2 | 87.5 | 39 % | 51.8 % |
+
+**Figure to report: 55.8 %** = every sample with the full stack up (rows 1 + 3,
+n = 472). The 48.4 % in `resource_session.jsonl` is diluted by the gap and the
+stack-off tail — do not quote it. Full-stack portion: RAM peak 2915 MB (pre-fix
+3852), 8.3 W mean (pre-fix 9.0), tj max 53.1 °C, 1.4 % of samples above 80 %,
+no single-core bottleneck (busiest core mean ≤ 61 %).
+
+**Pre → post is two changes at once** (OpenBLAS threads *and* yolo26s ONNX →
+yolo26l TRT), **but the model's share is negligible.** In core-equivalents
+(6-core mean × 6): 81.5 % ≈ 4.9 cores → 55.8 % ≈ 3.35 cores, a drop of ~1.5
+cores. The busy-waiting OpenBLAS threads were ~2 cores (5 × ~40 %, `top -H`
+above). The model swap is 72 % → 67 % of one core, both measured with
+`OPENBLAS_NUM_THREADS=1` (`records/objective-tests.md`, cost table), so ~0.05
+core. **The drop is the OpenBLAS fix.** The ~0.5 core by which the drop falls
+short of the ~2 spinning cores is not accounted for. Likely causes are that the
+spin only happens while something is tracked (the pre-fix window itself ran
+92 % → 59 % as the scene changed), and that `update-manager` (14 %) may have
+been open pre-fix.
+Not known from the files: whether the robot drove the whole window, and
+whether `update-manager` was closed.
+
+Figure `figures/resource_usage.png` (report `fig:resource`, table `tab:obj5`):
+
+```bash
+cd ~/cap_ws/src/my_bot/scripts
+python3 plot_objectives.py resource --series 20260924-200759 --exclude 129:175 --exclude 521: \
+  --bar-label "20260923-211545=ขณะว่าง" --bar-label "20260923-212252=ฐานหุ่นยนต์ + SLAM" \
+  --bar-label "20260923-213525=ทั้งระบบ ก่อนแก้ (รอบ 1)" \
+  --bar-label "20260923-214529=ทั้งระบบ ก่อนแก้ (รอบ 2)" \
+  --bar-label "20260924-200759=ทั้งระบบ หลังแก้"
+```
+
+Full-stack portion (472 samples) for the table: GPU 48.9 %, 8.25 W, p95 68.8 %,
+busiest core 59.8 %. The 5 s stub (212914) is dropped by `--min-seconds 30`.
 
 ## yolo26m TensorRT fp16 engine (24 Sep 2026) — for D-28
 

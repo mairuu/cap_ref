@@ -1070,7 +1070,8 @@ path and `export_onnx.py` are unchanged.
 ```
 
 ## D-28 · Objective 5: stop OpenBLAS busy-waiting, do not throttle detection
-**Date:** 24 Sep 2026 · **Status:** adopted — post-fix window not yet measured
+**Date:** 24 Sep 2026 · **Status:** adopted — post-fix full stack **55.8 %, PASS**
+(24 Sep 19:58 window; `records/calibration.md` → Objective 5 post-fix)
 
 `OPENBLAS_NUM_THREADS=1` in `yolo.launch.py`'s node env. The detection rate,
 model and camera rate are unchanged.

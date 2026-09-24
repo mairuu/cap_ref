@@ -1404,3 +1404,12 @@ ORT pool was ruled out: limiting it changed nothing). Fix:
 It drops to ~38 % at the same rate. If it comes back, check the env actually reached
 the process: `tr '\0' '\n' < /proc/$(pgrep -f yolo_detector.py)/environ | grep OPENBLAS`.
 (24 Sep)
+
+### `resource_report.py` mean is lower than the stack can explain (objective 5)
+The window outlived the stack: a node was Ctrl-C'd/restarted mid-window, or the
+stack was brought down before the timer ran out. Tell-tales in the CSV: CPU
+min near idle (~1 %), GPU 0 for tens of seconds, RAM stepping down to the
+real+slam level (~1.5 GB). Match the steps against `launch.log` start/SIGINT
+times in `~/.ros/log`, then exclude those spans rather than quote the file's
+mean: `plot_objectives.py resource --series <stem> --exclude T0:T1`. The
+24 Sep window read 48.4 % as logged, 55.8 % with the stack actually up. (24 Sep)
