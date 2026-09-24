@@ -84,8 +84,18 @@ ros2 run my_bot slam_accuracy_check.py --summary
 
 ### 2.2 อัด
 
+รอบนี้ไม่เปิด `semantic` จึง**ไม่มี** `/image/compressed` (และถึงเปิด มันก็เป็นภาพที่ yolo วาดกรอบทับแล้ว
+ใช้ label ไม่ได้) → เปิด republish จากภาพกล้องดิบเองก่อนอัด แล้วอัดแค่ 2 topic:
+
 ```bash
-make bag
+# terminal 1 — ภาพกล้องดิบ /image → /image/compressed (stamp เดียวกับ /detections)
+source /opt/ros/humble/setup.bash
+ros2 run image_transport republish raw compressed --ros-args \
+    -r in:=/image -r out/compressed:=/image/compressed
+
+# terminal 2
+ros2 topic hz /image/compressed      # ต้องได้ ~15 Hz ก่อนอัด
+make bag TOPICS="/image/compressed /detections"
 ```
 
 ขับวนช้า ๆ **อย่างน้อย 4 นาที** อย่าจอดนิ่ง (ได้ภาพซ้ำ ตัวเลขดีเกินจริง) → Ctrl+C หยุด
@@ -94,6 +104,7 @@ make bag
 
 ```bash
 cd ~/cap_ws/src/my_bot/scripts
+source /opt/ros/humble/setup.bash && source ~/cap_ws/install/setup.bash
 python3 detection_accuracy.py extract --bag ~/bags/<ชื่อ-bag-ใหม่> --out ~/eval/insitu2 --every 23
 ```
 
