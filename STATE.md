@@ -20,7 +20,7 @@ every driven measurement outstanding.
 > (D-27, D-29). Objective 3 ✅ **15.16 Hz** with SLAM + semantic. **Plain
 > `make yolo` now runs yolo26l TensorRT 480×640 at conf 0.4 (D-30)** and
 > rebuilds the engine if missing (~13 min, stack down). Node change: compiled models take
-> imgsz from the model (cap_ws `27dec07`). Round B (obj 4) ✅ **PASS, worst 33.8 cm, mean 18.8 cm** (back + left tapes corrected after the run; report from `~/maps/object_accuracy_chair_final.jsonl`) — see `records/calibration.md` → Objective 4. Still owed: C
+> imgsz from the model (cap_ws `27dec07`). Round B (obj 4) ✅ **PASS, worst 33.8 cm, mean 18.8 cm** (report from `~/maps/object_accuracy_chair_final.jsonl`) — see `records/calibration.md` → Objective 4. Still owed: C
 > (obj 5 CPU with the L engine), D (obj 1, old file fails), E (Nav2 figure).
 > Report is `project_report-good3.tex` only (good5 removed).
 

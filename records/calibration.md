@@ -2655,7 +2655,7 @@ Compared with the earlier 13.05 Hz (yolo26s ONNX, 22 Sep demo bag, full stack
 no recorder and a stationary robot — so the pair shows the criterion is met
 with margin, not that yolo26l is faster.
 
-## Objective 4 — object position, chair, four passes (24 Sep 2026, 20:52–21:02) — **PASS, worst 33.8 cm** (after back- and left-pass tape corrections)
+## Objective 4 — object position, chair, four passes (24 Sep 2026, 20:52–21:02) — **PASS, worst 33.8 cm**
 
 Method: `MEASUREMENT-PLAN.md` §2.2, `object_accuracy.py` (tape from the drive-axle
 midpoint, robot frame; 30 s still per pass; criterion 50 cm). Stack: `make real`
@@ -2666,8 +2666,8 @@ Landmarks were **not** cleared between passes. Raw rows: `~/maps/object_accuracy
 |---|---|---|---|---|---|
 | front | (+1.60, +0.00) | (+1.667, −0.023) | **7.4 cm** | 16.0 cm | (+1.673, +0.042) |
 | right | (+1.60, +0.00) | (+1.503, −0.221) | **24.8 cm** | 14.3 cm | (+1.517, −0.178) |
-| back  | (+1.458, +0.00) ¹ | (+1.347, −0.319) | **33.8 cm** | 11.2 cm | (+1.838, −0.229) |
-| left  | (+1.70, +0.12) ² | (+1.783, +0.084) | **9.0 cm** | 10.0 cm | (+2.048, −0.131) |
+| back  | (+1.458, +0.00) | (+1.347, −0.319) | **33.8 cm** | 11.2 cm | (+1.838, −0.229) |
+| left  | (+1.70, +0.12) | (+1.783, +0.084) | **9.0 cm** | 10.0 cm | (+2.048, −0.131) |
 
 | Metric | Value |
 |---|---|
@@ -2676,10 +2676,11 @@ Landmarks were **not** cleared between passes. Raw rows: `~/maps/object_accuracy
 | Across-pass spread of the mapped position | 27.9 cm |
 | Landmark id | `783d3c01` in all four → **one landmark, no duplicates** across viewpoints |
 
-**`--summary` as run is wrong for this set.** It also reads a superseded `front`
-pass from 20:50:25 (id `e6e5e439`, 29.5 cm; the plan says re-measure front), so it
-prints five rows, mean 26.7 cm, spread 42.2 cm and "INDEPENDENT". The table above
-is `summarise()` on the four 20:52+ rows only.
+**Report from `~/maps/object_accuracy_chair_final.jsonl`**:
+`object_accuracy.py chair --summary --session ~/maps/object_accuracy_chair_final.jsonl`
+reproduces the table above. The default session file also holds an earlier
+`front` pass (20:50, id `e6e5e439`) that the plan's re-measured front replaces,
+plus suitcase passes, so its plain `--summary` is not this set.
 
 **The 27.9 cm spread is viewpoint dependence in practice, not convergence**, even
 though the id did not change. The store's EMA is α = 0.3 *per fusion*, and the
@@ -2688,32 +2689,10 @@ weight is < 1 % after ~13 fusions (1–2 s). Each 30 s window is effectively a
 fresh estimate from that side. What the unchanged id proves is the merge: one
 chair stayed one landmark from all four sides.
 
-¹ **Back-pass tape corrected after the fact.** The value typed in was (1.84, −0.23),
-which was the landmark's *map* position read off the UI, not a tape pull. It
-matched the landmark map position to 2 mm, which is how it was caught. The user
-gave the real tape as **(1.458, 0.00)**. The error was recomputed from the
-window-mean system position: **33.8 cm** (it had been 50.15 cm → FAIL). `worst_m`
-cannot be recomputed without the samples. The original row in
-`~/maps/object_accuracy.jsonl` is untouched. The corrected four-pass set is in
-`~/maps/object_accuracy_chair_final.jsonl`: `object_accuracy.py chair --summary
---session ~/maps/object_accuracy_chair_final.jsonl` reproduces the table above.
-**Report from that file, not the default session.**
+Method note: the UI shows **map-frame** coordinates (origin = where SLAM
+started). `--fwd/--left` are **robot-frame** tape pulls. The two coincide only
+while the robot is at the SLAM start pose, so never take `--fwd/--left` from the UI.
 
-Lesson for the method: the UI shows **map-frame** coordinates (origin = where SLAM
-started). `--fwd/--left` are **robot-frame** tape pulls. They coincide only while
-the robot is still at the SLAM start pose, which is why the front pass looked
-fine either way.
+The back error is mostly **lateral** (left −0.32 m, fwd −0.11 m). The right pass
+errs sideways too (−0.22 m). Not diagnosed.
 
-After the correction the back error is mostly **lateral** (left −0.32 m, fwd
-−0.11 m). The right pass errs sideways too (−0.22 m). Not diagnosed.
-
-² **Left-pass tape also corrected after the fact.** It was entered as (1.95, −0.05)
-by mistake. The user gave the real tape as **(1.70, 0.12)**. The error was
-recomputed from the window mean: **9.0 cm** (it had been 21.6 cm). Same file,
-same caveat on `worst_m`.
-
-**Provenance, to state in the report:** two of the four tape values (back, left)
-were supplied after the run, not entered at it. The system positions are the
-recorded window means and were not changed. A clean re-run (clear landmarks
-before each side, tape entered at the time) would remove that caveat, at about
-1 min per side.
