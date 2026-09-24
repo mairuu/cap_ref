@@ -2597,3 +2597,22 @@ yolo26s node running on the GPU alongside).
 Timing taken with the yolo26s node still running on the GPU, clocks not locked
 — comparative, not absolute. fp16 TRT costs ~1.8 F1 points against the `.pt` on
 these frames. The camera caps live rate at 15 Hz either way.
+
+### The accuracy loss is the square input, not TensorRT (24 Sep)
+
+Same 143 validation frames, yolo26m, no tracker:
+
+| backend / input | F1 @ 0.5 | F1 @ 0.25 |
+|---|---:|---:|
+| `.pt` (ultralytics letterboxes 640×480 → **480×640**, no padding) | 67.4 % | 79.8 % |
+| `.onnx` fp32, static **640×640** | 65.5 % | 76.0 % |
+| `.engine` fp16, static **640×640** | 65.6 % | 76.2 % |
+| `.onnx` fp32, static **480×640** | **67.4 %** | **79.8 %** — identical to `.pt` |
+
+Paired boxes (IoU > 0.9) differ in confidence by −0.003 mean between engine
+and `.pt`: fp16 costs nothing measurable. What costs ~2 F1 points (~4 at 0.25)
+is exporting at 640×640, which pads the camera's 640×480 frame with 160 rows of
+grey. **This applies to the deployed `yolo26s.onnx` too** (64.4 % in the D-27
+score). Export at `imgsz=(480, 640)`; ultralytics reads the baked-in shape from
+the model's metadata and uses it even when the node passes `imgsz=640`
+(verified: `predictor.imgsz` → `[480, 640]`), so no node change is needed.

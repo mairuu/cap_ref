@@ -961,9 +961,13 @@ report must not describe the set as driven, multi-view or multi-distance.
 ## D-28 · Objective 2 re-test: yolo26m as a TensorRT fp16 engine, conf 0.5
 **Date:** 24 Sep 2026 · **Status:** adopted — **fixed before the new test set is recorded**
 
-The detector under test becomes `~/yolo/yolo26m.engine` (ultralytics export,
-fp16, 640, batch 1, TensorRT 10.3), run by the existing node
-(`make yolo MODEL=~/yolo/yolo26m.engine`, `CONF` left at **0.5**). Objective 2
+The detector under test becomes `~/yolo/yolo26m_480x640.engine` (ultralytics
+export, fp16, **imgsz (480, 640)** to match the camera, batch 1, TensorRT 10.3),
+run by the existing node (`make yolo MODEL=~/yolo/yolo26m_480x640.engine`,
+`CONF` left at **0.5**). *Amended the same afternoon, before any test-set
+recording:* the first engine was exported at 640×640, which measured ~2 F1
+points worse on the validation set; the cause is the padding, not TensorRT
+(`records/calibration.md`, "The accuracy loss is the square input"). Objective 2
 is re-scored **once**, on a NEW bag recorded with the robot moving, at the
 script defaults (IoU 0.5, conf 0.5, `--min-instances 50`, classes
 `person chair backpack laptop`).
