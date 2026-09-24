@@ -1375,3 +1375,10 @@ The JSON schema drifted. The contract is exactly:
 ### `clear_landmarks` does nothing
 The service (`std_srvs/Empty`) must be provided by `semantic_objects`. It is
 called by the bridge, not implemented there.
+
+### `detection_accuracy.py extract` → `SQLite error (26): file is not a database`
+The bag is from `make bag`, which records `--compression-mode file
+--compression-format zstd` (`*.db3.zstd`), and a plain `SequentialReader`
+hands that to sqlite3 undecompressed. Fixed in cap_ws `65f9132`: extract uses
+`SequentialCompressionReader` when the bag's metadata names a compression
+format. If it comes back, `git pull`. (24 Sep)
