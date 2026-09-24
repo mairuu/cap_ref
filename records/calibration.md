@@ -225,6 +225,14 @@ against a tape with `calibrate_straight.py`, not measured with calipers.
 |---|---|---|---|---|
 | `calibrate_straight.py --distance 5.0`, closed loop, marks under the lidar centre | **4.90 m** (tape 4 → 494 cm) | **5.0018 m** | **0.03203** (was 0.0327, −2.0 %) | **25 Sep 2026** |
 
+> ❌ **REVERTED to 0.0327 on 25 Sep, within the hour — the reasoning below was a sign error.**
+> The hand push read odom *short* (0.980 of ~1 m); this run reads odom *long* (5.0018 of 4.90);
+> the map is *short*. An odom over-read leaking into the map would make it LONG. With 0.03203
+> the next lap put A at 4.817 m (was 4.894): the map got shorter, confirming the leak exists
+> but that the map's shortness is NOT from the wheels. The 4.90 m tape also contradicts the
+> 9 Sep 3 m calibration (+0.17 %). Suspects for the short map: lidar range scale, or the
+> tape truths. Original (wrong) note follows.
+>
 > **Applied** to `my_controllers.yaml` and `robot_core.xacro` (cap_ws). Why now: objective 1's
 > map came out short on every tape pair (−2.3 % fitted, 24 Sep 23:50 lap), and the
 > 9 Sep hand push had already read −2.0 %. Three measurements, two methods, one
@@ -2781,4 +2789,7 @@ area 5 × 3.5 m (criterion asks 5 × 5). `make real` (EKF off, D-31 reversed),
 HOME 6.4 cm — SLAM itself is within 10 cm; the excess is odometry scale leaking
 into the map plus the robot's heading at `make slam` (setup, not drift). The
 fitted −2.3 % was **not** applied; the radius came from the taped run above.
-**Still owed: ≥ 3 laps with `wheel_radius` 0.03203.**
+| `_0925a` | HOME + A only, `wheel_radius` 0.03203 | A 19.2 cm (4.817, 0.061) | — | — | — | — |
+
+**0.03203 reverted (see Odometry (b)).** Still owed: ≥ 3 laps at 0.0327, and a check of
+what makes the map short (lidar range vs a wall at 2–4 m; re-tape HOME → A).
