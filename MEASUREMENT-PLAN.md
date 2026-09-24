@@ -105,11 +105,13 @@ make bag TOPICS="/image/compressed /detections"
 ```bash
 cd ~/cap_ws/src/my_bot/scripts
 source /opt/ros/humble/setup.bash && source ~/cap_ws/install/setup.bash
-python3 detection_accuracy.py extract --bag ~/bags/<ชื่อ-bag-ใหม่> --out ~/eval/insitu2 --every 23
+python3 detection_accuracy.py extract --bag ~/bags/<ชื่อ-bag-ใหม่> --out ~/eval/insitu2 --every 23 --matched-only
 ```
 
 ดู 2 อย่าง:
-- `detections matched ... N / N frames` ต้องครบ ถ้าไม่ครบ ใส่ `--slop 0.1` แล้วรันใหม่
+- `detections matched ... N / N frames` ต้องครบ ถ้าไม่ครบ = เฟรมที่ yolo ไม่ได้ประมวลผล (yolo ~13 FPS < กล้อง 15 Hz)
+  → ลบโฟลเดอร์ out แล้วรันใหม่ด้วย `--matched-only` · **อย่าใช้ `--slop 0.1`** (จะเอากรอบของเฟรมข้าง ๆ ห่าง 66 ms มาใส่)
+  · 24 ก.ย. bag `2026-09-24-165025`: 3283/3962 ภาพถูกประมวลผล → 143 เฟรม ครบ 143/143
 - ตารางคลาสท้ายผล — `backpack` กับ `laptop` ต้องไม่ใช่หลักหน่วย ถ้าน้อย → อัดเพิ่มตอนนี้เลย
 
 > bag ใหม่บีบอัดด้วย zstd — 24 ก.ย. ลองแล้ว **พัง** (`file is not a database`) แก้แล้วใน `65f9132`
