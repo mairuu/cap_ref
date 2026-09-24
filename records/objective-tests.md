@@ -279,6 +279,50 @@ of them. Do not change the rule or the class list because of this
 patched for Python 3.10), move `labels_draft/*` → `labels/`, then `score`
 against `~/eval/insitu2_stationary`. Result goes below this line.
 
+#### 24 Sep — **RESULT: macro F1 64.4 % → FAIL against 80 %**
+
+Hand review done in the browser (`label_server.py`, cap_ws `16b0a7e`): all
+143/143 frames reviewed, 20 frames edited (person 296→292, chair 448→441,
+backpack 143→143, laptop 114→116 boxes vs the yolo26x drafts). Scored with the
+defaults fixed before scoring — IoU ≥ 0.5, conf ≥ 0.5, `--min-instances 50`,
+classes `person chair backpack laptop`, run label `onnx-fp16`:
+
+| class | truth | TP | FP | FN | precision | recall | F1 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| person | 292 | 134 | 9 | 158 | 93.7 % | 45.9 % | 61.6 % |
+| chair | 441 | 69 | 5 | 372 | 93.2 % | 15.7 % | 26.8 % |
+| backpack | 143 | 90 | 1 | 53 | 98.9 % | 62.9 % | 76.9 % |
+| laptop | 116 | 99 | 0 | 17 | 100.0 % | 85.3 % | 92.1 % |
+| **macro (4)** | | | | | **96.5 %** | **52.5 %** | **64.4 %** |
+
+All four classes clear the 50-instance floor, so all four are averaged. Out of
+set: `cup` ×6 (not scored). Figure: `figures/accuracy.png`. Session line,
+labels, manifest and predictions are in `records/objective2-data/` (text only;
+the frames show people and stay on the Jetson in `~/eval/insitu2_stationary`).
+
+**What fails is recall, not precision.** When yolo26s reports an object it is
+right 96.5 % of the time; it misses half of what is there. Where the misses
+are (greedy IoU-0.5 matching, same thresholds; size = √area of the truth box):
+
+| truth box size | recall |
+|---|---|
+| medium, 32–96 px | **4 / 231 (1.7 %)** — person 3/63, chair 1/164, backpack 0/4 |
+| large, > 96 px | 388 / 759 (51.1 %) |
+| small, < 32 px | 0 / 2 |
+
+- **Distant objects are essentially never detected at conf 0.5.** The medium
+  bin is the far chairs under the desks and people standing across the room.
+- **person:** recall is 123/179 for people cut off by the image edge (legs
+  close to a camera ~15 cm off the floor) but **11/113** for people fully in
+  frame, who in this set are the distant ones.
+- **laptop / backpack** score highest but are one object each at one pose
+  (D-27), so their numbers describe that object, not the class.
+
+**Lines kept:** classes, thresholds and `--min-instances` were not changed after
+seeing the score; no frames dropped. A conf sweep was not run for the
+objective and must not replace the 0.5 figure if one is run later.
+
+
 ## Objective 3 — detection rate ≥ 5 FPS with SLAM running ✅
 
 **Already satisfied, with evidence, and the concurrency is not an assumption.**

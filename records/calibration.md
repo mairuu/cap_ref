@@ -2532,3 +2532,10 @@ robot; a lost cache costs a 9-minute build before the first detection; fp16
 TRT accuracy unmeasured. Note for D-11/D-22: through ORT the `.onnx` stays the
 source and the engine is a rebuildable cache, so a JetPack change costs a
 rebuild, not the model — the failure D-11 feared does not apply to this path.
+
+## Objective 2 — detection accuracy (24 Sep 2026)
+
+**macro F1 64.4 %** (precision 96.5 %, recall 52.5 %) → FAIL vs 80 %.
+yolo26s ONNX fp16 @ 640, conf 0.5, IoU 0.5, 4 classes, 143 hand-reviewed frames
+from bag `2026-09-24-165025`, fixed viewpoint (D-27). Per-class table, method and
+the recall-by-size breakdown: `records/objective-tests.md` → Objective 2 → Run log.
