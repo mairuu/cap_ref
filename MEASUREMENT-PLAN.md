@@ -357,7 +357,10 @@ cd ~/cap_ws/src/my_bot/scripts
 ~/yolo/venv/bin/python detection_accuracy.py prelabel --data ~/eval/insitu2 \
     --model ~/yolo/yolo26x.pt --classes person chair backpack laptop
 
-# 2) เปิด labelImg: โฟลเดอร์ภาพ = frames/ · save dir = labels_draft/
+# 2) ตรวจแก้ในเบราว์เซอร์ (ไม่ต้องมีจอที่ Jetson) — บน Jetson:
+#      python3 label_server.py --data ~/eval/insitu2_stationary
+#    บนโน้ตบุ๊ก: ssh -L 8765:localhost:8765 mic-711@<jetson> แล้วเปิด http://localhost:8765
+#    (หรือ labelImg ถ้ามีจอ: ~/labelimg-venv/bin/labelImg frames labels_draft/classes.txt labels_draft)
 #    แก้ทุกภาพ: ลบกรอบผิด · เพิ่มกรอบที่ขาด · ขยับขอบให้พอดี
 #    ตรวจครบทุกภาพแล้วค่อยย้าย:
 mv ~/eval/insitu2/labels_draft/* ~/eval/insitu2/labels/
