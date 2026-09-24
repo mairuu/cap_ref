@@ -2632,3 +2632,25 @@ infer+track p50 **40.9–50.9 ms**, max 57 ms after the first window (86 ms
 first window, warm-up); age@publish p50 44–54 ms. Load 363 ms, warm-up 2.4 s;
 `imgsz [480, 640] (from the model)` confirmed in the log.
 **Not objective 3's condition** (SLAM running) — that run is still owed.
+
+### Objective 3 with yolo26l engine and SLAM running — **15.16 Hz, PASS** (24 Sep 2026, ~19:05)
+
+Stack (tmux session `meas`): `make real` · `make slam` (Registering sensor,
+`map → base_footprint` live) · `make semantic` (fusing) · `make yolo
+MODEL=$HOME/yolo/yolo26l_480x640.engine CONF=0.4`. Robot stationary, no teleop,
+no Nav2, no bag recording, no RViz. `/scan` 11.5 Hz.
+`ros2 run my_bot detection_report.py --seconds 120`:
+
+| | |
+|---|---|
+| rate | **15.16 Hz** (1787 msgs, inter-arrival 66.0 ms mean, sd 5.2 ms, max 105 ms) — camera-limited |
+| age capture→receipt | p50 57 ms, p95 79 ms, max 121 ms |
+| dets | 1.74 / frame; chair ×2068, person ×1046 |
+| tracks | 1 persistent (chair, 100 % of window) |
+| GPU | load mean 51 %, clock 408 of 625 MHz ceiling |
+| tj | max 54.6 °C |
+
+Compared with the earlier 13.05 Hz (yolo26s ONNX, 22 Sep demo bag, full stack
+*and the recorder*, robot driving): conditions differ — this run had no Nav2,
+no recorder and a stationary robot — so the pair shows the criterion is met
+with margin, not that yolo26l is faster.
