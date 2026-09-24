@@ -355,6 +355,79 @@ reported as objective 2's result. If a setting is adopted, this set becomes the
 - Nothing reaches 80 % even when tuned on the test frames themselves.
 
 
+#### 24 Sep — model improvement s → m → L (validation set) — for the report's "improving the model" section
+
+All on the D-27 set (143 hand-reviewed frames), which from here on is the
+**validation** set: models and settings were chosen on it, so none of these
+numbers is objective 2's result. That comes once, from a new bag (D-28).
+
+**1. Accuracy by model and threshold** (`.pt`, ultralytics letterbox → 480×640, no tracker):
+
+| model | F1 @ 0.5 | F1 @ 0.35 | F1 @ 0.25 | P / R @ 0.5 |
+|---|---:|---:|---:|---|
+| yolo26s | 66.3 % | 73.9 % | 77.9 % | 93.0 / 56.3 |
+| yolo26m | 67.4 % | 75.7 % | 79.8 % | 96.8 / 54.7 |
+| **yolo26l** | **79.0 %** | 83.5 % | 85.2 % | 97.1 / 71.0 |
+| yolo26x | — excluded: it drafted the labels | | | |
+
+yolo26l per class @ 0.5: person 71.9 · chair 48.1 · backpack 98.2 · laptop
+97.8. **Most of l's gain over m is backpack (77 → 98) — one bag at one pose
+(D-27) — so do not expect the full +12 points on a new scene.** Chair (22 → 48)
+and person (64 → 72) are the gains that generalise.
+
+**2. Export format** — same frames, conf 0.5:
+
+| yolo26m | F1 | | yolo26l | F1 |
+|---|---:|---|---|---:|
+| `.pt` | 67.4 % | | `.pt` | 79.0 % |
+| `.onnx` / `.engine` **640×640** | 65.5 / 65.6 % | | `.engine` fp16 **480×640** | **79.2 %** |
+| `.onnx` **480×640** | 67.4 % | | | |
+
+TensorRT fp16 costs nothing measurable; exporting square costs ~2 points
+because the 640×480 camera frame gets 160 rows of padding. The deployed
+yolo26s `.onnx` is square and pays this too.
+
+**3. Through the real node** — the old bag replayed into `yolo_detector`
+(ByteTrack, conf 0.5), `/detections` re-recorded, matched to the labelled
+frames by exact stamp. The replay's input rate sagged after ~110 s (node at a
+steady 15 Hz before that, infer+track p50 48 ms; the sag was the replay feed,
+not the model — processing time stayed flat), so 123 of 143 frames were
+processed; both rows are scored on those same 123:
+
+| detector (live path) | macro P | macro R | **macro F1** |
+|---|---:|---:|---:|
+| yolo26s `.onnx` 640×640 (as deployed, original recording) | 95.8 % | 51.9 % | 63.7 % |
+| **yolo26l `.engine` fp16 480×640** (replay) | 97.2 % | 69.8 % | **78.0 %** |
+
+**4. Cost on the Orin NX 8 GB** (`cap_ws/yolo/model_footprint.py`, nvpmodel
+15 W, nothing else on the GPU, `OPENBLAS_NUM_THREADS=1` as the node sets it;
+real frames, `track()`):
+
+| model | inference | track() wall | GPU load | process CPU | RAM |
+|---|---:|---:|---:|---:|---:|
+| yolo26s `.onnx` (deployed) | 36.7 ms | 71.3 ms | 50.7 % | 72 % | 1091 MB |
+| yolo26s `.pt` | 36.0 ms | 70.9 ms | 53.6 % | 94 % | 884 MB |
+| yolo26m `.pt` | 59.1 ms | 94.6 ms | 62.2 % | 76 % | 933 MB |
+| yolo26l `.pt` | 74.4 ms | 110.0 ms | 68.9 % | 78 % | 946 MB |
+| **yolo26l `.engine` fp16** | **36.4 ms** | 87.5 ms | **44.8 %** | **67 %** | **766 MB** |
+
+**TensorRT on yolo26l:** inference **−51 %** (74.4 → 36.4 ms), GPU load
+**−24 points** (68.9 → 44.8 %), RAM −180 MB, CPU −12 points — yolo26l as an
+engine costs less GPU than the yolo26s ONNX it replaces, at the same inference
+time. CPU % is of one core (6 cores). The script's wall times run high
+(its sampling thread shares the GIL); the node itself held 15 Hz at 48 ms p50
+on the replay, so read this table for the *comparison*, not absolute FPS.
+Objective 3 must be re-measured live with the engine.
+
+**Memory headroom:** 7.4 GB shared CPU/GPU, swap is zram only (no disk swap).
+Full stack with yolo26s peaked at 3.85 GB (`resource_session.jsonl`, 22–23
+Sep); yolo26l engine uses ~325 MB *less* than the yolo26s ONNX, so RAM is not
+the limit. Building an engine is: 3.1 GB for the builder, 13–14 min — never
+build one with the full stack running. Disk 75 GB free.
+
+**Why not bigger:** yolo26x is ruled out for the test by the labelling, not the
+hardware.
+
 ## Objective 3 — detection rate ≥ 5 FPS with SLAM running ✅
 
 **Already satisfied, with evidence, and the concurrency is not an assumption.**
