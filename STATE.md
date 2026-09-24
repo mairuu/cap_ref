@@ -3,7 +3,7 @@
 > **Update this at the end of every session and whenever a gate passes.**
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
-**Last updated:** 21 Sep 2026 — **DAY 7 IN PROGRESS.** Speeds were raised
+**Last updated:** 24 Sep 2026 (measurements; the 21 Sep text below stands) — **DAY 7 IN PROGRESS.** Speeds were raised
 (Nav2 earlier today, teleop this session); the IMU work from 18 Sep still has
 every driven measurement outstanding.
 
@@ -13,6 +13,16 @@ every driven measurement outstanding.
 > (`OPENBLAS_NUM_THREADS=1`, D-28), built.** Offline test: 263 % → 38 %.
 > **Next action: restart `make yolo`, re-run round C** (`MEASUREMENT-PLAN.md` §4)
 > with `update-manager` closed. Numbers: `records/calibration.md` → Objective 5.
+
+> 📏 **24 SEP — REPORT MEASUREMENTS (see `MEASUREMENT-PLAN.md`, the live runbook).**
+> Objective 2 ✅ **82.2 %** macro F1 (yolo26l TensorRT fp16 480×640, conf 0.4;
+> baseline yolo26s 64.4 %) — tuned on the same 143 frames, no held-out set
+> (D-27, D-29). Objective 3 ✅ **15.16 Hz** with SLAM + semantic. **The deployed
+> detector is now `make yolo MODEL=$HOME/yolo/yolo26l_480x640.engine CONF=0.4`**
+> — plain `make yolo` is still yolo26s ONNX. Node change: compiled models take
+> imgsz from the model (cap_ws `27dec07`). Still owed: rounds B (obj 4), C
+> (obj 5 CPU with the L engine), D (obj 1, old file fails), E (Nav2 figure).
+> Report is `project_report-good3.tex` only (good5 removed).
 
 > 🏃 **SPEED LIMITS CHANGED TWICE ON 21 SEP. Any figure quoted below from an
 > earlier session is at the OLD speed.**
