@@ -2800,5 +2800,13 @@ parked facing −x (171.8°), lap 2 C facing +y (92.4°). A at x 4.87–4.89 in 
 session since 23 Sep (except the 0.03203 lap) — a fixed ~12 cm, cause open
 (tape truth vs lidar scale; lidar read a wall at 3.01 m, tape value not given).
 
+| **`_0925c`** | **HOME → A → B → C, 1 lap, no HOME return** (battery died after C; Jetson rebooted, session lost), radius 0.0327, truths **A (4.85, 0) B (4.85, 3.5) C (0, 3.52)** | **6.4 cm** (A) | **6.5 cm** | — (1 visit each) | pairs mixed sign (−5.3…+5.7 cm): no scale error | −0.02° |
+
+`_0925c` per mark: A 6.4 (dx +5.7, dy +3.0), B 4.1, C 5.3 cm. Truths changed from
+A/B x = 5.0 to **4.85** and C y 3.5 → **3.52** — *provenance to confirm (re-taped?)*.
+Re-scored against those truths, `_0924c` would be worst 17.7 cm (C) and still fail,
+so the improvement is not the truth change alone: the start heading was better
+(A dy +3.0 cm vs +10.8 in `_0924c`). Not a full lap: the HOME return is missing.
+
 **0.03203 reverted (see Odometry (b)).** Still owed: ≥ 3 laps at 0.0327, and a check of
 what makes the map short (lidar range vs a wall at 2–4 m; re-tape HOME → A).
