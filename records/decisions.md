@@ -958,13 +958,18 @@ report must not describe the set as driven, multi-view or multi-distance.
 
 ---
 
-## D-28 · Objective 2 re-test: yolo26m as a TensorRT fp16 engine, conf 0.5
+## D-28 · Objective 2 re-test: yolo26l as a TensorRT fp16 engine (480×640), conf 0.5
 **Date:** 24 Sep 2026 · **Status:** adopted — **fixed before the new test set is recorded**
 
-The detector under test becomes `~/yolo/yolo26m_480x640.engine` (ultralytics
+The detector under test becomes `~/yolo/yolo26l_480x640.engine` (ultralytics
 export, fp16, **imgsz (480, 640)** to match the camera, batch 1, TensorRT 10.3),
-run by the existing node (`make yolo MODEL=~/yolo/yolo26m_480x640.engine`,
-`CONF` left at **0.5**). *Amended the same afternoon, before any test-set
+run by the existing node (`make yolo MODEL=~/yolo/yolo26l_480x640.engine`,
+`CONF` left at **0.5**). *Second amendment, 18:15, still before any test-set
+recording:* yolo26m → **yolo26l**, on the validation numbers — at conf 0.5
+yolo26l scored 79.0 % against yolo26m's 67.4 %. **Most of that gain is
+`backpack` (F1 77 → 98) — one bag at one pose in the D-27 set — so expect less
+on a new scene.** yolo26x is excluded outright: it drafted the labels, so
+scoring it would be grading its own answers. *Amended the same afternoon, before any test-set
 recording:* the first engine was exported at 640×640, which measured ~2 F1
 points worse on the validation set; the cause is the padding, not TensorRT
 (`records/calibration.md`, "The accuracy loss is the square input"). Objective 2
@@ -974,9 +979,9 @@ script defaults (IoU 0.5, conf 0.5, `--min-instances 50`, classes
 
 **Why:** the user's call. yolo26m was chosen from the exploratory sweep in
 `records/objective-tests.md`, so the D-27 set is now the *validation* set and
-cannot also be the test set. On it, yolo26m at conf 0.5 scored 67.4 % (vs
-66.3 % for yolo26s on the same untracked path) — **expect roughly that, not a
-pass**; the sweep's gain came from conf 0.25, which was offered and not taken.
+cannot also be the test set. On it, at conf 0.5: yolo26s 66.3 %, yolo26m
+67.4 %, **yolo26l 79.0 %** (all `.pt`, untracked). Expect the new set to land
+below 79 %; conf 0.25 (yolo26l 85.2 % on validation) was offered and not taken.
 
 **Pre-registered:** the conf-0.5 score on the new set is the objective 2
 result. If the same new set is later scored at another conf, that is a
