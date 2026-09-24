@@ -2806,9 +2806,25 @@ session since 23 Sep (except the 0.03203 lap) — a fixed ~12 cm, cause open
 A/B x = 5.0 to **4.85** and C y 3.5 → **3.52**. **Confirmed by the user 25 Sep: HOME→A re-taped
 (4.85 m). C = 3.52 is the robot's own taped position** — it parked 2 cm off the mark and
 could not be squared up closer, so the truth is where the robot was, not where the mark is.
-Re-scored against those truths, `_0924c` would be worst 17.7 cm (C) and still fail,
-so the improvement is not the truth change alone: the start heading was better
+Re-scored with A/B x = 4.85 (C kept at 3.5 — the 3.52 is `_0925c`'s parking only),
+`_0924c` is worst 15.9 cm (C) and still fails — see the re-score table below — so the
+improvement is not the truth change alone: the start heading was better
 (A dy +3.0 cm vs +10.8 in `_0924c`). Not a full lap: the HOME return is missing.
+
+**Earlier laps re-scored, A/B truth x 5.0 → 4.85 (user, 25 Sep: the 5.0 was a taping
+mistake, 4.85 is the real distance; applies to every session).** C/HOME truths unchanged.
+Via `slam_accuracy_check.py --summary` on copies with the truth edited:
+
+| file | A | B | C | HOME return | ABSOLUTE | ALIGNED | REPEAT |
+|---|---|---|---|---|---|---|---|
+| `_0924b` (lidar blind) | 3.6 | 15.7 | 15.9 | 13.6 | 15.9 FAIL | 13.8 FAIL | 6.8 |
+| `_0924c` | 11.7 | 2.0 | 15.9 | 6.4 | **15.9 FAIL** | **14.1 FAIL** (+0.75°) | 3.2 |
+| `_0925b` lap 1 / lap 2 | 10.7 / 16.7 | 8.4 / 15.4 | 21.2 / 31.2 | 8.9 / 34.4 | 34.4 FAIL | 8.8* | 25.7 |
+| `_0925c` | 6.4 | 4.1 | 5.3 | — | 6.4 PASS | 6.5 PASS | — |
+
+\* `_0925b` ALIGNED is fitted on each mark's mean over both laps, which averages the
+lap-2 jump away — not a pass. `_0924c`'s remaining error is C (dx −8.3, dy −13.6 cm)
+and the C–HOME pair reads 3.39 m against 3.50.
 
 **Used in the report as objective 1's result (25 Sep):** `tab:obj1`, `fig:slam-error`
 (`figures/slam_error_result.png`, `plot_objectives.py slam --slam-session
