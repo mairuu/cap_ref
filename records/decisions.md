@@ -958,6 +958,35 @@ report must not describe the set as driven, multi-view or multi-distance.
 
 ---
 
+## D-28 · Objective 2 re-test: yolo26m as a TensorRT fp16 engine, conf 0.5
+**Date:** 24 Sep 2026 · **Status:** adopted — **fixed before the new test set is recorded**
+
+The detector under test becomes `~/yolo/yolo26m.engine` (ultralytics export,
+fp16, 640, batch 1, TensorRT 10.3), run by the existing node
+(`make yolo MODEL=~/yolo/yolo26m.engine`, `CONF` left at **0.5**). Objective 2
+is re-scored **once**, on a NEW bag recorded with the robot moving, at the
+script defaults (IoU 0.5, conf 0.5, `--min-instances 50`, classes
+`person chair backpack laptop`).
+
+**Why:** the user's call. yolo26m was chosen from the exploratory sweep in
+`records/objective-tests.md`, so the D-27 set is now the *validation* set and
+cannot also be the test set. On it, yolo26m at conf 0.5 scored 67.4 % (vs
+66.3 % for yolo26s on the same untracked path) — **expect roughly that, not a
+pass**; the sweep's gain came from conf 0.25, which was offered and not taken.
+
+**Pre-registered:** the conf-0.5 score on the new set is the objective 2
+result. If the same new set is later scored at another conf, that is a
+post-hoc analysis, reported beside it, never instead of it.
+
+**Cost:** objective 3's 13.05 FPS and D-22 were measured with yolo26s ONNX;
+both must be re-measured with this engine. The engine is tied to TensorRT 10.3
+(D-11's objection) — the `.pt` and `.onnx` stay on disk as the rebuildable source,
+and `make yolo` with no MODEL is still the yolo26s ONNX path.
+
+**Reversal:** `make yolo` (defaults) — nothing else changed.
+
+---
+
 ## Template
 
 ```
