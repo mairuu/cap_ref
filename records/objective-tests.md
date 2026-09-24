@@ -237,6 +237,46 @@ turns "we used a pretrained model" into "we quantified what deployment cost".
 > landmark set from 22 Sep contains `chair`, `bench`, `person`, `laptop`. Pick
 > the list, and the labelling and the scorer follow from it.
 
+### Run log
+
+#### 24 Sep — attempt 1: bag recorded, extracted, pre-labelled — **NOT USABLE, robot stationary**
+
+**Method as run** (round A of `MEASUREMENT-PLAN.md`):
+
+| Step | What | Result |
+|---|---|---|
+| Stack | `make real` · `make yolo` (yolo26s ONNX fp16, 640, conf 0.5) · `make teleop` — no SLAM, no semantic | |
+| Frames | `image_transport republish raw compressed` of **`/image`** (raw camera, no drawn boxes) → `/image/compressed`, 15.13 Hz | a first bag at 16:37 had only `/detections/image` (annotated) and was discarded |
+| Record | `make bag TOPICS="/image/compressed /detections"`, zstd file mode | `~/bags/2026-09-24-165025`: 3962 images, 3549 detection msgs, ≈4.5 min |
+| Extract | `extract --every 23 --matched-only` | 3283/3962 images processed by the detector (≈13 FPS vs 15 Hz camera) → **143 frames, 143/143 matched at stamp** |
+| Pre-label | `prelabel --model ~/yolo/yolo26x.pt` (conf 0.25), classes `person chair backpack laptop` | drafts: person 296 · chair 448 · backpack 143 · laptop 114 |
+
+`--matched-only` is used because the detector copies the image header: a frame
+it processed has a detection message at exactly its stamp, even an empty one,
+so an unmatched frame is one it dropped — scoring it as all-misses penalises a
+frame the model never saw, and `--slop 0.1` would pin a neighbour's boxes on it.
+
+**Why it is not usable.** Every one of the 143 frames is the same viewpoint:
+one laptop and one backpack on the floor at the left, the same blue chair at the
+right, only the people move. So `laptop` and `backpack` are **one object each at
+one pose, 143 times** — the ≥ 50-instance rule counts instances, and these are
+one sample repeated. This is exactly the "อย่าจอดนิ่ง" failure the plan warns
+about. Not labelled; not scored as a result.
+
+**Provisional, NOT the objective 2 result** — yolo26s at conf 0.5 scored against
+the *uncorrected* yolo26x drafts (i.e. agreement between two models, on the
+unusable set): macro prec 98.5 %, recall 53.2 %, F1 65.3 %; per class F1 person
+63.8 · chair 27.6 · backpack 77.8 · laptop 92.0. Kept only for what it predicts
+about the real run: **chair recall is where macro F1 will be lost.** The room
+has many small, distant, partly hidden chairs under the desks; the labelling
+rule is "every visible instance", so they count, and yolo26s at 0.5 misses most
+of them. Do not change the rule or the class list because of this
+(`MEASUREMENT-PLAN.md` §7.1).
+
+**Next:** re-record round A **driving the whole time** — several distances and
+angles, 2–3 backpacks, 1–2 laptops — then extract into a fresh directory. The
+attempt-1 data is kept as `~/eval/insitu2_stationary` for reference.
+
 ## Objective 3 — detection rate ≥ 5 FPS with SLAM running ✅
 
 **Already satisfied, with evidence, and the concurrency is not an assumption.**
