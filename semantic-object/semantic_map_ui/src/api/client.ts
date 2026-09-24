@@ -13,13 +13,7 @@ import type { HealthResponse, OccupancyGrid } from '../state/types'
 //
 // VITE_BACKEND_URL still wins when set, for the case where the bridge and the
 // UI are genuinely on different machines. Leave it unset unless that is true.
-// Two cases, and the port tells them apart. Vite serves this page on 3000
-// with the bridge next door on 8000; the bridge serves it at /app on 8000,
-// where same-origin is both correct and one fewer thing to be wrong.
-const derived =
-  window.location.port === '3000'
-    ? `${window.location.protocol}//${window.location.hostname}:8000`
-    : window.location.origin
+const derived = `${window.location.protocol}//${window.location.hostname}:8000`
 
 export const BASE_URL = import.meta.env.VITE_BACKEND_URL || derived
 
