@@ -3,7 +3,7 @@
 > **Update this at the end of every session and whenever a gate passes.**
 > Claude reads this first. If it is stale, Claude works from stale assumptions.
 
-**Last updated:** 24 Sep 2026 (measurements; the 21 Sep text below stands) — **DAY 7 IN PROGRESS.** Speeds were raised
+**Last updated:** 25 Sep 2026 (obj 1 into the report; the 21 Sep text below stands) — **DAY 7 IN PROGRESS.** Speeds were raised
 (Nav2 earlier today, teleop this session); the IMU work from 18 Sep still has
 every driven measurement outstanding.
 
@@ -24,8 +24,10 @@ every driven measurement outstanding.
 > `make yolo` now runs yolo26l TensorRT 480×640 at conf 0.4 (D-30)** and
 > rebuilds the engine if missing (~13 min, stack down). Node change: compiled models take
 > imgsz from the model (cap_ws `27dec07`). Round B (obj 4) ✅ **PASS, worst 33.8 cm, mean 18.8 cm** (report from `~/maps/object_accuracy_chair_final.jsonl`) — see `records/calibration.md` → Objective 4. C ✅ (obj 5, above).
-> Still owed: **D only** (obj 1, old file fails) -> `slam_error_result.png`, the last
-> `\imgph` in the report. E: `nav2_costmap_path.png` in (local costmap only; user
+> ~~Still owed: D only~~ **D ✅ 25 Sep: obj 1 PASS, worst 6.4 cm (ALIGNED 6.5) at A/B/C,
+> `_0925c`, 1 lap, NO HOME return (battery died), area 4.85 × 3.52 m. In the report
+> (`tab:obj1`, `slam_error_result.png`) with those limits stated.** A full lap back to
+> HOME is still worth driving if there is time; report whatever it gives. E: `nav2_costmap_path.png` in (local costmap only; user
 > declined a retake with a path). `all_nodes_running.png` in (user's screenshot). `ros2_node_graph` (headless, `node_graph.py`) and
 > `tf_tree` (`view_frames`) ✅ made 24 Sep 22:07 from the live demo stack.
 > Report is `project_report-good3.tex` only (good5 removed).
