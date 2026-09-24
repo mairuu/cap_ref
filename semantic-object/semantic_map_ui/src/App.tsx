@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from './api/client'
 import { createStateWs } from './api/websocket'
 import { buildOffscreenCanvas } from './utils/base64'
@@ -7,6 +7,7 @@ import type { WsStateMessage } from './state/types'
 import { MapCanvas, FollowButton } from './components/Map/MapCanvas'
 import { CameraPanel } from './components/CameraPanel'
 import { ConnectionBanner } from './components/ConnectionBanner'
+import { OpsDrawer } from './components/Ops/OpsDrawer'
 
 const HEALTH_POLL_MS = 5_000
 // The map is FETCHED REPEATEDLY, not once. slam_toolbox keeps extending the
@@ -20,6 +21,7 @@ const HEALTH_POLL_MS = 5_000
 const MAP_POLL_MS = 3_000
 
 export function App() {
+  const [opsOpen, setOpsOpen] = useState(false)
   const setWsConnected   = useStore((s) => s.setWsConnected)
   const setRosConnected  = useStore((s) => s.setRosConnected)
   const applyStateMessage = useStore((s) => s.applyStateMessage)
@@ -68,6 +70,18 @@ export function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // O toggles the stack drawer, next to the existing R / F / C shortcuts.
+  // Ignored while typing, so it cannot fire from a text field.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const el = e.target as HTMLElement | null
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return
+      if (e.key === 'o' || e.key === 'O') setOpsOpen((v) => !v)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   return (
     <div className="flex flex-col h-screen bg-bg-base text-text-primary overflow-hidden">
       <ConnectionBanner />
@@ -106,6 +120,9 @@ export function App() {
 
         {/* Camera / status panel */}
         <CameraPanel />
+
+        {/* Operator console */}
+        <OpsDrawer open={opsOpen} onClose={() => setOpsOpen(false)} />
       </div>
 
       {/* Footer: keyboard shortcuts */}
@@ -114,6 +131,7 @@ export function App() {
           ['R', 'reset view'],
           ['F', 'toggle follow'],
           ['C', 'clear map'],
+          ['O', 'stack console'],
         ].map(([key, label]) => (
           <span key={key} className="font-mono text-[10px] text-text-dim">
             <kbd className="px-1 py-0.5 border border-bg-border rounded text-text-secondary mr-1">

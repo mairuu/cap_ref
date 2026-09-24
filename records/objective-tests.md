@@ -247,7 +247,7 @@ turns "we used a pretrained model" into "we quantified what deployment cost".
 |---|---|---|
 | Stack | `make real` · `make yolo` (yolo26s ONNX fp16, 640, conf 0.5) · `make teleop` — no SLAM, no semantic | |
 | Frames | `image_transport republish raw compressed` of **`/image`** (raw camera, no drawn boxes) → `/image/compressed`, 15.13 Hz | a first bag at 16:37 had only `/detections/image` (annotated) and was discarded |
-| Record | `make bag TOPICS="/image/compressed /detections"`, zstd file mode | `~/bags/2026-09-24-165025`: 3962 images, 3549 detection msgs, ≈4.5 min |
+| Record | `make bag TOPICS="/image/compressed /detections"`, zstd file mode | `~/bags/2026-09-24-165025`: 3962 images, 3549 detection msgs, 290 s (4.8 min) |
 | Extract | `extract --every 23 --matched-only` | 3283/3962 images processed by the detector (≈13 FPS vs 15 Hz camera) → **143 frames, 143/143 matched at stamp** |
 | Pre-label | `prelabel --model ~/yolo/yolo26x.pt` (conf 0.25), classes `person chair backpack laptop` | drafts: person 296 · chair 448 · backpack 143 · laptop 114 |
 
