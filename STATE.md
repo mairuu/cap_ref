@@ -24,8 +24,9 @@ every driven measurement outstanding.
 > `make yolo` now runs yolo26l TensorRT 480×640 at conf 0.4 (D-30)** and
 > rebuilds the engine if missing (~13 min, stack down). Node change: compiled models take
 > imgsz from the model (cap_ws `27dec07`). Round B (obj 4) ✅ **PASS, worst 33.8 cm, mean 18.8 cm** (report from `~/maps/object_accuracy_chair_final.jsonl`) — see `records/calibration.md` → Objective 4. C ✅ (obj 5, above).
-> Still owed: D (obj 1, old file fails), E (Nav2 figure), and the
-> `all_nodes_running` screenshot. `ros2_node_graph` (headless, `node_graph.py`) and
+> Still owed: D (obj 1, old file fails) and the `all_nodes_running` screenshot.
+> E: `nav2_costmap_path.png` in the report (local costmap only, cropped from the
+> user's RViz shot `figures/Untitled.jpeg`) -- no planned path / goal in it. `ros2_node_graph` (headless, `node_graph.py`) and
 > `tf_tree` (`view_frames`) ✅ made 24 Sep 22:07 from the live demo stack.
 > Report is `project_report-good3.tex` only (good5 removed).
 

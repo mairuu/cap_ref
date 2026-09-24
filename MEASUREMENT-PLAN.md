@@ -283,7 +283,7 @@ python3 plot_objectives.py resource --window "full stack"    # หลังร�
 | `all_nodes_running.png` | แคปเทอร์มินัล `ros2 node list` ขณะเปิดครบ |
 | `resource_usage.png` | ✅ มีแล้ว |
 | `slam_error_result.png` | รอบ D → 6.1 |
-| `nav2_costmap_path.png` | รอบ E |
+| `nav2_costmap_path.png` | ✅ ใส่แล้ว (local costmap เท่านั้น ไม่มีเส้นทาง/เป้าหมาย) |
 
 ### 6.4 เช็กลิสต์ก่อนส่ง
 
