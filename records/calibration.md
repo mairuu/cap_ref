@@ -2622,3 +2622,13 @@ the model's metadata and uses it even when the node passes `imgsz=640`
 yolo26l `.engine` fp16 480×640, **conf 0.4 → macro F1 82.2 %** (P 96.2 / R 75.1)
 on the D-27 set, offline, no tracker. Tuned on the same frames (no held-out
 test). Baseline yolo26s ONNX conf 0.5: 64.4 %. Details: `records/decisions.md` D-29.
+
+### yolo26l engine live on the camera, standalone (24 Sep 2026, 18:58)
+
+`make yolo MODEL=$HOME/yolo/yolo26l_480x640.engine CONF=0.4`, real camera
+(cam2image 640×480 @ 15), nothing else running. Node log, 5 s windows over
+~40 s: **15.1–15.2 Hz** (camera-limited — every frame processed),
+infer+track p50 **40.9–50.9 ms**, max 57 ms after the first window (86 ms
+first window, warm-up); age@publish p50 44–54 ms. Load 363 ms, warm-up 2.4 s;
+`imgsz [480, 640] (from the model)` confirmed in the log.
+**Not objective 3's condition** (SLAM running) — that run is still owed.
