@@ -2654,3 +2654,48 @@ Compared with the earlier 13.05 Hz (yolo26s ONNX, 22 Sep demo bag, full stack
 *and the recorder*, robot driving): conditions differ — this run had no Nav2,
 no recorder and a stationary robot — so the pair shows the criterion is met
 with margin, not that yolo26l is faster.
+
+## Objective 4 — object position, chair, four passes (24 Sep 2026, 20:52–21:02) — **FAIL by 1.5 mm**
+
+Method: `MEASUREMENT-PLAN.md` §2.2, `object_accuracy.py` (tape from the drive-axle
+midpoint, robot frame; 30 s still per pass; criterion 50 cm). Stack: `make real`
+· `make slam` · `make semantic` · `make yolo` (yolo26l TensorRT, conf 0.4).
+Landmarks were **not** cleared between passes. Raw rows: `~/maps/object_accuracy.jsonl`.
+
+| Pass | Tape (fwd, left) | System (fwd, left) | Error | Spread in window | Landmark map (x, y) |
+|---|---|---|---|---|---|
+| front | (+1.60, +0.00) | (+1.667, −0.023) | **7.4 cm** | 16.0 cm | (+1.673, +0.042) |
+| right | (+1.60, +0.00) | (+1.503, −0.221) | **24.8 cm** | 14.3 cm | (+1.517, −0.178) |
+| back  | (+1.84, −0.23) | (+1.347, −0.319) | **50.15 cm ✗** | 11.2 cm | (+1.838, −0.229) |
+| left  | (+1.95, −0.05) | (+1.783, +0.084) | **21.6 cm** | 10.0 cm | (+2.048, −0.131) |
+
+| Metric | Value |
+|---|---|
+| Mean error | **26.0 cm** |
+| Worst error | **50.15 cm** against 50 cm → **FAIL** (by 1.5 mm, below tape resolution — but it is the number) |
+| Across-pass spread of the mapped position | 27.9 cm |
+| Landmark id | `783d3c01` in all four → **one landmark, no duplicates** across viewpoints |
+
+**`--summary` as run is wrong for this set.** It also reads a superseded `front`
+pass from 20:50:25 (id `e6e5e439`, 29.5 cm; the plan says re-measure front), so it
+prints five rows, mean 26.7 cm, spread 42.2 cm and "INDEPENDENT". The table above
+is `summarise()` on the four 20:52+ rows only.
+
+**The 27.9 cm spread is viewpoint dependence in practice, not convergence**, even
+though the id did not change. The store's EMA is α = 0.3 *per fusion*, and the
+node fused tens of detections per 5 s during each pass, so the previous view's
+weight is < 1 % after ~13 fusions (1–2 s). Each 30 s window is effectively a
+fresh estimate from that side. What the unchanged id proves is the merge: one
+chair stayed one landmark from all four sides.
+
+**The back pass carries a flag — OPEN.** Its tape entry (1.84, −0.23) matches that
+pass's *landmark map position* (1.838, −0.229) to 2 mm in both axes. Tape is
+robot frame and the map position is map frame; with the robot behind the chair
+they should be unrelated numbers. If those values were read off the UI inspector
+(which shows the map position) instead of pulled with a tape, the pass is invalid
+and must be re-run, not reported. Asked the user 24 Sep.
+
+The back error is almost all along the bearing (fwd −0.49 m, left −0.09 m): the
+system put the chair ~0.5 m *nearer* than the tape. Consistent with `range_method:
+"min"` taking the nearest leg / backrest return (see `troubleshooting/` "YOLO
+boxes a chair but no chair landmark") — unconfirmed.

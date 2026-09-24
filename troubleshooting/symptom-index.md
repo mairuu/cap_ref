@@ -1301,6 +1301,19 @@ Work down the chain: is TF resolving at the detection timestamp? Are the
 intrinsics real or still `554.0`? Is `min_returns` rejecting everything because
 the dropout rate is worse than assumed? Is the detection topic name right?
 
+### YOLO boxes a chair (conf 0.95) but no chair landmark ever appears
+**`max_spread` rejects it — the lidar sees through the chair.** At scan-plane
+height a chair is four legs and air: the window gets a few near returns off the
+legs and the rest off the wall behind. Measured live 24 Sep (one-off probe using
+the node's own `LidarRangeExtractor` on `/scan` + `/detections`): nearest return
+**1.55 m**, median **3.2 m**, spread **1.84 m** against `max_spread 0.5` →
+**10/207 chair detections valid**. (`person` 2/2, spread 0.07 — solid objects
+pass.) The node's 5 s report shows it as `rejected: max_spread N` dominating.
+Worse, the few that *do* pass are frames where every leg ray dropped out, so
+they read the **wall** (~3.1 m), not the chair (~1.6 m by box width). Raising
+`max_spread` would accept exactly those wrong ranges. The fix is to range on the
+**nearest cluster** of returns rather than reject on total spread — not done yet.
+
 ### Landmarks appear roughly 2 m too far away
 **P4** — the object is off the lidar's scan plane (a cup on a table, a bottle on
 a shelf) and `range_method: "min"` returned the background wall. Expected and
