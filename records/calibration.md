@@ -2791,7 +2791,7 @@ into the map plus the robot's heading at `make slam` (setup, not drift). The
 fitted −2.3 % was **not** applied; the radius came from the taped run above.
 | `_0925a` | HOME + A only, `wheel_radius` 0.03203 | A 19.2 cm (4.817, 0.061) | — | — | — | — |
 
-| **`_0925b`** (current file) | **2 laps**, radius 0.0327, lidar full circle | **34.4 cm** | **16.1 cm** | **25.7 cm** (HOME) | −2.0 % | +1.75° |
+| **`_0925b`** | **2 laps**, radius 0.0327, lidar full circle | **34.4 cm** | **16.1 cm** | **25.7 cm** (HOME) | −2.0 % | +1.75° |
 
 `_0925b` per lap: lap 1 worst 22.7 cm (B), HOME return 8.9 cm. **Lap 2 slipped:**
 every mark moved +y against lap 1, and between B and C by **+46 cm** (C 3.343 → 3.805);
