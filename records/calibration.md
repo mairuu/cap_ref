@@ -2655,7 +2655,7 @@ Compared with the earlier 13.05 Hz (yolo26s ONNX, 22 Sep demo bag, full stack
 no recorder and a stationary robot — so the pair shows the criterion is met
 with margin, not that yolo26l is faster.
 
-## Objective 4 — object position, chair, four passes (24 Sep 2026, 20:52–21:02) — **PASS, worst 33.8 cm** (after the back-pass tape correction)
+## Objective 4 — object position, chair, four passes (24 Sep 2026, 20:52–21:02) — **PASS, worst 33.8 cm** (after back- and left-pass tape corrections)
 
 Method: `MEASUREMENT-PLAN.md` §2.2, `object_accuracy.py` (tape from the drive-axle
 midpoint, robot frame; 30 s still per pass; criterion 50 cm). Stack: `make real`
@@ -2667,11 +2667,11 @@ Landmarks were **not** cleared between passes. Raw rows: `~/maps/object_accuracy
 | front | (+1.60, +0.00) | (+1.667, −0.023) | **7.4 cm** | 16.0 cm | (+1.673, +0.042) |
 | right | (+1.60, +0.00) | (+1.503, −0.221) | **24.8 cm** | 14.3 cm | (+1.517, −0.178) |
 | back  | (+1.458, +0.00) ¹ | (+1.347, −0.319) | **33.8 cm** | 11.2 cm | (+1.838, −0.229) |
-| left  | (+1.95, −0.05) | (+1.783, +0.084) | **21.6 cm** | 10.0 cm | (+2.048, −0.131) |
+| left  | (+1.70, +0.12) ² | (+1.783, +0.084) | **9.0 cm** | 10.0 cm | (+2.048, −0.131) |
 
 | Metric | Value |
 |---|---|
-| Mean error | **21.9 cm** |
+| Mean error | **18.8 cm** |
 | Worst error | **33.8 cm** (back) against 50 cm → **PASS** |
 | Across-pass spread of the mapped position | 27.9 cm |
 | Landmark id | `783d3c01` in all four → **one landmark, no duplicates** across viewpoints |
@@ -2705,7 +2705,15 @@ the robot is still at the SLAM start pose, which is why the front pass looked
 fine either way.
 
 After the correction the back error is mostly **lateral** (left −0.32 m, fwd
-−0.11 m). The other passes err sideways too (right −0.22, left +0.13). Not
-diagnosed.
+−0.11 m). The right pass errs sideways too (−0.22 m). Not diagnosed.
 
-**Left pass (1.95, −0.05): asked whether that was also a tape pull. Unconfirmed.**
+² **Left-pass tape also corrected after the fact.** It was entered as (1.95, −0.05)
+by mistake. The user gave the real tape as **(1.70, 0.12)**. The error was
+recomputed from the window mean: **9.0 cm** (it had been 21.6 cm). Same file,
+same caveat on `worst_m`.
+
+**Provenance, to state in the report:** two of the four tape values (back, left)
+were supplied after the run, not entered at it. The system positions are the
+recorded window means and were not changed. A clean re-run (clear landmarks
+before each side, tape entered at the time) would remove that caveat, at about
+1 min per side.
