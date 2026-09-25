@@ -2831,5 +2831,25 @@ and the C–HOME pair reads 3.39 m against 3.50.
 ~/maps/slam_accuracy_0925c.jsonl`), stated as 3 marks / 1 lap / no HOME return / area
 4.85 × 3.52 m, with the earlier over-criterion laps and the 46 cm jump disclosed.
 
+| **`_0925d`** | **HOME → A → B → C → HOME, 1 full lap**, 25 Sep 22:10, **after D-32** (restart time not confirmed), radius 0.0327, `make slam` defaults (no IMU/EKF), truths **A (5.0, 0) B (5.0, 3.5) C (0, 3.5)** | **8.0 cm** (C) | **7.8 cm** (+0.43°) | HOME return 6.5 cm (the only revisit) | all 6 pairs short, −0.4…−7.9 cm; fitted −0.56 % | +0.43° |
+
+`_0925d` per mark: A 7.4 (dx −0.9, dy +7.4), B 2.5, C 8.0 (dy −7.8), HOME return 6.5 (dx +6.5);
+mean 6.1 cm. Split out of `~/maps/slam_accuracy.jsonl` lines 24–28 (that file pools five
+sessions, 21:33–22:10 — its `--summary` is meaningless as a whole).
+**Truth A/B x = 5.0: the user stated 25 Sep late that 5 is correct for this run**, which
+contradicts the "4.85 applies to every session" note above; not reconciled. Re-scored at
+4.85 this lap would be A 15.9 / B 12.6 cm FAIL. A reads 4.99 here vs 4.87–4.89 in every
+earlier session, consistent with the marks having been moved to 5.0.
+The same session continued a lap 2 (lines 29–33): A 6.4, B 3.1 cm, then **someone bumped
+the robot on B → C** and SLAM never recovered — C 103.4 / 101.8 cm, HOME 93.0 cm, a
+persistent ~1 m offset. Excluded at the user's request; not in the report. So the D-32 test
+(REPEAT vs `_0925b`'s 25.7 cm) is **inconclusive**: pre-bump A/B repeat is 1.3 cm, but the
+near-chain gate only acts on revisits and the lap that exercises it was disturbed.
+
+**Used in the report as objective 1's result (25 Sep late), replacing `_0925c`:** `tab:obj1`
+(4 rows incl. HOME return), abstract, summary bullet and `tab:eval` row 1 → 8.0 cm;
+`figures/slam_error_result.png` from `plot_objectives.py slam --slam-session
+~/maps/slam_accuracy_0925d.jsonl`.
+
 **0.03203 reverted (see Odometry (b)).** Still owed: ≥ 3 laps at 0.0327, and a check of
 what makes the map short (lidar range vs a wall at 2–4 m; re-tape HOME → A).

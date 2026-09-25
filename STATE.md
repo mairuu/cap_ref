@@ -7,6 +7,12 @@
 (Nav2 earlier today, teleop this session); the IMU work from 18 Sep still has
 every driven measurement outstanding.
 
+> 📏 **25 Sep (22:10) — objective 1 re-run after D-32: 1 full lap PASS, worst 8.0 cm
+> (ALIGNED 7.8), HOME return 6.5 cm. In the report, replacing `_0925c`** (`_0925d`,
+> truths A/B x = 5.0 per the user). Lap 2 was bumped between B and C and SLAM held a
+> ~1 m offset to the end — excluded; the D-32 lap-2 test is therefore still open.
+> See `records/calibration.md` → `_0925d`.
+
 > 🧭 **25 Sep (late) — SLAM trusts odometry more (D-32), NOT YET DRIVEN.**
 > `link_match_minimum_response_fine` 0.1 → **0.35** (near-chain matches were
 > unpenalised and overwrote the keyframe pose — the likely route for `_0925b`'s

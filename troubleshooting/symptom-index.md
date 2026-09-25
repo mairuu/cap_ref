@@ -1432,3 +1432,13 @@ the normal X2 dropout (scattered ~19–28 % zeros): a contiguous arc at 0 %. Fix
 that worked: clean the lidar window and replug its USB (24 Sep 23:43). Root cause
 not isolated (dirt vs. connector). Before any accuracy run, look at one `/scan`
 in RViz or with `scan_dropout_report.py` for a solid empty arc. (24 Sep)
+
+### Robot bumped mid-lap; every later mark is off by ~1 m and never comes back
+Seen on objective 1 `_0925d` lap 2 (after D-32): A 6.4 and B 3.1 cm, then a person
+bumped the robot on the B → C leg; C read 103 / 102 cm and HOME 93 cm, a steady ~1 m
+offset plus ~10° of yaw. Not the bump's physical size — SLAM lost track and did not
+re-localise. Cause not isolated (no bag recorded). Plausibly: the push moved the robot
+without the encoders seeing it, and with D-32 trusting odometry more and the search
+window at ±15 cm / ±10°, the matcher could not pull it back. Fix: none in place; a
+session disturbed like this is spent — restart `make slam` at HOME. Keep people clear
+of the robot during accuracy laps. (25 Sep)
