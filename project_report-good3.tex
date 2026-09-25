@@ -165,6 +165,8 @@
 \setlength{\cftsecindent}{3.2cm}
 \setlength{\cftsecnumwidth}{1.6cm}
 \setlength{\cftbeforechapskip}{6pt}
+% สารบัญแสดงถึงระดับหัวข้อ x.x ตาม Template (หัวข้อ x.x.x เดิมเยื้องผิดตำแหน่ง)
+\setcounter{tocdepth}{1}
 
 \renewcommand{\cfttabpresnum}{ตารางที่ }
 \renewcommand{\cfttabaftersnum}{\hspace{1em}}
@@ -3233,6 +3235,8 @@ static void doPID(SetPointInfo *p) {
 และ \texttt{r} คือระยะทางที่ได้จากลำแสงไลดาร์
 (ตัดส่วนการสร้างค่าที่ส่งกลับในกรณีปฏิเสธออกเพื่อความกระชับ)
 
+% ครอบด้วย minipage กันโค้ดบรรทัดสุดท้ายหลุดไปอยู่หน้าใหม่คนเดียว
+\noindent\begin{minipage}{\textwidth}
 {\small
 \begin{verbatim}
 az_base_ros = -estimate.azimuth_center + self.extrinsics.yaw
@@ -3253,5 +3257,6 @@ x_in_base = cx + t * dx_ray
 y_in_base = cy + t * dy_ray
 \end{verbatim}
 }
+\end{minipage}
 
 \end{document}
