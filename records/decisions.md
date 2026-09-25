@@ -1122,3 +1122,56 @@ off the tape line — ~0.72 m at the 5 m mark before any SLAM error. Offered a
 bias re-measure (`imu_check.py`); **the user chose plain `make real`.** The
 EKF stays default-off, and objective 1 is measured on the same configuration as
 objectives 2–5.
+
+---
+
+## D-32 · Trust odometry, round 2: gate the near-chain matcher, lower the penalty floors
+**Date:** 25 Sep 2026 · **Status:** adopted, **untested on a moving robot** · extends D-18
+
+User request: make SLAM trust odometry more. Four `slam_toolbox` parameters in
+`cap_ws/src/my_bot/config/mapper_params_online_async.yaml`. The search window
+(±15 cm / ±10°) is **unchanged**:
+
+| Parameter | Was | Now | Effect |
+|---|---|---|---|
+| `link_match_minimum_response_fine` | 0.1 (upstream) | **0.35** | weak near-chain matches no longer move the keyframe |
+| `minimum_distance_penalty` | 0.5 (upstream) | **0.3** | a candidate 9.4–15 cm from odom needs 3.3× odom's correlation (was 2×) |
+| `angle_variance_penalty` | 0.15 | **0.1** | 3° costs 5.5 %, 5.7° costs 20 % |
+| `minimum_angle_penalty` | 0.8 | **0.7** | floor reached at 7° instead of 8.6° |
+
+**Why, and the part D-18 missed.** I re-read the humble-branch `karto_sdk/Mapper.cpp`,
+and odometry has a second bypass besides the loop closure. `MapperGraph::LinkNearChains`
+matches every new keyframe against each older scan chain within
+`link_scan_maximum_distance` (1.5 m) with **`doPenalize=false`**. It keeps any
+match with a response above `link_match_minimum_response_fine`, and then `AddEdges`
+**overwrites the keyframe's pose** with the covariance-weighted mean of those
+matches and the penalised sequential one (`Mapper.cpp:1493–1496`). At 0.1, nearly any
+overlap passes. Near chains only exist once the robot is revisiting ground, so
+this bypass is live on lap 2 and not on lap 1. That matches `_0925b`: lap 1 was
+fine, and lap 2 jumped +46 cm between B and C. It fits, but it is **not
+shown**: nobody checked whether that jump was a near-chain link or a loop closure.
+
+The floor change covers the other gap. At `distance_variance_penalty` 0.05 the
+penalty reached its 0.5 floor at 7.9 cm, so every candidate from 8 cm out to the
+15 cm window edge cost the same. Past 8 cm, odometry had no say at all.
+
+**Deliberately not changed:** the loop-closure matcher (unpenalised by design;
+closing drift is its job), the search window, and `distance_variance_penalty`
+(already 0.05).
+
+**Cost:** the D-18 cost, but bigger. Odometry error now leaks into the map more
+readily: a wheel-radius scale error shows up as map scale (`_0924c` fitted
+−2.3 %, `_0925c` none), and the robot recovers less easily from wheel slip
+(D-23; the EKF is off). The angle floor now starts at 7°, below the 10° window edge,
+so a slip of more than about 7° in one keyframe is harder to recover than before.
+If `link_match_minimum_response_fine` rejects every near chain, the graph only
+gets its extra constraints from loop closures, which is how the sequential chain
+behaves anyway.
+
+**Test:** this needs `make slam` restarted (the config is symlinked, so no
+rebuild). Then a ≥ 2-lap objective 1 run at 0.10 m/s. The number to compare is
+`_0925b`'s lap-2 shift (REPEAT 25.7 cm). If REPEAT improves and ALIGNED does not
+get worse, keep this. If the map starts showing a scale error, the odometry is
+the problem, not the matcher.
+
+**Rollback:** 0.1 / 0.5 / 0.15 / 0.8.

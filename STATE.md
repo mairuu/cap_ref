@@ -7,6 +7,14 @@
 (Nav2 earlier today, teleop this session); the IMU work from 18 Sep still has
 every driven measurement outstanding.
 
+> 🧭 **25 Sep (late) — SLAM trusts odometry more (D-32), NOT YET DRIVEN.**
+> `link_match_minimum_response_fine` 0.1 → **0.35** (near-chain matches were
+> unpenalised and overwrote the keyframe pose — the likely route for `_0925b`'s
+> lap-2 +46 cm jump), `minimum_distance_penalty` 0.5 → **0.3**,
+> `angle_variance_penalty` 0.15 → **0.1**, `minimum_angle_penalty` 0.8 → **0.7**.
+> Window unchanged. **Restart `make slam` to pick it up** (symlinked, no build).
+> Test = a ≥ 2-lap objective 1 run; compare REPEAT to `_0925b`'s 25.7 cm.
+
 > 🧮 **24 Sep — objective 5 (CPU ≤ 80 %) ✅ PASS at 55.8 %, IN THE REPORT.**
 > Pre-fix 81.5 % (23 Sep, yolo26s ONNX) → post-fix **55.8 %** (24 Sep 19:58 window,
 > 472 of 596 s: yolo restart 129–175 s and the stack-off tail from 521 s excluded,
