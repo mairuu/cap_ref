@@ -53,8 +53,12 @@ class SemanticBridgeNode:
         self._node = _Node("semantic_bridge")
         node = self._node
 
-        # temp !!IMPORTANT
-        state.set_ros_connected(True)
+        # ros_connected is NOT set here. It used to be, marked
+        # `# temp !!IMPORTANT`, which made /api/health report the robot
+        # connected the instant this node was constructed -- true with the
+        # robot switched off, with the lidar unplugged, with nothing else
+        # running at all. update_landmarks() sets it when a message actually
+        # arrives, which is the only evidence that means anything.
 
         # TF
         self._tf_buffer = tf2_ros.Buffer()

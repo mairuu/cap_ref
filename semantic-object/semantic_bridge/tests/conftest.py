@@ -4,8 +4,31 @@ from __future__ import annotations
 
 import pytest
 
+from semantic_bridge.config import settings
 from semantic_bridge.models import Landmark, RobotPose, ScanSnapshot
 from semantic_bridge.state import AppState
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _no_stack_console():
+    """Never start the process supervisor in tests.
+
+    Two reasons, and the second is the one that bites. It is a facility for
+    starting and stopping a robot; unit tests of REST handlers have no
+    business with it. And it spawns subprocesses, while TestClient builds a
+    NEW EVENT LOOP PER TEST -- asyncio's child watcher is process-global and
+    stays bound to the first loop, so from the second test onwards every
+    subprocess call waits out its full timeout instead of reaping. One test
+    took 5.5 s; five took over two minutes and never finished.
+
+    Production has exactly one event loop for the life of the process, so this
+    is a test-harness problem rather than a bug in the supervisor -- but a
+    suite that cannot finish is not a suite.
+    """
+    previous = settings.stack_enabled
+    settings.stack_enabled = False
+    yield
+    settings.stack_enabled = previous
 
 
 def make_landmark(i: int = 0, stale: bool = False) -> Landmark:
